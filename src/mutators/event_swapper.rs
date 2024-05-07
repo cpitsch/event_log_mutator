@@ -25,12 +25,21 @@ pub struct EventSwapper {
 }
 
 impl EventSwapper {
-    pub fn new(activity_1: String, activity_2: String, probability: f32) -> EventSwapper {
+    pub fn new(activity_1: String, activity_2: String) -> EventSwapper {
         Self {
             activity_1,
             activity_2,
-            probability,
+            probability: 1.0,
         }
+    }
+
+    fn should_mutate(&self, trace: &Trace, idx_1: &usize, idx_2: &usize) -> bool {
+        random::<f32>() < self.probability
+    }
+
+    pub fn with_probability(mut self, probability: f32) -> Self {
+        self.probability = probability;
+        self
     }
 }
 
@@ -54,7 +63,7 @@ impl TraceMutator for EventSwapper {
             .iter()
             .zip(act_2_indices.iter())
             .for_each(|(idx_1, idx_2)| {
-                if random::<f32>() < self.probability {
+                if self.should_mutate(trace, idx_1, idx_2) {
                     // Swap their start_timestamp, and update their complete timestamp
                     // based on their service time
                     let event_1_start = get_start_timestamp(new_trace.events.get(*idx_1).unwrap())

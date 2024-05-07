@@ -1,4 +1,4 @@
-use process_mining::event_log::{AttributeValue, Trace};
+use process_mining::event_log::{AttributeValue, Event, Trace};
 use rand::random;
 
 use crate::{
@@ -17,12 +17,22 @@ pub struct ActivityRenamer {
 }
 
 impl ActivityRenamer {
-    pub fn new(activity: String, new_label: String, probability: f32) -> Self {
+    pub fn new(activity: String, new_label: String) -> Self {
         Self {
             activity,
             new_label,
-            probability,
+            probability: 1.0,
         }
+    }
+
+    fn should_mutate(&self, event: &Event) -> bool {
+        get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG) == self.activity
+            && random::<f32>() < self.probability
+    }
+
+    pub fn with_probability(mut self, probability: f32) -> Self {
+        self.probability = probability;
+        self
     }
 }
 
@@ -30,9 +40,7 @@ impl TraceMutator for ActivityRenamer {
     fn apply(&self, trace: &Trace) -> Trace {
         let mut new_trace = trace.clone();
         new_trace.events.iter_mut().for_each(|evt| {
-            if get_activity_label(evt).expect(NO_ACTIVITY_LABEL_MSG) == self.activity
-                && random::<f32>() < self.probability
-            {
+            if self.should_mutate(evt) {
                 set_activity_label(evt, AttributeValue::String(self.new_label.clone())).unwrap();
             }
         });

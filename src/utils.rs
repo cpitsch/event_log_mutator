@@ -1,9 +1,9 @@
 use std::{error::Error, fmt::Display};
 
 use chrono::{DateTime, Utc};
-use process_mining::event_log::{AttributeValue, Event, XESEditableAttribute};
+use process_mining::event_log::{AttributeValue, Event, Trace, XESEditableAttribute};
 
-use crate::constants::{ACTIVITY_KEY, START_TIMESTAMP_KEY, TIMESTAMP_KEY};
+use crate::constants::{ACTIVITY_KEY, START_TIMESTAMP_KEY, TIMESTAMP_KEY, TRACEID_KEY};
 
 #[derive(Debug)]
 pub struct WriteAttributeNotFoundError(&'static str);
@@ -45,43 +45,65 @@ pub fn get_complete_timestamp(event: &Event) -> Option<DateTime<Utc>> {
     get_time_by_key(event, TIMESTAMP_KEY)
 }
 
+pub fn get_traceid(event: &Event) -> Option<String> {
+    get_string_by_key(event, TRACEID_KEY)
+}
+
 pub fn get_service_time(event: &Event) -> Option<chrono::TimeDelta> {
     let start = get_start_timestamp(event)?;
     let end = get_complete_timestamp(event)?;
     Some(end - start)
 }
 
-pub fn set_activity_label(
+pub fn set_trace_attribute_by_key(
+    trace: &mut Trace,
+    key: &'static str,
+    value: AttributeValue,
+) -> Result<(), WriteAttributeNotFoundError> {
+    trace
+        .attributes
+        .get_by_key_mut(key)
+        .ok_or(WriteAttributeNotFoundError(key))?
+        .value = value;
+    Ok(())
+}
+
+pub fn set_event_attribute_by_key(
     event: &mut Event,
+    key: &'static str,
     value: AttributeValue,
 ) -> Result<(), WriteAttributeNotFoundError> {
     event
         .attributes
-        .get_by_key_mut(ACTIVITY_KEY)
-        .ok_or(WriteAttributeNotFoundError(ACTIVITY_KEY))?
+        .get_by_key_mut(key)
+        .ok_or(WriteAttributeNotFoundError(key))?
         .value = value;
     Ok(())
+}
+
+pub fn set_activity_label(
+    event: &mut Event,
+    value: AttributeValue,
+) -> Result<(), WriteAttributeNotFoundError> {
+    set_event_attribute_by_key(event, ACTIVITY_KEY, value)
 }
 
 pub fn set_complete_timestamp(
     event: &mut Event,
     value: AttributeValue,
 ) -> Result<(), WriteAttributeNotFoundError> {
-    event
-        .attributes
-        .get_by_key_mut(TIMESTAMP_KEY)
-        .ok_or(WriteAttributeNotFoundError(TIMESTAMP_KEY))?
-        .value = value;
-    Ok(())
+    set_event_attribute_by_key(event, TIMESTAMP_KEY, value)
 }
 pub fn set_start_timestamp(
     event: &mut Event,
     value: AttributeValue,
 ) -> Result<(), WriteAttributeNotFoundError> {
-    event
-        .attributes
-        .get_by_key_mut(START_TIMESTAMP_KEY)
-        .ok_or(WriteAttributeNotFoundError(START_TIMESTAMP_KEY))?
-        .value = value;
-    Ok(())
+    set_event_attribute_by_key(event, START_TIMESTAMP_KEY, value)
+}
+
+pub fn set_traceid_key(
+    event: &mut Trace,
+    value: AttributeValue,
+) -> Result<(), WriteAttributeNotFoundError> {
+    set_trace_attribute_by_key(event, TRACEID_KEY, value)
 }

@@ -1,4 +1,5 @@
 use process_mining::event_log::{AttributeValue, Event};
+use rand::random;
 
 use crate::{mutation::EventMutator, utils::set_activity_label};
 
@@ -6,24 +7,42 @@ use crate::{mutation::EventMutator, utils::set_activity_label};
 pub struct ConstantActivityMutator {
     /// The activity label to use.
     activity: String,
+    /// The probability of applying the mutation to an event
+    probability: f32,
 }
 
 impl ConstantActivityMutator {
     pub fn new(activity: String) -> Self {
-        Self { activity }
+        Self {
+            activity,
+            probability: 1.0,
+        }
+    }
+
+    fn should_mutate(&self) -> bool {
+        random::<f32>() < self.probability
+    }
+
+    pub fn with_probability(mut self, probability: f32) -> Self {
+        self.probability = probability;
+        self
     }
 }
 
 impl EventMutator for ConstantActivityMutator {
     fn apply(&self, evt: &Event) -> Event {
-        let mut new_event = evt.clone();
+        if self.should_mutate() {
+            let mut new_event = evt.clone();
 
-        set_activity_label(
-            &mut new_event,
-            AttributeValue::String(self.activity.clone()),
-        )
-        .expect_err("Error Setting Activity Label");
+            set_activity_label(
+                &mut new_event,
+                AttributeValue::String(self.activity.clone()),
+            )
+            .expect_err("Error Setting Activity Label");
 
-        new_event
+            new_event
+        } else {
+            evt.clone()
+        }
     }
 }
