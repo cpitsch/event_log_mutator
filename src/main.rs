@@ -4,7 +4,7 @@ use std::{
 };
 
 use clap::Parser;
-use mutators::{ActivityRemover, EventSwapper, ServiceTimeMultiplier};
+use mutators::{ActivityRemover, LogBootstrapper, ServiceTimeMultiplier};
 use process_mining::{
     event_log::export_xes::export_xes_event_log_to_file, import_xes_file, XESImportOptions,
 };
@@ -38,23 +38,28 @@ fn main() {
         let log =
             import_xes_file(args.input.to_str().unwrap(), XESImportOptions::default()).unwrap();
 
+        let num_cases = log.traces.len();
+
         let mutation_chain = MutationChain::new()
-            .with_mutation(ActivityRemover::new("receive goods".to_owned(), 0.2))
-            .with_mutation(ActivityRemover::new("pay invoice".to_owned(), 0.25))
-            // .with_mutation(ActivityRenamer::new(
-            //     "manager reject purchase".to_owned(),
-            //     "manager disapproval".to_owned(),
-            //     1.0,
-            // ))
-            .with_mutation(EventSwapper::new(
-                "inspect goods".to_owned(),
-                "receive invoice".to_owned(),
-                1.0,
-            ))
-            .with_mutation(ServiceTimeMultiplier::new(2.0));
+            .with_mutation(LogBootstrapper::new(num_cases * 2))
+            .with_mutation(
+                ServiceTimeMultiplier::new(2.0)
+                    .for_activity("W_Completeren aanvraag".to_owned())
+                    .with_probability(1.0),
+            )
+            .with_mutation(
+                // Only 270 instances in the original log --> ~ <600 in bootstrapped
+                ActivityRemover::new("W_Beoordelen fraude".to_owned()).with_probability(1.0),
+            );
+
         let l = mutation_chain.apply(&log);
         let file = File::create(args.output.unwrap()).unwrap();
-        export_xes_event_log_to_file(&l, file, false).unwrap();
+        export_xes_event_log_to_file(
+            &l,
+            file,
+            args.input.extension().map_or(false, |ext| ext == "gz"),
+        )
+        .unwrap();
     }
 }
 
@@ -72,3 +77,19 @@ fn get_output_path(input_path: &Path) -> PathBuf {
     out.push(format!("mutated_{}", name_string));
     out
 }
+
+// let mutation_chain = MutationChain::new()
+//     .with_mutation(ActivityRemover::new("receive goods".to_owned()).with_probability(0.2))
+//     .with_mutation(ActivityRemover::new("pay invoice".to_owned()).with_probability(0.25))
+//     // .with_mutation(ActivityRenamer::new(
+//     //     "manager reject purchase".to_owned(),
+//     //     "manager disapproval".to_owned(),
+//     //     1.0,
+//     // ))
+//     .with_mutation(
+//         EventSwapper::new("inspect goods".to_owned(), "receive invoice".to_owned())
+//             .with_probability(1.0),
+//     )
+//     .with_mutation(
+//         ServiceTimeMultiplier::new(2.0).for_activity("inspect goods".to_owned()),
+//     );
