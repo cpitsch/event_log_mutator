@@ -25,10 +25,10 @@ pub struct EventSwapper {
 }
 
 impl EventSwapper {
-    pub fn new(activity_1: String, activity_2: String) -> EventSwapper {
+    pub fn new(activity_1: impl Into<String>, activity_2: impl Into<String>) -> EventSwapper {
         Self {
-            activity_1,
-            activity_2,
+            activity_1: activity_1.into(),
+            activity_2: activity_2.into(),
             probability: 1.0,
         }
     }

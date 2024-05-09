@@ -13,9 +13,9 @@ pub struct ActivityRemover {
 }
 
 impl ActivityRemover {
-    pub fn new(activity: String) -> Self {
+    pub fn new(activity: impl Into<String>) -> Self {
         Self {
-            activity,
+            activity: activity.into(),
             probability: 1.0,
         }
     }

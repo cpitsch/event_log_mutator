@@ -17,10 +17,10 @@ pub struct ActivityRenamer {
 }
 
 impl ActivityRenamer {
-    pub fn new(activity: String, new_label: String) -> Self {
+    pub fn new(activity: impl Into<String>, new_label: impl Into<String>) -> Self {
         Self {
-            activity,
-            new_label,
+            activity: activity.into(),
+            new_label: new_label.into(),
             probability: 1.0,
         }
     }

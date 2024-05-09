@@ -41,8 +41,8 @@ impl ServiceTimeMultiplier {
         )
     }
 
-    pub fn for_activity(mut self, activity: String) -> Self {
-        self.activity = Some(activity);
+    pub fn for_activity(mut self, activity: impl Into<String>) -> Self {
+        self.activity = Some(activity.into());
         self
     }
 
