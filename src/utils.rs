@@ -1,9 +1,12 @@
 use std::{error::Error, fmt::Display};
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use process_mining::event_log::{AttributeValue, Event, Trace, XESEditableAttribute};
 
-use crate::constants::{ACTIVITY_KEY, START_TIMESTAMP_KEY, TIMESTAMP_KEY, TRACEID_KEY};
+use crate::constants::{
+    ACTIVITY_KEY, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG, START_TIMESTAMP_KEY,
+    TIMESTAMP_KEY, TRACEID_KEY,
+};
 
 #[derive(Debug)]
 pub struct WriteAttributeNotFoundError(&'static str);
@@ -106,4 +109,18 @@ pub fn set_traceid_key(
     value: AttributeValue,
 ) -> Result<(), WriteAttributeNotFoundError> {
     set_trace_attribute_by_key(event, TRACEID_KEY, value)
+}
+
+/// Shift the start- and complete timestamp of all  events starting at index
+///`from` by the TimeDelta `by`.
+pub fn shift_events_by(trace: &mut Trace, by: TimeDelta, from: usize) {
+    trace.events.iter_mut().skip(from).for_each(|evt| {
+        // Shift the events start and end by the timedelta
+        let new_start_timestamp = get_start_timestamp(evt).expect(NO_START_TIMESTAMP_MSG) + by;
+        let new_complete_timestamp =
+            get_complete_timestamp(evt).expect(NO_COMPLETE_TIMESTAMP_MSG) + by;
+
+        set_start_timestamp(evt, AttributeValue::Date(new_start_timestamp)).unwrap();
+        set_complete_timestamp(evt, AttributeValue::Date(new_complete_timestamp)).unwrap();
+    })
 }

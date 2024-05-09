@@ -1,11 +1,14 @@
-use chrono::TimeDelta;
-use process_mining::event_log::{AttributeValue, Event};
+use chrono::{SubsecRound, TimeDelta};
+use process_mining::event_log::{AttributeValue, Event, Trace};
 use rand::random;
 
 use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG},
-    mutation::EventMutator,
-    utils::{get_activity_label, get_service_time, get_start_timestamp, set_complete_timestamp},
+    mutation::TraceMutator,
+    utils::{
+        get_activity_label, get_complete_timestamp, get_service_time, get_start_timestamp,
+        set_complete_timestamp, shift_events_by,
+    },
 };
 
 /// Mutation to increase the service time by a factor.
@@ -50,6 +53,25 @@ impl ServiceTimeMultiplier {
         self.probability = probability;
         self
     }
+
+    fn apply_event(&self, evt: &Event) -> Event {
+        if self.should_mutate(evt) {
+            let mut new_event = evt.clone();
+            let start_timestamp = get_start_timestamp(&new_event).expect(NO_START_TIMESTAMP_MSG);
+            let service_time = get_service_time(&new_event).expect(NO_COMPLETE_TIMESTAMP_MSG);
+            let new_serivce_time = multiply_timedelta_by_float(service_time, &self.factor);
+
+            set_complete_timestamp(
+                &mut new_event,
+                // Round duration seconds to 6 decimal places so pm4py imports it correctly
+                AttributeValue::Date((start_timestamp + new_serivce_time).round_subsecs(6)),
+            )
+            .unwrap();
+            new_event
+        } else {
+            evt.clone()
+        }
+    }
 }
 
 /// Helper function to multiply a timedelta by a float.
@@ -70,22 +92,155 @@ fn multiply_timedelta_by_float(timedelta: TimeDelta, factor: &f32) -> TimeDelta 
     }
 }
 
-impl EventMutator for ServiceTimeMultiplier {
-    fn apply(&self, evt: &Event) -> Event {
-        if self.should_mutate(evt) {
-            let mut new_event = evt.clone();
-            let start_timestamp = get_start_timestamp(&new_event).expect(NO_START_TIMESTAMP_MSG);
-            let service_time = get_service_time(&new_event).expect(NO_COMPLETE_TIMESTAMP_MSG);
-            let new_serivce_time = multiply_timedelta_by_float(service_time, &self.factor);
+impl TraceMutator for ServiceTimeMultiplier {
+    fn apply(&self, trace: &Trace) -> Trace {
+        // new_trace
+        //     .events
+        //     .iter_mut()
+        //     .for_each(|event| *event = self.apply_event(event));
 
-            set_complete_timestamp(
-                &mut new_event,
-                AttributeValue::Date(start_timestamp + new_serivce_time),
-            )
-            .expect_err("Error setting completion timestamp");
-            new_event
-        } else {
-            evt.clone()
+        let mut new_trace = trace.clone();
+        for i in 0..new_trace.events.len() {
+            let event = new_trace.events.get_mut(i).unwrap();
+            if self.should_mutate(event) {
+                let old_complete_timestamp =
+                    get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG);
+                *event = self.apply_event(event);
+                let shifted_by = get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG)
+                    - old_complete_timestamp;
+
+                // Need to move all following events if changed service time
+                // So: For each following event, move its start and completion timestamp
+                // by the amount of time added to this service time
+                // Otherwise, we induce control-flow changes that are unwanted side-effects
+                // from this mutation
+                shift_events_by(&mut new_trace, shifted_by, i + 1);
+            }
         }
+
+        // TODO: No longer needed because timestamps are updated
+        // Sort events by complete timestamp because we changed those only for some
+        // new_trace
+        //     .events
+        //     .sort_by_key(|evt| get_complete_timestamp(evt).expect(NO_COMPLETE_TIMESTAMP_MSG));
+        //
+        new_trace
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use chrono::{DateTime, TimeZone, Utc};
+    use process_mining::event_log::Attribute;
+
+    use super::*;
+
+    fn new_event(
+        activity: impl Into<String>,
+        start_timestamp: DateTime<Utc>,
+        service_time: TimeDelta,
+    ) -> Event {
+        Event {
+            attributes: vec![
+                Attribute::new(
+                    "concept:name".to_owned(),
+                    AttributeValue::String(activity.into()),
+                ),
+                Attribute::new(
+                    "start_timestamp".to_owned(),
+                    AttributeValue::Date(start_timestamp),
+                ),
+                Attribute::new(
+                    "time:timestamp".to_owned(),
+                    AttributeValue::Date(start_timestamp + service_time),
+                ),
+            ],
+        }
+    }
+
+    fn test_trace() -> Trace {
+        let date = Utc
+            .with_ymd_and_hms(2024, 4, 29, 1, 0, 0)
+            .earliest()
+            .unwrap();
+        Trace {
+            attributes: Vec::default(),
+            events: vec![
+                new_event("a", date, TimeDelta::hours(1)),
+                // Starts exactly as the previous finishes.
+                new_event("b", date + TimeDelta::hours(1), TimeDelta::hours(2)),
+            ],
+        }
+    }
+
+    fn get_control_flow(trace: &Trace) -> Vec<String> {
+        trace
+            .events
+            .iter()
+            .map(|evt| get_activity_label(evt).unwrap())
+            .collect()
+    }
+
+    #[test]
+    fn does_not_affect_control_flow() {
+        let trace = test_trace();
+
+        let new_trace = ServiceTimeMultiplier::new(100.0)
+            .for_activity("a")
+            .apply(&trace);
+
+        assert!(get_control_flow(&trace) == get_control_flow(&new_trace));
+    }
+
+    #[test]
+    fn default_affects_all_activities() {
+        let trace = test_trace();
+        let new_trace = ServiceTimeMultiplier::new(100.0).apply(&trace);
+
+        assert!(trace
+            .events
+            .iter()
+            .zip(new_trace.events.iter())
+            .all(|(e1, e2)| { get_service_time(e1) < get_service_time(e2) }));
+    }
+
+    #[test]
+    fn only_affects_for_activity() {
+        let trace = test_trace();
+        let new_trace = ServiceTimeMultiplier::new(100.0)
+            .for_activity("a")
+            .apply(&trace);
+
+        assert!(trace
+            .events
+            .iter()
+            .zip(new_trace.events.iter())
+            .all(|(e1, e2)| {
+                // Assumes control flow isnt affected, which is tested by [`does_not_affect_control_flow`]
+                assert!(get_activity_label(e1).unwrap() == get_activity_label(e2).unwrap());
+
+                if get_activity_label(e1).unwrap() == "a" {
+                    get_service_time(e1) < get_service_time(e2)
+                } else {
+                    get_service_time(e1) == get_service_time(e2)
+                }
+            }));
+    }
+
+    #[test]
+    fn zero_probability_does_nothing() {
+        let trace = test_trace();
+        let new_trace = ServiceTimeMultiplier::new(100.0)
+            .with_probability(0.0)
+            .apply(&trace);
+
+        assert!(trace
+            .events
+            .iter()
+            .map(|evt| get_service_time(evt).unwrap())
+            .eq(new_trace
+                .events
+                .iter()
+                .map(|evt| get_service_time(evt).unwrap())));
     }
 }
