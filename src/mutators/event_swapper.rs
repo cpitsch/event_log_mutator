@@ -80,24 +80,20 @@ impl TraceMutator for EventSwapper {
                     set_start_timestamp(
                         new_trace.events.get_mut(*idx_1).unwrap(),
                         AttributeValue::Date(event_2_start),
-                    )
-                    .unwrap();
+                    );
                     set_start_timestamp(
                         new_trace.events.get_mut(*idx_2).unwrap(),
                         AttributeValue::Date(event_1_start),
-                    )
-                    .unwrap();
+                    );
                     // Update complete timestamps to match old service time
                     set_complete_timestamp(
                         new_trace.events.get_mut(*idx_1).unwrap(),
                         AttributeValue::Date(event_2_start + evt_1_service_time),
-                    )
-                    .unwrap();
+                    );
                     set_complete_timestamp(
                         new_trace.events.get_mut(*idx_2).unwrap(),
                         AttributeValue::Date(event_1_start + evt_2_service_time),
-                    )
-                    .unwrap();
+                    );
 
                     // Swap them in the trace events vec
                     new_trace.events.swap(*idx_1, *idx_2);

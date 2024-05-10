@@ -58,56 +58,34 @@ pub fn get_service_time(event: &Event) -> Option<chrono::TimeDelta> {
     Some(end - start)
 }
 
-pub fn set_trace_attribute_by_key(
-    trace: &mut Trace,
-    key: &'static str,
-    value: AttributeValue,
-) -> Result<(), WriteAttributeNotFoundError> {
-    trace
-        .attributes
-        .get_by_key_mut(key)
-        .ok_or(WriteAttributeNotFoundError(key))?
-        .value = value;
-    Ok(())
+pub fn set_trace_attribute_by_key(trace: &mut Trace, key: &'static str, value: AttributeValue) {
+    if let Some(attr) = trace.attributes.get_by_key_mut(key) {
+        attr.value = value;
+    } else {
+        trace.attributes.add_to_attributes(key.to_owned(), value);
+    }
 }
 
-pub fn set_event_attribute_by_key(
-    event: &mut Event,
-    key: &'static str,
-    value: AttributeValue,
-) -> Result<(), WriteAttributeNotFoundError> {
-    event
-        .attributes
-        .get_by_key_mut(key)
-        .ok_or(WriteAttributeNotFoundError(key))?
-        .value = value;
-    Ok(())
+pub fn set_event_attribute_by_key(event: &mut Event, key: &'static str, value: AttributeValue) {
+    if let Some(attr) = event.attributes.get_by_key_mut(key) {
+        attr.value = value;
+    } else {
+        event.attributes.add_to_attributes(key.to_owned(), value);
+    }
 }
 
-pub fn set_activity_label(
-    event: &mut Event,
-    value: AttributeValue,
-) -> Result<(), WriteAttributeNotFoundError> {
+pub fn set_activity_label(event: &mut Event, value: AttributeValue) {
     set_event_attribute_by_key(event, ACTIVITY_KEY, value)
 }
 
-pub fn set_complete_timestamp(
-    event: &mut Event,
-    value: AttributeValue,
-) -> Result<(), WriteAttributeNotFoundError> {
+pub fn set_complete_timestamp(event: &mut Event, value: AttributeValue) {
     set_event_attribute_by_key(event, TIMESTAMP_KEY, value)
 }
-pub fn set_start_timestamp(
-    event: &mut Event,
-    value: AttributeValue,
-) -> Result<(), WriteAttributeNotFoundError> {
+pub fn set_start_timestamp(event: &mut Event, value: AttributeValue) {
     set_event_attribute_by_key(event, START_TIMESTAMP_KEY, value)
 }
 
-pub fn set_traceid_key(
-    event: &mut Trace,
-    value: AttributeValue,
-) -> Result<(), WriteAttributeNotFoundError> {
+pub fn set_traceid_key(event: &mut Trace, value: AttributeValue) {
     set_trace_attribute_by_key(event, TRACEID_KEY, value)
 }
 
@@ -120,7 +98,7 @@ pub fn shift_events_by(trace: &mut Trace, by: TimeDelta, from: usize) {
         let new_complete_timestamp =
             get_complete_timestamp(evt).expect(NO_COMPLETE_TIMESTAMP_MSG) + by;
 
-        set_start_timestamp(evt, AttributeValue::Date(new_start_timestamp)).unwrap();
-        set_complete_timestamp(evt, AttributeValue::Date(new_complete_timestamp)).unwrap();
+        set_start_timestamp(evt, AttributeValue::Date(new_start_timestamp));
+        set_complete_timestamp(evt, AttributeValue::Date(new_complete_timestamp));
     })
 }

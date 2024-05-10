@@ -37,8 +37,7 @@ impl EventMutator for ConstantActivityMutator {
             set_activity_label(
                 &mut new_event,
                 AttributeValue::String(self.activity.clone()),
-            )
-            .expect_err("Error Setting Activity Label");
+            );
 
             new_event
         } else {

@@ -65,8 +65,7 @@ impl ServiceTimeMultiplier {
                 &mut new_event,
                 // Round duration seconds to 6 decimal places so pm4py imports it correctly
                 AttributeValue::Date((start_timestamp + new_serivce_time).round_subsecs(6)),
-            )
-            .unwrap();
+            );
             new_event
         } else {
             evt.clone()

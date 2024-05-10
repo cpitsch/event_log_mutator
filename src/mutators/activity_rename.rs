@@ -41,7 +41,7 @@ impl TraceMutator for ActivityRenamer {
         let mut new_trace = trace.clone();
         new_trace.events.iter_mut().for_each(|evt| {
             if self.should_mutate(evt) {
-                set_activity_label(evt, AttributeValue::String(self.new_label.clone())).unwrap();
+                set_activity_label(evt, AttributeValue::String(self.new_label.clone()));
             }
         });
         new_trace

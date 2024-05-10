@@ -61,8 +61,7 @@ impl EventMutator for ServiceTimeMutation {
             set_complete_timestamp(
                 &mut new_event,
                 AttributeValue::Date(complete_timestamp + self.timedelta),
-            )
-            .expect_err("Error setting completion timestamp");
+            );
             new_event
         } else {
             evt.clone()
