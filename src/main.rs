@@ -29,47 +29,49 @@ struct Args {
     #[clap(short, long)]
     output: Option<PathBuf>,
 
-    /// If present, apply mutations to the event log. Otherwise, only apply bootstrapping.
+    /// If present, apply mutations to the event log. Otherwise, only apply bootstrapping. Only
+    /// applicable if no preset selected
     #[clap(long)]
     mutate: bool,
 
+    /// A preset mutation chain to apply
     #[clap(long, value_enum)]
     preset: Option<Preset>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
 pub enum Preset {
+    /// Bootstrap a "new" event log of the same size by sampling cases with replacement
+    Bootstrap,
+    /// Turn an atomic event log into a partially ordered event log by using the
+    /// time since the previous event as the service time
+    PartialOrder,
     Bpi12OnlyServiceTime,
     Bpi12,
-    /// Turn an atomic event log into a partially ordered event log by using the
-    /// time since the previous event as the service time.
-    PartialOrder,
+    /// Bootstrap, then multiply the service time of "Send Fine" by 2
     RoadTraffic,
+    /// Bootstrap, then swap events "Send Fine" and "Payment"
     RoadTrafficSwap,
 }
 
 impl Preset {
-    pub fn into_mutation_chain(self, log: &EventLog, mutate: bool) -> MutationChain {
+    pub fn into_mutation_chain(self, log: &EventLog) -> MutationChain {
         match self {
-            Self::Bpi12 => {
-                let mut mutation_chain =
-                    MutationChain::new().with_mutation(LogBootstrapper::new(log.traces.len()));
-
-                if mutate {
-                    mutation_chain = mutation_chain
-                        .with_mutation(
-                            ServiceTimeMultiplier::new(2.0)
-                                .for_activity("W_Completeren aanvraag")
-                                .with_probability(1.0),
-                        )
-                        .with_mutation(
-                            // Only 270 instances in the original log
-                            ActivityRemover::new("W_Beoordelen fraude").with_probability(1.0),
-                        );
-                }
-
-                mutation_chain
+            Self::Bootstrap => {
+                MutationChain::new().with_mutation(LogBootstrapper::new(log.traces.len()))
             }
+            Self::PartialOrder => MutationChain::new().with_mutation(PartialOrderCreator::new()),
+            Self::Bpi12 => MutationChain::new()
+                .with_mutation(LogBootstrapper::new(log.traces.len()))
+                .with_mutation(
+                    ServiceTimeMultiplier::new(2.0)
+                        .for_activity("W_Completeren aanvraag")
+                        .with_probability(1.0),
+                )
+                .with_mutation(
+                    // Only 270 instances in the original log
+                    ActivityRemover::new("W_Beoordelen fraude").with_probability(1.0),
+                ),
             Self::Bpi12OnlyServiceTime => MutationChain::new()
                 .with_mutation(LogBootstrapper::new(log.traces.len()))
                 .with_mutation(
@@ -77,31 +79,16 @@ impl Preset {
                         .for_activity("W_Completeren aanvraag")
                         .with_probability(1.0),
                 ),
-            Self::PartialOrder => MutationChain::new().with_mutation(PartialOrderCreator::new()),
-            Self::RoadTraffic => {
-                let mut mutation_chain =
-                    MutationChain::new().with_mutation(LogBootstrapper::new(log.traces.len()));
-
-                if mutate {
-                    mutation_chain = mutation_chain
-                        .with_mutation(ServiceTimeMultiplier::new(2.0).for_activity("Send Fine"));
-                    // .with_mutation(
-                    //     ServiceTimeMultiplier::new(2.0)
-                    //         .for_activity("Send for Credit Collection"),
-                    // );
-                }
-                mutation_chain
-            }
-            Self::RoadTrafficSwap => {
-                let mut mutation_chain =
-                    MutationChain::new().with_mutation(LogBootstrapper::new(log.traces.len()));
-
-                if mutate {
-                    mutation_chain =
-                        mutation_chain.with_mutation(EventSwapper::new("Send Fine", "Payment"));
-                }
-                mutation_chain
-            }
+            Self::RoadTraffic => MutationChain::new()
+                .with_mutation(LogBootstrapper::new(log.traces.len()))
+                .with_mutation(ServiceTimeMultiplier::new(2.0).for_activity("Send Fine")),
+            // .with_mutation(
+            //     ServiceTimeMultiplier::new(2.0)
+            //         .for_activity("Send for Credit Collection"),
+            // );
+            Self::RoadTrafficSwap => MutationChain::new()
+                .with_mutation(LogBootstrapper::new(log.traces.len()))
+                .with_mutation(EventSwapper::new("Send Fine", "Payment")),
         }
     }
 }
@@ -118,7 +105,7 @@ fn main() {
 
         let mutation_chain = if let Some(preset) = args.preset {
             println!("Using preset {:?}", preset);
-            preset.into_mutation_chain(&log, args.mutate)
+            preset.into_mutation_chain(&log)
         } else {
             let mut chain =
                 MutationChain::new().with_mutation(LogBootstrapper::new(log.traces.len()));
