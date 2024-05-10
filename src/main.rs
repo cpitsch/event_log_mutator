@@ -5,8 +5,7 @@ use std::{
 
 use clap::{Parser, ValueEnum};
 use mutators::{
-    partial_order_creator::PartialOrderCreator, ActivityRemover, LogBootstrapper,
-    ServiceTimeMultiplier,
+    ActivityRemover, EventSwapper, LogBootstrapper, PartialOrderCreator, ServiceTimeMultiplier,
 };
 use process_mining::{
     event_log::export_xes::export_xes_event_log_to_file, import_xes_file, EventLog,
@@ -45,6 +44,8 @@ pub enum Preset {
     /// Turn an atomic event log into a partially ordered event log by using the
     /// time since the previous event as the service time.
     PartialOrder,
+    RoadTraffic,
+    RoadTrafficSwap,
 }
 
 impl Preset {
@@ -76,7 +77,31 @@ impl Preset {
                         .for_activity("W_Completeren aanvraag")
                         .with_probability(1.0),
                 ),
-            Self::PartialOrder => MutationChain::new(), //.with_mutation(PartialOrderCreator::new()),
+            Self::PartialOrder => MutationChain::new().with_mutation(PartialOrderCreator::new()),
+            Self::RoadTraffic => {
+                let mut mutation_chain =
+                    MutationChain::new().with_mutation(LogBootstrapper::new(log.traces.len()));
+
+                if mutate {
+                    mutation_chain = mutation_chain
+                        .with_mutation(ServiceTimeMultiplier::new(2.0).for_activity("Send Fine"));
+                    // .with_mutation(
+                    //     ServiceTimeMultiplier::new(2.0)
+                    //         .for_activity("Send for Credit Collection"),
+                    // );
+                }
+                mutation_chain
+            }
+            Self::RoadTrafficSwap => {
+                let mut mutation_chain =
+                    MutationChain::new().with_mutation(LogBootstrapper::new(log.traces.len()));
+
+                if mutate {
+                    mutation_chain =
+                        mutation_chain.with_mutation(EventSwapper::new("Send Fine", "Payment"));
+                }
+                mutation_chain
+            }
         }
     }
 }
@@ -139,19 +164,3 @@ fn get_output_path(input_path: &Path) -> PathBuf {
     out.push(format!("mutated_{}", name_string));
     out
 }
-
-// let mutation_chain = MutationChain::new()
-//     .with_mutation(ActivityRemover::new("receive goods").with_probability(0.2))
-//     .with_mutation(ActivityRemover::new("pay invoice").with_probability(0.25))
-//     // .with_mutation(ActivityRenamer::new(
-//     //     "manager reject purchase",
-//     //     "manager disapproval",
-//     //     1.0,
-//     // ))
-//     .with_mutation(
-//         EventSwapper::new("inspect goods", "receive invoice")
-//             .with_probability(1.0),
-//     )
-//     .with_mutation(
-//         ServiceTimeMultiplier::new(2.0).for_activity("inspect goods"),
-//     );
