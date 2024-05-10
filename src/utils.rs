@@ -1,5 +1,3 @@
-use std::{error::Error, fmt::Display};
-
 use chrono::{DateTime, TimeDelta, Utc};
 use process_mining::event_log::{AttributeValue, Event, Trace, XESEditableAttribute};
 
@@ -7,16 +5,6 @@ use crate::constants::{
     ACTIVITY_KEY, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG, START_TIMESTAMP_KEY,
     TIMESTAMP_KEY, TRACEID_KEY,
 };
-
-#[derive(Debug)]
-pub struct WriteAttributeNotFoundError(&'static str);
-
-impl Display for WriteAttributeNotFoundError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Attempt to write non-existent attribute \"{}\"", self.0)
-    }
-}
-impl Error for WriteAttributeNotFoundError {}
 
 pub fn get_string_by_key(event: &Event, key: &str) -> Option<String> {
     event
