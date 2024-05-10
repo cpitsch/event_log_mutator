@@ -33,7 +33,8 @@ impl EventSwapper {
         }
     }
 
-    fn should_mutate(&self, trace: &Trace, idx_1: &usize, idx_2: &usize) -> bool {
+    // fn should_mutate(&self, trace: &Trace, idx_1: &usize, idx_2: &usize) -> bool {
+    fn should_mutate(&self) -> bool {
         random::<f32>() < self.probability
     }
 
@@ -63,7 +64,7 @@ impl TraceMutator for EventSwapper {
             .iter()
             .zip(act_2_indices.iter())
             .for_each(|(idx_1, idx_2)| {
-                if self.should_mutate(trace, idx_1, idx_2) {
+                if self.should_mutate() {
                     // Swap their start_timestamp, and update their complete timestamp
                     // based on their service time
                     let event_1_start = get_start_timestamp(new_trace.events.get(*idx_1).unwrap())
