@@ -8,6 +8,8 @@ pub mod remove_attribute;
 pub mod service_time_multiplier;
 pub mod service_time_mutator;
 
+pub mod filters;
+
 pub use activity_remover::ActivityRemover;
 pub use activity_rename::ActivityRenamer;
 pub use constant_activity::ConstantActivityMutator;
