@@ -1,4 +1,3 @@
-use itertools::Itertools;
 use process_mining::event_log::{Event, Trace};
 use rand::random;
 
@@ -34,13 +33,7 @@ impl ActivityRemover {
 impl TraceMutator for ActivityRemover {
     fn apply(&self, trace: &Trace) -> Trace {
         let mut new_trace = trace.clone();
-        new_trace.events = new_trace
-            .events
-            .iter()
-            .filter(|evt| !self.should_remove(evt))
-            .cloned()
-            .collect_vec();
-
+        new_trace.events.retain(|evt| !self.should_remove(evt));
         new_trace
     }
 }
