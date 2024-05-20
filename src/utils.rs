@@ -1,23 +1,37 @@
 use chrono::{DateTime, TimeDelta, Utc};
-use process_mining::event_log::{AttributeValue, Event, Trace, XESEditableAttribute};
+use process_mining::event_log::{AttributeValue, Attributes, Event, Trace, XESEditableAttribute};
 
 use crate::constants::{
     ACTIVITY_KEY, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG, START_TIMESTAMP_KEY,
     TIMESTAMP_KEY, TRACEID_KEY,
 };
 
-pub fn get_string_by_key(event: &Event, key: &str) -> Option<String> {
-    event
-        .attributes
+pub trait HasAttributes {
+    fn get_attributes(&self) -> &Attributes;
+}
+
+impl HasAttributes for Trace {
+    fn get_attributes(&self) -> &Attributes {
+        &self.attributes
+    }
+}
+
+impl HasAttributes for Event {
+    fn get_attributes(&self) -> &Attributes {
+        &self.attributes
+    }
+}
+
+pub fn get_string_by_key(from: &impl HasAttributes, key: &str) -> Option<String> {
+    from.get_attributes()
         .get_by_key(key)?
         .value
         .try_as_string()
         .cloned()
 }
 
-pub fn get_time_by_key(event: &Event, key: &str) -> Option<DateTime<Utc>> {
-    event
-        .attributes
+pub fn get_time_by_key(from: &impl HasAttributes, key: &str) -> Option<DateTime<Utc>> {
+    from.get_attributes()
         .get_by_key(key)?
         .value
         .try_as_date()
@@ -36,8 +50,8 @@ pub fn get_complete_timestamp(event: &Event) -> Option<DateTime<Utc>> {
     get_time_by_key(event, TIMESTAMP_KEY)
 }
 
-pub fn get_traceid(event: &Event) -> Option<String> {
-    get_string_by_key(event, TRACEID_KEY)
+pub fn get_traceid(trace: &Trace) -> Option<String> {
+    get_string_by_key(trace, TRACEID_KEY)
 }
 
 pub fn get_service_time(event: &Event) -> Option<chrono::TimeDelta> {
@@ -73,8 +87,8 @@ pub fn set_start_timestamp(event: &mut Event, value: AttributeValue) {
     set_event_attribute_by_key(event, START_TIMESTAMP_KEY, value)
 }
 
-pub fn set_traceid_key(event: &mut Trace, value: AttributeValue) {
-    set_trace_attribute_by_key(event, TRACEID_KEY, value)
+pub fn set_traceid(trace: &mut Trace, value: AttributeValue) {
+    set_trace_attribute_by_key(trace, TRACEID_KEY, value)
 }
 
 /// Shift the start- and complete timestamp of all  events starting at index
