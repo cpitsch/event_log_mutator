@@ -7,6 +7,7 @@ pub mod partial_order_creator;
 pub mod remove_attribute;
 pub mod service_time_multiplier;
 pub mod service_time_mutator;
+pub mod service_time_std_shifter;
 
 pub mod filters;
 
@@ -19,3 +20,4 @@ pub use partial_order_creator::PartialOrderCreator;
 pub use remove_attribute::RemoveAttributeMutation;
 pub use service_time_multiplier::ServiceTimeMultiplier;
 pub use service_time_mutator::ServiceTimeMutation;
+pub use service_time_std_shifter::ServiceTimeStdShifter;
