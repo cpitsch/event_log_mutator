@@ -48,7 +48,7 @@ where
 /// A Mutation pipeline to apply a number of mutations to an event log at once.
 #[derive(Default)]
 pub struct MutationChain {
-    mutations: Vec<Box<dyn LogMutator>>,
+    pub mutations: Vec<Box<dyn LogMutator>>,
 }
 
 impl MutationChain {
