@@ -137,15 +137,30 @@ impl Preset {
     }
 }
 
-pub fn parse_and_execute_pipeline_file(path_to_pipeline: &PathBuf) {
+pub fn parse_and_execute_pipeline_file(args: &Args) {
+    let path_to_pipeline = args.pipeline.clone().unwrap();
     if !path_to_pipeline.exists() {
-        panic!("The specified pipeline configuration file does not exist")
+        Args::command()
+            .error(
+                ErrorKind::Io,
+                "The specified pipeline configuration file does not exist",
+            )
+            .exit();
     }
     // Get the configuration from the pipeline
-    let parsed_toml = parse_toml(path_to_pipeline);
+    let mut parsed_toml = parse_toml(&path_to_pipeline);
+
+    // If an input file is explicitly specified, override pipeline config with that
+    if let Some(input) = &args.input {
+        parsed_toml.input.clone_from(input);
+    }
+    // If an output dir is explicitly specified, override pipeline config with that
+    if let Some(output) = &args.output {
+        parsed_toml.output = Some(output.clone());
+    }
     // Read the event log
     let log = import_xes_file(
-        &parsed_toml.input.to_string_lossy(),
+        &parsed_toml.clone().input.to_string_lossy(),
         XESImportOptions::default(),
     )
     .unwrap();
@@ -257,8 +272,8 @@ fn create_road_traffic_time_logs() {
 
 fn main() {
     let mut args = Args::parse();
-    if let Some(pipeline) = args.pipeline {
-        parse_and_execute_pipeline_file(&pipeline);
+    if args.pipeline.is_some() {
+        parse_and_execute_pipeline_file(&args);
         return;
     } else if args.input.is_none() {
         Args::command()
