@@ -312,7 +312,7 @@ fn run_cli(mut args: Args) -> Result<(), CliError> {
     if args.no_overwrite && args.output.clone().unwrap().exists() {
         Err(CliError::new(
             ErrorKind::Io,
-            "The output path already exists. Aborting. If you would like to overwrite this file, use --overwrite.",
+            "The output path already exists and `--no-overwrite` specified. Aborting.",
         ))?
     }
 
