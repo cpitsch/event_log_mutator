@@ -4,7 +4,10 @@ use itertools::{iproduct, Itertools};
 
 use crate::CliError;
 
-use super::{MutationChainConfig, MutationConfig, PipelineConfig};
+use super::{
+    default_probability, default_service_time_factor, default_standard_deviations,
+    MutationChainConfig, MutationConfig, PipelineConfig,
+};
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -36,15 +39,15 @@ pub struct ParametrizedPipelineConfig {
 }
 
 fn default_probability_mutation_value() -> MutationValue<f32> {
-    MutationValue::Value(1.0)
+    MutationValue::Value(default_probability())
 }
 
 fn default_standard_deviations_mutation_value() -> MutationValue<f64> {
-    MutationValue::Value(1.0)
+    MutationValue::Value(default_standard_deviations())
 }
 
 fn default_service_time_factor_mutation_value() -> MutationValue<f32> {
-    MutationValue::Value(1.0)
+    MutationValue::Value(default_service_time_factor())
 }
 
 #[derive(Deserialize, Debug, Clone)]
