@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::{Parser, ValueEnum};
+use clap::{error::ErrorKind, CommandFactory, Parser, ValueEnum};
 use mutators::{
     filters::VariantSupportFilter, ActivityRemover, EventSwapper, LogBootstrapper,
     PartialOrderCreator, ServiceTimeMultiplier,
@@ -35,15 +35,15 @@ pub mod utils;
 pub struct Args {
     /// The path to the input XES file (.xes or .xes.gz)
     #[clap(short, long, value_name = "PATH")]
-    input: PathBuf,
-
-    /// The path to write the mutated log to. Defaults to /path/to/input_mutated.xes
-    #[clap(short, long, value_name = "PATH")]
-    output: Option<PathBuf>,
+    input: Option<PathBuf>,
 
     /// The path to a toml file with a mutation pipeline to apply
     #[clap(long, value_name = "PATH")]
     pipeline: Option<PathBuf>,
+
+    /// The path to write the mutated log to. Defaults to /path/to/input_mutated.xes
+    #[clap(short, long, value_name = "PATH")]
+    output: Option<PathBuf>,
 
     /// If present, and no preset is selected, apply mutations to the event log. Otherwise, only
     /// apply bootstrapping
@@ -260,20 +260,28 @@ fn main() {
     if let Some(pipeline) = args.pipeline {
         parse_and_execute_pipeline_file(&pipeline);
         return;
+    } else if args.input.is_none() {
+        Args::command()
+            .error(
+                ErrorKind::MissingRequiredArgument,
+                "Either an input file (--input) or a pipeline file (--pipeline) must be provided!",
+            )
+            .exit();
     }
 
+    let input = args.clone().input.unwrap();
     if args.output.is_none() {
-        args.output = Some(get_output_path(&args.input));
+        args.output = Some(get_output_path(&input));
     }
 
     if args.no_overwrite && args.output.clone().unwrap().exists() {
-        println!("The output file already exists. Aborting.");
-        return;
+        Args::command()
+            .error(ErrorKind::Io, "The output file already exists. Aborting.")
+            .exit();
     }
 
-    if args.input.exists() && args.input.is_file() {
-        let log =
-            import_xes_file(args.input.to_str().unwrap(), XESImportOptions::default()).unwrap();
+    if input.exists() && input.is_file() {
+        let log = import_xes_file(input.to_str().unwrap(), XESImportOptions::default()).unwrap();
 
         let mutation_chain = if let Some(preset) = args.preset {
             println!("Using preset {:?}", preset);
