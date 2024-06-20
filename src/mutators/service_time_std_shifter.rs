@@ -124,15 +124,15 @@ impl ServiceTimeStdShifter {
 /// Panics if the conversion of a timedelta to nanoseconds fails. This only occurs
 /// if the timedelta is over 2^63ns, so ~292.5yrs.
 fn timedelta_standard_deviation(timedeltas: Vec<chrono::TimeDelta>) -> chrono::TimeDelta {
-    let nanoseconds: Vec<i64> = timedeltas
+    let milliseconds: Vec<i64> = timedeltas
         .iter()
         .map(|td| {
-            td.num_nanoseconds()
-                .expect("Attempt to convert a timedelta over 292.5yrs (2^63ns) to nanoseconds.")
+            td.num_milliseconds()
+            // .expect("Attempt to convert a timedelta over 292.5yrs (2^63ns) to nanoseconds.")
         })
         .collect();
-    let standard_deviation_nanoseconds = std(nanoseconds);
-    chrono::TimeDelta::nanoseconds(standard_deviation_nanoseconds.floor() as i64)
+    let standard_deviation_ms = std(milliseconds);
+    chrono::TimeDelta::milliseconds(standard_deviation_ms.floor() as i64)
 }
 
 /// Compute the standard deviation for a vec of i64. Computes the population
