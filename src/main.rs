@@ -88,6 +88,21 @@ pub enum Preset {
     FilterVariantSupport,
 }
 
+#[derive(Debug)]
+pub struct CliError {
+    kind: ErrorKind,
+    message: String,
+}
+
+impl CliError {
+    pub fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
+        Self {
+            kind,
+            message: message.into(),
+        }
+    }
+}
+
 impl Preset {
     pub fn into_mutation_chain(self, log: &EventLog, args: Args) -> MutationChain {
         match self {
@@ -137,18 +152,16 @@ impl Preset {
     }
 }
 
-pub fn parse_and_execute_pipeline_file(args: &Args) {
+pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     let path_to_pipeline = args.pipeline.clone().unwrap();
     if !path_to_pipeline.exists() {
-        Args::command()
-            .error(
-                ErrorKind::Io,
-                "The specified pipeline configuration file does not exist",
-            )
-            .exit();
+        return Err(CliError::new(
+            ErrorKind::Io,
+            "The specified pipeline configuration file does not exist".to_string(),
+        ));
     }
     // Get the configuration from the pipeline
-    let mut parsed_toml = parse_toml(&path_to_pipeline);
+    let mut parsed_toml = parse_toml(&path_to_pipeline)?;
 
     // If an input file is explicitly specified, override pipeline config with that
     if let Some(input) = &args.input {
@@ -179,7 +192,7 @@ pub fn parse_and_execute_pipeline_file(args: &Args) {
                 .to_string_lossy()
                 .to_string(),
             true,
-        );
+        )?;
     } else if parsed_toml.parametrized_pipeline.is_some() {
         // Handle parametrized pipeline
         let mutation_config_vecs = parsed_toml
@@ -190,7 +203,7 @@ pub fn parse_and_execute_pipeline_file(args: &Args) {
 
         for vec in mutation_config_vecs {
             // Path creation
-            let mut path = get_parametrized_pipeline_output_root(&parsed_toml);
+            let mut path = get_parametrized_pipeline_output_root(&parsed_toml)?;
             path.push_str(mutation_config_vec_to_path(&vec).as_str());
             path.push_str("/log.xes");
             if parsed_toml.compress_output {
@@ -202,10 +215,11 @@ pub fn parse_and_execute_pipeline_file(args: &Args) {
             let mutated_log = mutation_chain.apply(&log);
 
             // Write event log file
-            write_xes(&mutated_log, path.clone(), parsed_toml.compress_output);
+            write_xes(&mutated_log, path.clone(), parsed_toml.compress_output)?;
             println!("Wrote event log: {}", path);
         }
     }
+    Ok(())
 }
 
 #[allow(dead_code)]
@@ -264,24 +278,30 @@ fn create_road_traffic_time_logs() {
                 &non_mutated_log,
                 format!("{}/log_1.xes.gz", output_path),
                 true,
-            );
-            write_xes(&mutated_log, format!("{}/log_2.xes.gz", output_path), true);
+            )
+            .unwrap();
+            write_xes(&mutated_log, format!("{}/log_2.xes.gz", output_path), true).unwrap();
         }
     }
 }
 
 fn main() {
-    let mut args = Args::parse();
+    let args = Args::parse();
+    let res = run_cli(args);
+    if let Err(e) = res {
+        println!("There was an error...");
+        Args::command().error(e.kind, e.message).exit();
+    }
+}
+
+fn run_cli(mut args: Args) -> Result<(), CliError> {
     if args.pipeline.is_some() {
-        parse_and_execute_pipeline_file(&args);
-        return;
+        return parse_and_execute_pipeline_file(&args);
     } else if args.input.is_none() {
-        Args::command()
-            .error(
-                ErrorKind::MissingRequiredArgument,
-                "Either an input file (--input) or a pipeline file (--pipeline) must be provided!",
-            )
-            .exit();
+        return Err(CliError::new(
+            ErrorKind::MissingRequiredArgument,
+            "Either an input file (--input) or a pipeline file (--pipeline) must be provided!",
+        ));
     }
 
     let input = args.clone().input.unwrap();
@@ -290,9 +310,10 @@ fn main() {
     }
 
     if args.no_overwrite && args.output.clone().unwrap().exists() {
-        Args::command()
-            .error(ErrorKind::Io, "The output file already exists. Aborting.")
-            .exit();
+        Err(CliError::new(
+            ErrorKind::Io,
+            "The output path already exists. Aborting. If you would like to overwrite this file, use --overwrite.",
+        ))?
     }
 
     if input.exists() && input.is_file() {
@@ -327,21 +348,42 @@ fn main() {
             .unwrap()
             .extension()
             .map_or(false, |ext| ext == "gz");
-        let file = File::create(args.output.unwrap()).unwrap();
-        export_xes_event_log_to_file(&l, file, should_compress).unwrap();
+
+        write_xes(
+            &l,
+            args.output.unwrap().to_string_lossy().to_string(),
+            should_compress,
+        )?
+    } else {
+        return Err(CliError::new(
+            ErrorKind::Io,
+            "The input file does not exist, or is not a file.",
+        ));
     }
+    Ok(())
 }
 
-fn write_xes(log: &EventLog, path: String, compress: bool) {
+fn write_xes(log: &EventLog, path: String, compress: bool) -> Result<(), CliError> {
     let p: &Path = Path::new(&path);
-    create_dir_all(p.parent().unwrap()).unwrap_or_else(|_| {
-        panic!(
-            "Something went wrong creating the directories on the path {}",
-            path
-        )
-    });
-    let file = File::create(p).unwrap();
-    export_xes_event_log_to_file(log, file, compress).unwrap();
+    let dir_creation_res = p.parent().map(create_dir_all);
+    if dir_creation_res.is_none() || dir_creation_res.unwrap().is_err() {
+        return Err(CliError::new(
+            ErrorKind::Io,
+            format!(
+                "Something went wrong creating the directories on the path {}",
+                path
+            ),
+        ));
+    }
+
+    let save_res = File::create(p).map(|file| export_xes_event_log_to_file(log, file, compress));
+    if save_res.is_err() || save_res.unwrap().is_err() {
+        return Err(CliError::new(
+            ErrorKind::Io,
+            "Something went wrong while saving the file.",
+        ));
+    }
+    Ok(())
 }
 
 #[allow(dead_code)]

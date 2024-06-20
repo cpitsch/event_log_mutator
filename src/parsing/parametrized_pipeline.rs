@@ -2,6 +2,8 @@ use serde::Deserialize;
 
 use itertools::{iproduct, Itertools};
 
+use crate::CliError;
+
 use super::{MutationChainConfig, MutationConfig, PipelineConfig};
 
 #[derive(Deserialize, Debug, Clone)]
@@ -289,10 +291,15 @@ impl ParametrizedPipelineConfig {
     }
 }
 
-pub fn get_parametrized_pipeline_output_root(config: &MutationChainConfig) -> String {
+pub fn get_parametrized_pipeline_output_root(
+    config: &MutationChainConfig,
+) -> Result<String, CliError> {
     let mut base_path = if let Some(out) = &config.output {
         if out.is_file() {
-            panic!("Parametrized pipeline cannot take file as output path")
+            return Err(CliError::new(
+                clap::error::ErrorKind::ValueValidation,
+                "Parametrized pipeline cannot take file as output path",
+            ));
         }
         out.as_os_str().to_string_lossy().to_string()
     } else {
@@ -301,5 +308,5 @@ pub fn get_parametrized_pipeline_output_root(config: &MutationChainConfig) -> St
     if !base_path.ends_with('/') {
         base_path.push('/');
     }
-    base_path
+    Ok(base_path)
 }

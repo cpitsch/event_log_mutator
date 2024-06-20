@@ -13,6 +13,7 @@ use crate::{
         ConstantActivityMutator, EventSwapper, LogBootstrapper, PartialOrderCreator,
         ServiceTimeMultiplier, ServiceTimeStdShifter,
     },
+    CliError,
 };
 
 use self::parametrized_pipeline::ParametrizedPipelineConfig;
@@ -251,16 +252,19 @@ impl From<PipelineConfig> for MutationChain {
 //     num_supporting_cases: i64,
 // }
 
-pub fn parse_toml(path: &PathBuf) -> MutationChainConfig {
+pub fn parse_toml(path: &PathBuf) -> Result<MutationChainConfig, CliError> {
     let contents = read_to_string(path).unwrap();
     let res: MutationChainConfig = from_str(&contents).expect("Invalid TOML format");
 
     if res.pipeline.is_some() && res.parametrized_pipeline.is_some() {
         // TODO: Make this an error, and return a result
-        panic!("Pipeline and Parametrized Pipeline defined. Only one allowed")
+        Err(CliError::new(
+            clap::error::ErrorKind::ValueValidation,
+            "Pipeline and Parametrized Pipeline defined. Only one allowed",
+        ))
+    } else {
+        Ok(res)
     }
-
-    res
 }
 
 pub fn mutation_config_vec_to_path(mutation_configs: &[MutationConfig]) -> String {
