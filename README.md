@@ -19,7 +19,7 @@ log is used.
 # The path to the input file. Can be .xes or .xes.gz
 input = "path/to/input_log.xes"
 # The path where to store the mutated log. If not supplied, default to 
-./<input-log-name>_mutated.xes.gz.
+# ./<input-log-name>_mutated.xes.gz.
 output = "path/to/output.xes.gz"
 # Gzip the event output logs. Defaults to false
 compress_output = true
