@@ -9,3 +9,4 @@ pub const NO_START_TIMESTAMP_MSG: &str =
     "All events must have an activity label (\"start_timestamp\")";
 pub const NO_COMPLETE_TIMESTAMP_MSG: &str =
     "All events must have an activity label (\"time:timestamp\")";
+pub const NO_TRACEID_MSG: &str = "All traces must have a trace id (\"concept:name\")";

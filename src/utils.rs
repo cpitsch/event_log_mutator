@@ -1,9 +1,14 @@
+use std::collections::HashSet;
+
 use chrono::{DateTime, TimeDelta, Utc};
-use process_mining::event_log::{AttributeValue, Attributes, Event, Trace, XESEditableAttribute};
+use process_mining::{
+    event_log::{AttributeValue, Attributes, Event, Trace, XESEditableAttribute},
+    EventLog,
+};
 
 use crate::constants::{
-    ACTIVITY_KEY, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG, START_TIMESTAMP_KEY,
-    TIMESTAMP_KEY, TRACEID_KEY,
+    ACTIVITY_KEY, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG, NO_TRACEID_MSG,
+    START_TIMESTAMP_KEY, TIMESTAMP_KEY, TRACEID_KEY,
 };
 
 pub trait HasAttributes {
@@ -103,4 +108,11 @@ pub fn shift_events_by(trace: &mut Trace, by: TimeDelta, from: usize) {
         set_start_timestamp(evt, AttributeValue::Date(new_start_timestamp));
         set_complete_timestamp(evt, AttributeValue::Date(new_complete_timestamp));
     })
+}
+
+pub fn get_traceids(log: &EventLog) -> HashSet<String> {
+    log.traces
+        .iter()
+        .map(|trace| get_traceid(trace).expect(NO_TRACEID_MSG))
+        .collect()
 }
