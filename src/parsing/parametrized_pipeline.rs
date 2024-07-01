@@ -5,8 +5,8 @@ use itertools::{iproduct, Itertools};
 use crate::CliError;
 
 use super::{
-    default_probability, default_service_time_factor, default_standard_deviations,
-    MutationChainConfig, MutationConfig, PipelineConfig,
+    default_log_bootstrapper_replacement, default_probability, default_service_time_factor,
+    default_standard_deviations, MutationChainConfig, MutationConfig, PipelineConfig,
 };
 
 #[derive(Deserialize, Debug, Clone)]
@@ -50,6 +50,10 @@ fn default_service_time_factor_mutation_value() -> MutationValue<f32> {
     MutationValue::Value(default_service_time_factor())
 }
 
+fn default_log_bootstrapper_replacement_value() -> MutationValue<bool> {
+    MutationValue::Value(default_log_bootstrapper_replacement())
+}
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum ParametrizedMutationConfig {
@@ -87,6 +91,8 @@ pub enum ParametrizedMutationConfig {
     },
     LogBootstrapper {
         size: MutationValue<usize>,
+        #[serde(default = "default_log_bootstrapper_replacement_value")]
+        replacement: MutationValue<bool>,
     },
     PartialOrderCreator,
     AttributeRemover {
@@ -151,8 +157,9 @@ impl ParametrizedMutationConfig {
                 activity_2: activity_2.normalized(),
                 probability: probability.normalized(),
             },
-            Self::LogBootstrapper { size } => Self::LogBootstrapper {
+            Self::LogBootstrapper { size, replacement } => Self::LogBootstrapper {
                 size: size.normalized(),
+                replacement: replacement.normalized(),
             },
             Self::PartialOrderCreator => Self::PartialOrderCreator,
             Self::AttributeRemover { key } => Self::AttributeRemover {
@@ -234,11 +241,14 @@ impl ParametrizedMutationConfig {
                 probability: prob,
             })
             .collect(),
-            Self::LogBootstrapper { size } => size
-                .get_as_vec()
-                .iter()
-                .map(|s| MutationConfig::LogBootstrapper { size: *s })
-                .collect(),
+            Self::LogBootstrapper { size, replacement } => {
+                iproduct!(size.get_as_vec(), replacement.get_as_vec())
+                    .map(|(s, replace)| MutationConfig::LogBootstrapper {
+                        size: s,
+                        replacement: replace,
+                    })
+                    .collect()
+            }
             Self::ConstantActivity {
                 activity,
                 probability,

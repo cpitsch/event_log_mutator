@@ -64,6 +64,10 @@ fn default_service_time_factor() -> f32 {
     1.0
 }
 
+fn default_log_bootstrapper_replacement() -> bool {
+    true
+}
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum MutationConfig {
@@ -101,6 +105,8 @@ pub enum MutationConfig {
     },
     LogBootstrapper {
         size: usize,
+        #[serde(default = "default_log_bootstrapper_replacement")]
+        replacement: bool,
     },
     PartialOrderCreator,
     AttributeRemover {
@@ -151,7 +157,9 @@ impl From<MutationConfig> for Box<dyn LogMutator> {
                 activity_2,
                 probability,
             } => Box::new(EventSwapper::new(activity_1, activity_2).with_probability(probability)),
-            MutationConfig::LogBootstrapper { size } => Box::new(LogBootstrapper::new(size)),
+            MutationConfig::LogBootstrapper { size, replacement } => {
+                Box::new(LogBootstrapper::new(size).with_replacement(replacement))
+            }
             MutationConfig::PartialOrderCreator => Box::new(PartialOrderCreator::new()),
             MutationConfig::AttributeRemover { key } => Box::new(AttributeRemover::new(key)),
             MutationConfig::ServiceTimeMultiplier {
@@ -211,7 +219,11 @@ impl MutationConfig {
                 "EventSwapper_{}_swap_{}_p{}",
                 activity_1, activity_2, probability
             ),
-            MutationConfig::LogBootstrapper { size } => format!("LogBootstrapper_{}", size),
+            MutationConfig::LogBootstrapper { size, replacement } => format!(
+                "LogBootstrapper_{}_{}replacement",
+                size,
+                if *replacement { "no_" } else { "" }
+            ),
             MutationConfig::PartialOrderCreator => "PartialOrderCreator".to_string(),
             MutationConfig::AttributeRemover { key } => format!("AttributeRemover_{}", key),
             MutationConfig::ServiceTimeMultiplier {
