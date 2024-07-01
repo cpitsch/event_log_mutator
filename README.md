@@ -6,7 +6,7 @@ To see the parameters a mutator takes, follow its respective link
 - [ActivityRenamer](./src/mutators/activity_rename.rs#L10-L17)
 - [ConstantActivity](./src/mutators/constant_activity.rs#L6-L12)
 - [EventSwapper](./src/mutators/event_swapper.rs#L14-L25)
-- [LogBootstrapper](./src/mutators/log_bootstrapper.rs#L6-L11)
+- [LogBootstrapper](./src/mutators/log_bootstrapper.rs#L6-L13)
 - [PartialOrderCreator](./src/mutators/partial_order_creator.rs#L9-L12)
 - [AttributeRemover](./src/mutators/attribute_remover.rs#L3-L7)
 - [ServiceTimeMultiplier](./src/mutators/service_time_multiplier.rs#L14-L24)
