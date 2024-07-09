@@ -3,7 +3,6 @@ use std::{fs::read_to_string, path::PathBuf};
 pub mod parametrized_pipeline;
 
 use itertools::Itertools;
-use process_mining::EventLog;
 use serde::Deserialize;
 use toml::from_str;
 
@@ -31,17 +30,6 @@ pub struct MutationChainConfig {
     pub compress_output: bool,
     /// A definition for a mutation pipeline
     pub pipeline: ParametrizedPipelineConfig,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub enum PipelineEnum {
-    StandardPipeline(PipelineConfig),
-    ParametrizedPipeline(ParametrizedPipelineConfig),
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct PipelineConfig {
-    pub mutations: Vec<MutationConfig>,
 }
 
 // #[derive(Deserialize, Debug)]
@@ -247,18 +235,6 @@ pub fn mutation_config_vec_to_mutation_chain(
         .into_iter()
         .for_each(|mutation_config| chain.mutations.push(mutation_config.into()));
     chain
-}
-
-impl PipelineConfig {
-    pub fn new(mutations: Vec<MutationConfig>) -> Self {
-        Self { mutations }
-    }
-}
-
-impl From<PipelineConfig> for MutationChain {
-    fn from(value: PipelineConfig) -> Self {
-        mutation_config_vec_to_mutation_chain(value.mutations)
-    }
 }
 
 // #[derive(Deserialize, Debug)]

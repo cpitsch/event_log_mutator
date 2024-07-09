@@ -7,7 +7,7 @@ use crate::{mutation::MutationChain, CliError};
 use super::{
     default_log_bootstrapper_replacement, default_probability, default_service_time_factor,
     default_standard_deviations, mutation_config_vec_to_mutation_chain, MutationChainConfig,
-    MutationConfig, PipelineConfig,
+    MutationConfig,
 };
 
 #[derive(Deserialize, Debug, Clone)]
@@ -298,13 +298,6 @@ impl ParametrizedMutationConfig {
 }
 
 impl ParametrizedPipelineConfig {
-    pub fn to_pipeline_config_vec(self) -> Vec<PipelineConfig> {
-        self.to_mutation_config_vec_vec()
-            .into_iter()
-            .map(|v| PipelineConfig { mutations: v })
-            .collect()
-    }
-
     pub fn to_mutation_config_vec_vec(self) -> Vec<Vec<MutationConfig>> {
         self.mutations
             .iter()
