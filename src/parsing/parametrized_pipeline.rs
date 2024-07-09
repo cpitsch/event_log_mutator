@@ -2,11 +2,12 @@ use serde::Deserialize;
 
 use itertools::{iproduct, Itertools};
 
-use crate::CliError;
+use crate::{mutation::MutationChain, CliError};
 
 use super::{
     default_log_bootstrapper_replacement, default_probability, default_service_time_factor,
-    default_standard_deviations, MutationChainConfig, MutationConfig, PipelineConfig,
+    default_standard_deviations, mutation_config_vec_to_mutation_chain, MutationChainConfig,
+    MutationConfig, PipelineConfig,
 };
 
 #[derive(Deserialize, Debug, Clone)]
@@ -105,6 +106,16 @@ pub enum ParametrizedMutationConfig {
         #[serde(default = "default_service_time_factor_mutation_value")]
         factor: MutationValue<f32>,
     },
+}
+
+pub fn parametrized_pipeline_to_mutation_chain_vec(
+    parametrized_pipeline: ParametrizedPipelineConfig,
+) -> Vec<MutationChain> {
+    parametrized_pipeline
+        .to_mutation_config_vec_vec()
+        .into_iter()
+        .map(mutation_config_vec_to_mutation_chain)
+        .collect()
 }
 
 impl ParametrizedMutationConfig {

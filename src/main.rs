@@ -4,10 +4,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::cli::{Args, CliError};
+use crate::{
+    cli::{Args, CliError},
+    parsing::mutation_config_vec_to_mutation_chain,
+};
 use clap::{error::ErrorKind, CommandFactory, Parser};
 use mutators::{LogBootstrapper, ServiceTimeMultiplier};
-use parsing::MutationChainConfig;
+use parsing::{
+    parametrized_pipeline::{
+        parametrized_pipeline_to_mutation_chain_vec, ParametrizedPipelineConfig,
+    },
+    MutationChainConfig,
+};
 use process_mining::{
     event_log::export_xes::export_xes_event_log_to_file, import_xes_file, EventLog,
     XESImportOptions,
@@ -42,15 +50,8 @@ pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     }
     // Get the configuration from the pipeline
     let mut parsed_toml = parse_toml(&path_to_pipeline)?;
+    parsed_toml = overwrite_pipeline_config_with_cli_args(args, parsed_toml);
 
-    // If an input file is explicitly specified, override pipeline config with that
-    if let Some(input) = &args.input {
-        parsed_toml.input.clone_from(input);
-    }
-    // If an output dir is explicitly specified, override pipeline config with that
-    if let Some(output) = &args.output {
-        parsed_toml.output = Some(output.clone());
-    }
     // Read the event log
     let log = import_xes_file(
         &parsed_toml.clone().input.to_string_lossy(),
@@ -58,37 +59,23 @@ pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     )
     .unwrap();
 
-    if parsed_toml.pipeline.is_some() {
-        execute_standard_pipeline(parsed_toml, &log)
-    } else if parsed_toml.parametrized_pipeline.is_some() {
-        execute_parametrized_pipeline(parsed_toml, &log)
-    } else {
-        Err(CliError::new(
-            ErrorKind::ValueValidation,
-            "Pipeline config file does not specify a pipeline",
-        ))
-    }
+    execute_parametrized_pipeline(parsed_toml, &log)
 }
 
-fn execute_standard_pipeline(
-    parsed_toml: MutationChainConfig,
-    log: &EventLog,
-) -> Result<(), CliError> {
-    // Handle standard pipeline
-    let mutation_chain: MutationChain = parsed_toml.pipeline.clone().unwrap().into();
-    let mutated_log = mutation_chain.apply(log);
+pub fn overwrite_pipeline_config_with_cli_args(
+    args: &Args,
+    mut config: MutationChainConfig,
+) -> MutationChainConfig {
+    // If an input file is explicitly specified, override pipeline config with that
+    if let Some(input) = &args.input {
+        config.input.clone_from(input);
+    }
+    // If an output dir is explicitly specified, override pipeline config with that
+    if let Some(output) = &args.output {
+        config.output = Some(output.clone());
+    }
 
-    write_xes(
-        &mutated_log,
-        parsed_toml
-            .clone()
-            .output
-            .unwrap_or_else(|| get_output_path(&parsed_toml.input))
-            .to_string_lossy()
-            .to_string(),
-        parsed_toml.compress_output,
-    )?;
-    Ok(())
+    config
 }
 
 fn execute_parametrized_pipeline(
@@ -96,39 +83,43 @@ fn execute_parametrized_pipeline(
     log: &EventLog,
 ) -> Result<(), CliError> {
     // Handle parametrized pipeline
-    let mutation_config_vecs = parsed_toml
-        .parametrized_pipeline
-        .clone()
-        .unwrap()
-        .to_mutation_config_vec_vec();
+    let mutation_config_vecs = parsed_toml.pipeline.clone().to_mutation_config_vec_vec();
 
-    // TODO: If only one mutation chain in vec: It is a standard pipeline, in which case
-    // i can just treat it as such
+    // If effectively only one mutation config, you should be able to provide a specific
+    // output file instead of an output root path
     if mutation_config_vecs.len() == 1 {
-        let mut new_toml = parsed_toml.clone();
-        new_toml.pipeline = Some(PipelineConfig {
-            mutations: mutation_config_vecs.first().unwrap().clone(),
-        });
-        new_toml.parametrized_pipeline = None;
-        return execute_standard_pipeline(new_toml, log);
-    }
-
-    for vec in mutation_config_vecs {
-        // Path creation
-        let mut path = get_parametrized_pipeline_output_root(&parsed_toml)?;
-        path.push_str(mutation_config_vec_to_path(&vec).as_str());
-        path.push_str("/log.xes");
-        if parsed_toml.compress_output {
-            path.push_str(".gz");
-        }
-
-        // Apply mutations
-        let mutation_chain: MutationChain = PipelineConfig::new(vec).into();
+        let mutation_chains =
+            parametrized_pipeline_to_mutation_chain_vec(parsed_toml.pipeline.clone());
+        let output_path = parsed_toml
+            .output
+            .clone()
+            .unwrap_or_else(|| get_output_path(&parsed_toml.input));
+        let mutation_chain = mutation_chains.first().unwrap();
         let mutated_log = mutation_chain.apply(log);
 
-        // Write event log file
-        write_xes(&mutated_log, path.clone(), parsed_toml.compress_output)?;
-        println!("Wrote event log: {}", path);
+        write_xes(
+            &mutated_log,
+            output_path.to_string_lossy().to_string(),
+            parsed_toml.compress_output,
+        )?;
+    } else {
+        for vec in mutation_config_vecs {
+            // Path creation
+            let mut path = get_parametrized_pipeline_output_root(&parsed_toml)?;
+            path.push_str(mutation_config_vec_to_path(&vec).as_str());
+            path.push_str("/log.xes");
+            if parsed_toml.compress_output {
+                path.push_str(".gz");
+            }
+
+            // Apply mutations
+            let mutation_chain: MutationChain = mutation_config_vec_to_mutation_chain(vec);
+            let mutated_log = mutation_chain.apply(log);
+
+            // Write event log file
+            write_xes(&mutated_log, path.clone(), parsed_toml.compress_output)?;
+            println!("Wrote event log: {}", path);
+        }
     }
 
     Ok(())

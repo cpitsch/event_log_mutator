@@ -3,6 +3,7 @@ use std::{fs::read_to_string, path::PathBuf};
 pub mod parametrized_pipeline;
 
 use itertools::Itertools;
+use process_mining::EventLog;
 use serde::Deserialize;
 use toml::from_str;
 
@@ -28,10 +29,8 @@ pub struct MutationChainConfig {
     /// Save the output log(s) gzipped. Defaults to false
     #[serde(default)] // Default to default bool (false)
     pub compress_output: bool,
-    /// A definition for a standard mutation pipeline
-    pub pipeline: Option<PipelineConfig>,
-    /// A definition for a parametrized mutation pipeline
-    pub parametrized_pipeline: Option<ParametrizedPipelineConfig>,
+    /// A definition for a mutation pipeline
+    pub pipeline: ParametrizedPipelineConfig,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -240,6 +239,16 @@ impl MutationConfig {
     }
 }
 
+pub fn mutation_config_vec_to_mutation_chain(
+    mutation_config_vec: Vec<MutationConfig>,
+) -> MutationChain {
+    let mut chain = MutationChain::new();
+    mutation_config_vec
+        .into_iter()
+        .for_each(|mutation_config| chain.mutations.push(mutation_config.into()));
+    chain
+}
+
 impl PipelineConfig {
     pub fn new(mutations: Vec<MutationConfig>) -> Self {
         Self { mutations }
@@ -248,11 +257,7 @@ impl PipelineConfig {
 
 impl From<PipelineConfig> for MutationChain {
     fn from(value: PipelineConfig) -> Self {
-        let mut chain = MutationChain::new();
-        for mutation_config in value.mutations {
-            chain.mutations.push(mutation_config.into())
-        }
-        chain
+        mutation_config_vec_to_mutation_chain(value.mutations)
     }
 }
 
@@ -267,16 +272,7 @@ impl From<PipelineConfig> for MutationChain {
 pub fn parse_toml(path: &PathBuf) -> Result<MutationChainConfig, CliError> {
     let contents = read_to_string(path).unwrap();
     let res: MutationChainConfig = from_str(&contents).expect("Invalid TOML format");
-
-    if res.pipeline.is_some() && res.parametrized_pipeline.is_some() {
-        // TODO: Make this an error, and return a result
-        Err(CliError::new(
-            clap::error::ErrorKind::ValueValidation,
-            "Pipeline and Parametrized Pipeline defined. Only one allowed",
-        ))
-    } else {
-        Ok(res)
-    }
+    Ok(res)
 }
 
 pub fn mutation_config_vec_to_path(mutation_configs: &[MutationConfig]) -> String {
