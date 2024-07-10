@@ -112,11 +112,11 @@ fn execute_parametrized_pipeline(
                 path.push_str(".gz");
             }
 
-            // // Apply mutations
-            // let mutated_log = mutation_chain.apply(log);
-            //
-            // // Write event log file
-            // write_xes(&mutated_log, path.clone(), parsed_toml.compress_output)?;
+            // Apply mutations
+            let mutated_log = mutation_chain.apply(log);
+
+            // Write event log file
+            write_xes(&mutated_log, path.clone(), parsed_toml.compress_output)?;
             println!("Wrote event log: {}", path);
         }
     }
