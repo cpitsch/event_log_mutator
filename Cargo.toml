@@ -13,3 +13,4 @@ process_mining = "0.2.8"
 rand = "0.8.5"
 serde = { version = "1.0.203", features = ["derive"]}
 toml = "0.8.14"
+derive-macros = { path = "derive-macros"}

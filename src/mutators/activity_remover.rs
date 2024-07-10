@@ -1,13 +1,20 @@
 use process_mining::event_log::{Event, Trace};
 use rand::random;
 
-use crate::{constants::NO_ACTIVITY_LABEL_MSG, mutation::TraceMutator, utils::get_activity_label};
+use crate::{
+    constants::NO_ACTIVITY_LABEL_MSG, mutation::TraceMutator, parsing::as_dir_name::AsDirName,
+    utils::get_activity_label,
+};
 
 /// Mutator to remove events that have the given activity label.
+#[derive(AsDirName)]
 pub struct ActivityRemover {
     /// The activity label to remove.
+    #[asdirname(rename = "")]
     activity: String,
     /// The probability of removal. Ranges from 0 to 1. Defaults to 1
+
+    #[asdirname(rename = "p", no_split)]
     probability: f32,
 }
 

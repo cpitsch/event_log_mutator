@@ -11,6 +11,7 @@ use rand::random;
 use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG},
     mutation::LogMutator,
+    parsing::as_dir_name::AsDirName,
     utils::{
         get_activity_label, get_complete_timestamp, get_service_time, get_start_timestamp,
         set_complete_timestamp, shift_events_by,
@@ -19,14 +20,18 @@ use crate::{
 
 /// Mutation to shift the execution times of events by a factor of the
 /// standard deviation of the duration
+#[derive(AsDirName)]
 pub struct ServiceTimeStdShifter {
     /// Only mutate events with this activity. Defaults to all activities (None).
     /// Use [`ServiceTimeMultiplier::for_activity`] to for a specific activity.
+    #[asdirname(rename = "")]
     activity: Option<String>,
     /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
     /// Use [`ServiceTimeMultiplier::with_probability`] for a specific probability.
+    #[asdirname(rename = "p", no_split)]
     probability: f32,
     /// The number of standard deviations to shift the duration by.
+    #[asdirname(rename = "std", no_split)]
     standard_deviations: f64,
 }
 

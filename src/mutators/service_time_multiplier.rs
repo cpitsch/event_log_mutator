@@ -5,6 +5,7 @@ use rand::random;
 use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG},
     mutation::TraceMutator,
+    parsing::as_dir_name::AsDirName,
     utils::{
         get_activity_label, get_complete_timestamp, get_service_time, get_start_timestamp,
         set_complete_timestamp, shift_events_by,
@@ -12,14 +13,18 @@ use crate::{
 };
 
 /// Mutation to increase the service time by a factor.
+#[derive(AsDirName)]
 pub struct ServiceTimeMultiplier {
     /// Only mutate events with this activity. Defaults to all activities (None).
     /// Use [`ServiceTimeMultiplier::for_activity`] to for a specific activity.
+    #[asdirname(rename = "")]
     activity: Option<String>,
     /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
     /// Use [`ServiceTimeMultiplier::with_probability`] for a specific probability.
+    #[asdirname(rename = "p", no_split)]
     probability: f32,
     /// The factor to multiply the service time by.
+    #[asdirname(rename = "x", no_split)]
     factor: f32,
 }
 

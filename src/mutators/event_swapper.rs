@@ -5,6 +5,7 @@ use rand::random;
 use crate::{
     constants::NO_START_TIMESTAMP_MSG,
     mutation::TraceMutator,
+    parsing::as_dir_name::AsDirName,
     utils::{
         get_activity_label, get_service_time, get_start_timestamp, set_complete_timestamp,
         set_start_timestamp,
@@ -15,12 +16,16 @@ use crate::{
 /// First occurrence of `activity_1` is swapped with first occurrence of `activity_2`,
 /// etc.
 /// Un-paired events are not affected.
+#[derive(AsDirName)]
 pub struct EventSwapper {
     // The first activity label for swapping.
+    #[asdirname(rename = "")]
     activity_1: String,
     // The second activity label for swapping.
+    #[asdirname(rename = "swap")]
     activity_2: String,
     /// The probability of applying this modifier (per pair)
+    #[asdirname(rename = "p", no_split)]
     probability: f32,
 }
 

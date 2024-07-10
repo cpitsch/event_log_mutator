@@ -4,13 +4,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::{
-    cli::{Args, CliError},
-    parsing::mutation_config_vec_to_mutation_chain,
-};
+use crate::cli::{Args, CliError};
 use clap::{error::ErrorKind, CommandFactory, Parser};
+use itertools::Itertools;
 use mutators::{LogBootstrapper, ServiceTimeMultiplier};
-use parsing::MutationChainConfig;
+use parsing::{MutationChainConfig, MutationConfig};
 use process_mining::{
     event_log::export_xes::export_xes_event_log_to_file, import_xes_file, EventLog,
     XESImportOptions,
@@ -20,10 +18,7 @@ use rand::seq::SliceRandom;
 use crate::{
     mutation::{LogMutator, MutationChain},
     mutators::ServiceTimeStdShifter,
-    parsing::{
-        mutation_config_vec_to_path, parametrized_pipeline::get_parametrized_pipeline_output_root,
-        parse_toml,
-    },
+    parsing::{parametrized_pipeline::get_parametrized_pipeline_output_root, parse_toml},
     utils::get_traceid,
 };
 
@@ -54,6 +49,8 @@ pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     )
     .unwrap();
 
+    println!("Finished reading log.");
+
     execute_parametrized_pipeline(parsed_toml, &log)
 }
 
@@ -77,15 +74,15 @@ fn execute_parametrized_pipeline(
     parsed_toml: MutationChainConfig,
     log: &EventLog,
 ) -> Result<(), CliError> {
-    let mutation_config_vecs = parsed_toml.pipeline.clone().to_mutation_config_vec_vec();
+    let mutation_chains: Vec<MutationChain> =
+        std::convert::Into::<Vec<Vec<MutationConfig>>>::into(parsed_toml.pipeline.clone())
+            .into_iter()
+            .map_into()
+            .collect();
 
     // If effectively only one mutation config, you should be able to provide a specific
     // output file instead of an output root path
-    if mutation_config_vecs.len() == 1 {
-        let mutation_chains: Vec<MutationChain> = mutation_config_vecs
-            .into_iter()
-            .map(mutation_config_vec_to_mutation_chain)
-            .collect();
+    if mutation_chains.len() == 1 {
         let output_path = parsed_toml
             .output
             .clone()
@@ -99,21 +96,27 @@ fn execute_parametrized_pipeline(
             parsed_toml.compress_output,
         )?;
     } else {
-        for vec in mutation_config_vecs {
+        for mutation_chain in mutation_chains {
             // Path creation
             let mut path = get_parametrized_pipeline_output_root(&parsed_toml)?;
-            path.push_str(mutation_config_vec_to_path(&vec).as_str());
+            path.push_str(
+                mutation_chain
+                    .mutations
+                    .iter()
+                    .map(|mutation| mutation.as_dir_name())
+                    .join("/")
+                    .as_str(),
+            );
             path.push_str("/log.xes");
             if parsed_toml.compress_output {
                 path.push_str(".gz");
             }
 
-            // Apply mutations
-            let mutation_chain: MutationChain = mutation_config_vec_to_mutation_chain(vec);
-            let mutated_log = mutation_chain.apply(log);
-
-            // Write event log file
-            write_xes(&mutated_log, path.clone(), parsed_toml.compress_output)?;
+            // // Apply mutations
+            // let mutated_log = mutation_chain.apply(log);
+            //
+            // // Write event log file
+            // write_xes(&mutated_log, path.clone(), parsed_toml.compress_output)?;
             println!("Wrote event log: {}", path);
         }
     }
@@ -231,11 +234,6 @@ fn run_cli(mut args: Args) -> Result<(), CliError> {
                         .for_activity("W_Completeren aanvraag")
                         .with_probability(1.0),
                 )
-                // .with_mutation(EventSwapper::new("A_SUBMITTED", "A_PARTLYSUBMITTED"))
-                // .with_mutation(
-                //     // Only 270 instances in the original log --> ~ <600 in bootstrapped
-                //     ActivityRemover::new("W_Beoordelen fraude".to_owned()).with_probability(1.0),
-                // );
             }
             chain
         };

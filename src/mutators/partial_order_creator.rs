@@ -3,12 +3,13 @@ use process_mining::event_log::{AttributeValue, Trace};
 use crate::{
     constants::NO_COMPLETE_TIMESTAMP_MSG,
     mutation::TraceMutator,
+    parsing::as_dir_name::AsDirName,
     utils::{get_complete_timestamp, set_start_timestamp},
 };
 
 /// Mutation to add service time information to an event log by assuming the timespan
 /// between two events completing to be the service time of the second event
-#[derive(Default)]
+#[derive(Default, AsDirName)]
 pub struct PartialOrderCreator;
 
 impl PartialOrderCreator {
