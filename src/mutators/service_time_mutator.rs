@@ -5,23 +5,23 @@ use rand::random;
 use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG},
     mutation::EventMutator,
-    parsing::as_dir_name::AsDirName,
+    parsing::dir_name_trait::DirName,
     utils::{get_activity_label, get_complete_timestamp, set_complete_timestamp},
 };
 
 /// Mutation to increase the service time by a constant amount.
-#[derive(AsDirName)]
+#[derive(DirName)]
 pub struct ServiceTimeMutation {
     /// Only apply the mutation to events with this activity. Defaults to all activities.
     /// Use [`ServiceTimeMutation::for_activity`] to set a specific activity.
-    #[asdirname(rename = "")]
+    #[dirname(rename = "")]
     activity: Option<String>,
     /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
     /// Use [`ServiceTimeMutation::with_probability`] to set a probability.
-    #[asdirname(rename = "p", no_split)]
+    #[dirname(rename = "p", no_split)]
     probability: f32,
     /// The time difference to add to the service time.
-    #[asdirname(rename = "by")]
+    #[dirname(rename = "by")]
     timedelta: TimeDelta,
 }
 

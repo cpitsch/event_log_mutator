@@ -1,16 +1,16 @@
 use process_mining::event_log::{AttributeValue, Event};
 use rand::random;
 
-use crate::{mutation::EventMutator, parsing::as_dir_name::AsDirName, utils::set_activity_label};
+use crate::{mutation::EventMutator, parsing::dir_name_trait::DirName, utils::set_activity_label};
 
 /// Replace the activity label of all events with a constant one.
-#[derive(AsDirName)]
+#[derive(DirName)]
 pub struct ConstantActivityMutator {
     /// The activity label to use.
-    #[asdirname(rename = "")]
+    #[dirname(rename = "")]
     activity: String,
     /// The probability of applying the mutation to an event
-    #[asdirname(rename = "p", no_split)]
+    #[dirname(rename = "p", no_split)]
     probability: f32,
 }
 

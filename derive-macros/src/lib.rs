@@ -4,7 +4,7 @@ use syn::DeriveInput;
 use syn::TypePath;
 
 #[derive(deluxe::ExtractAttributes)]
-#[deluxe(attributes(asdirname))]
+#[deluxe(attributes(dirname))]
 struct FieldAttributes {
     rename: Option<String>,
     #[deluxe(default = false)]
@@ -27,7 +27,7 @@ struct FieldAttributes {
 //     Ok(attrs)
 // }
 
-#[proc_macro_derive(AsDirName, attributes(asdirname))]
+#[proc_macro_derive(DirName, attributes(dirname))]
 pub fn as_dir_name_macro(item: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(item).unwrap();
     impl_as_dir_name(ast)
@@ -94,8 +94,8 @@ fn impl_as_dir_name(ast: DeriveInput) -> TokenStream {
         .collect();
 
     quote::quote! {
-        impl AsDirName for #ident {
-            fn as_dir_name(&self) -> String {
+        impl DirName for #ident {
+            fn to_dir_name(&self) -> String {
                 let attr_strs: Vec<String> = vec![#(#attr_str_quotes),*];
                 format!("{}_{}", #ident_str, attr_strs.join("_"))
             }

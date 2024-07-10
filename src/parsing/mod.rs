@@ -1,6 +1,6 @@
 use std::{fs::read_to_string, path::PathBuf};
 
-pub mod as_dir_name;
+pub mod dir_name_trait;
 pub mod parametrized_pipeline;
 
 use itertools::Itertools;

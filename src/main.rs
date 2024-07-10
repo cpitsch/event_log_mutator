@@ -103,7 +103,7 @@ fn execute_parametrized_pipeline(
                 mutation_chain
                     .mutations
                     .iter()
-                    .map(|mutation| mutation.as_dir_name())
+                    .map(|mutation| mutation.to_dir_name())
                     .join("/")
                     .as_str(),
             );

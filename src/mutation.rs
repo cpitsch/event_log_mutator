@@ -3,7 +3,7 @@ use process_mining::{
     EventLog,
 };
 
-use crate::parsing::as_dir_name::AsDirName;
+use crate::parsing::dir_name_trait::DirName;
 
 pub trait EventMutator {
     /// Apply the mutation to a given event.
@@ -47,8 +47,8 @@ where
     }
 }
 
-pub trait LogMutatorWithAsDirName: LogMutator + AsDirName {}
-impl<T: LogMutator + AsDirName> LogMutatorWithAsDirName for T {}
+pub trait LogMutatorWithAsDirName: LogMutator + DirName {}
+impl<T: LogMutator + DirName> LogMutatorWithAsDirName for T {}
 
 /// A Mutation pipeline to apply a number of mutations to an event log at once.
 #[derive(Default)]
