@@ -59,6 +59,10 @@ pub enum ParametrizedMutationConfig {
     VariantSupportFilter {
         num_supporting_cases: MutationValue<usize>,
     },
+    EndpointFilter {
+        start_activities: MutationValue<Option<Vec<String>>>,
+        end_activities: MutationValue<Option<Vec<String>>>,
+    },
     ActivityRemover {
         activity: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
@@ -133,6 +137,15 @@ impl From<ParametrizedMutationConfig> for Vec<MutationConfig> {
                 .iter()
                 .map(|threshold| MutationConfig::VariantSupportFilter {
                     num_supporting_cases: *threshold,
+                })
+                .collect(),
+            ParametrizedMutationConfig::EndpointFilter {
+                start_activities,
+                end_activities,
+            } => iproduct!(start_activities.get_as_vec(), end_activities.get_as_vec())
+                .map(|(start_acts, end_acts)| MutationConfig::EndpointFilter {
+                    start_activities: start_acts,
+                    end_activities: end_acts,
                 })
                 .collect(),
 

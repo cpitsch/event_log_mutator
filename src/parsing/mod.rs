@@ -10,9 +10,9 @@ use toml::from_str;
 use crate::{
     mutation::{LogMutatorWithAsDirName, MutationChain},
     mutators::{
-        filters::VariantSupportFilter, ActivityRemover, ActivityRenamer, AttributeRemover,
-        ConstantActivityMutator, EventSwapper, LogBootstrapper, PartialOrderCreator,
-        ServiceTimeMultiplier, ServiceTimeStdShifter,
+        filters::{EndpointFilter, VariantSupportFilter},
+        ActivityRemover, ActivityRenamer, AttributeRemover, ConstantActivityMutator, EventSwapper,
+        LogBootstrapper, PartialOrderCreator, ServiceTimeMultiplier, ServiceTimeStdShifter,
     },
     CliError,
 };
@@ -61,6 +61,10 @@ pub enum MutationConfig {
     },
     VariantSupportFilter {
         num_supporting_cases: usize,
+    },
+    EndpointFilter {
+        start_activities: Option<Vec<String>>,
+        end_activities: Option<Vec<String>>,
     },
     ActivityRemover {
         activity: String,
@@ -120,6 +124,10 @@ impl From<MutationConfig> for Box<dyn LogMutatorWithAsDirName> {
             MutationConfig::VariantSupportFilter {
                 num_supporting_cases,
             } => Box::new(VariantSupportFilter::new(num_supporting_cases)),
+            MutationConfig::EndpointFilter {
+                start_activities,
+                end_activities,
+            } => Box::new(EndpointFilter::new(start_activities, end_activities)),
             MutationConfig::ActivityRemover {
                 activity,
                 probability,

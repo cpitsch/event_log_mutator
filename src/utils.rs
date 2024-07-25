@@ -1,14 +1,15 @@
 use std::collections::HashSet;
 
 use chrono::{DateTime, TimeDelta, Utc};
+use itertools::Itertools;
 use process_mining::{
     event_log::{AttributeValue, Attributes, Event, Trace, XESEditableAttribute},
     EventLog,
 };
 
 use crate::constants::{
-    ACTIVITY_KEY, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG, NO_TRACEID_MSG,
-    START_TIMESTAMP_KEY, TIMESTAMP_KEY, TRACEID_KEY,
+    ACTIVITY_KEY, NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG,
+    NO_TRACEID_MSG, START_TIMESTAMP_KEY, TIMESTAMP_KEY, TRACEID_KEY,
 };
 
 pub trait HasAttributes {
@@ -114,5 +115,72 @@ pub fn get_traceids(log: &EventLog) -> HashSet<String> {
     log.traces
         .iter()
         .map(|trace| get_traceid(trace).expect(NO_TRACEID_MSG))
+        .collect()
+}
+
+pub fn get_activities(log: &EventLog) -> HashSet<String> {
+    log.traces
+        .iter()
+        .flat_map(|trace| {
+            trace
+                .events
+                .iter()
+                .map(|event| get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG))
+                .collect::<HashSet<String>>()
+        })
+        .collect()
+}
+
+pub fn get_start_activities(trace: &Trace) -> HashSet<String> {
+    let activity_timestamp_pairs = trace
+        .events
+        .iter()
+        .map(|event| {
+            (
+                get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG),
+                get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG),
+            )
+        })
+        .collect_vec();
+
+    // Errors if the vec is empty
+    // Should  never be empty as the trace is not empty either
+    let earliest_timestamp = activity_timestamp_pairs
+        .iter()
+        .min_by_key(|(_, time)| time)
+        .unwrap()
+        .1;
+    activity_timestamp_pairs
+        .iter()
+        .filter(|(_, time)| *time <= earliest_timestamp)
+        .map(|(activity, _)| activity)
+        .cloned()
+        .collect()
+}
+
+pub fn get_end_activities(trace: &Trace) -> HashSet<String> {
+    let activity_timestamp_pairs = trace
+        .events
+        .iter()
+        .map(|event| {
+            (
+                get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG),
+                get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG),
+            )
+        })
+        .collect_vec();
+
+    // Errors if the vec is empty
+    // Should never be empty as the trace is not empty either
+    let latest_timestamp = activity_timestamp_pairs
+        .iter()
+        .max_by_key(|(_, time)| time)
+        .unwrap()
+        .1;
+    activity_timestamp_pairs
+        .iter()
+        .filter(|(_, time)| *time >= latest_timestamp)
+        .map(|(activity, _)| activity)
+        .cloned()
         .collect()
 }
