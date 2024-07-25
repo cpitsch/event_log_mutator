@@ -46,6 +46,10 @@ fn default_log_bootstrapper_replacement_value() -> MutationValue<bool> {
     MutationValue::Value(default_log_bootstrapper_replacement())
 }
 
+fn zero_f32_mutation_value() -> MutationValue<f32> {
+    MutationValue::Value(0.0)
+}
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum ParametrizedMutationConfig {
@@ -62,6 +66,18 @@ pub enum ParametrizedMutationConfig {
     EndpointFilter {
         start_activities: MutationValue<Option<Vec<String>>>,
         end_activities: MutationValue<Option<Vec<String>>>,
+    },
+    CaseDurationFilter {
+        #[serde(default = "zero_f32_mutation_value")]
+        years: MutationValue<f32>,
+        #[serde(default = "zero_f32_mutation_value")]
+        days: MutationValue<f32>,
+        #[serde(default = "zero_f32_mutation_value")]
+        hours: MutationValue<f32>,
+        #[serde(default = "zero_f32_mutation_value")]
+        minutes: MutationValue<f32>,
+        #[serde(default = "zero_f32_mutation_value")]
+        seconds: MutationValue<f32>,
     },
     ActivityRemover {
         activity: MutationValue<String>,
@@ -148,7 +164,29 @@ impl From<ParametrizedMutationConfig> for Vec<MutationConfig> {
                     end_activities: end_acts,
                 })
                 .collect(),
-
+            ParametrizedMutationConfig::CaseDurationFilter {
+                years,
+                days,
+                hours,
+                minutes,
+                seconds,
+            } => iproduct!(
+                years.get_as_vec(),
+                days.get_as_vec(),
+                hours.get_as_vec(),
+                minutes.get_as_vec(),
+                seconds.get_as_vec()
+            )
+            .map(
+                |(years, days, hours, minutes, seconds)| MutationConfig::CaseDurationFilter {
+                    years,
+                    days,
+                    hours,
+                    minutes,
+                    seconds,
+                },
+            )
+            .collect(),
             ParametrizedMutationConfig::ServiceTimeMultiplier {
                 activity,
                 probability,

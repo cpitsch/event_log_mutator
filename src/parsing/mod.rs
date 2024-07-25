@@ -10,7 +10,7 @@ use toml::from_str;
 use crate::{
     mutation::{LogMutatorWithAsDirName, MutationChain},
     mutators::{
-        filters::{EndpointFilter, VariantSupportFilter},
+        filters::{CaseDurationFilter, EndpointFilter, VariantSupportFilter},
         ActivityRemover, ActivityRenamer, AttributeRemover, ConstantActivityMutator, EventSwapper,
         LogBootstrapper, PartialOrderCreator, ServiceTimeMultiplier, ServiceTimeStdShifter,
     },
@@ -49,6 +49,10 @@ fn default_log_bootstrapper_replacement() -> bool {
     true
 }
 
+fn zero() -> f32 {
+    0.0
+}
+
 #[derive(Deserialize, Debug, Clone)]
 #[serde(tag = "type")]
 pub enum MutationConfig {
@@ -65,6 +69,18 @@ pub enum MutationConfig {
     EndpointFilter {
         start_activities: Option<Vec<String>>,
         end_activities: Option<Vec<String>>,
+    },
+    CaseDurationFilter {
+        #[serde(default = "zero")]
+        years: f32,
+        #[serde(default = "zero")]
+        days: f32,
+        #[serde(default = "zero")]
+        hours: f32,
+        #[serde(default = "zero")]
+        minutes: f32,
+        #[serde(default = "zero")]
+        seconds: f32,
     },
     ActivityRemover {
         activity: String,
@@ -128,6 +144,19 @@ impl From<MutationConfig> for Box<dyn LogMutatorWithAsDirName> {
                 start_activities,
                 end_activities,
             } => Box::new(EndpointFilter::new(start_activities, end_activities)),
+            MutationConfig::CaseDurationFilter {
+                years,
+                days,
+                hours,
+                minutes,
+                seconds,
+            } => Box::new(CaseDurationFilter::new(
+                Some(years),
+                Some(days),
+                Some(hours),
+                Some(minutes),
+                Some(seconds),
+            )),
             MutationConfig::ActivityRemover {
                 activity,
                 probability,
