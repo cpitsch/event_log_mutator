@@ -1,8 +1,11 @@
 use itertools::Itertools;
 use process_mining::event_log::Trace;
 
-use crate::{mutation::LogMutator, utils::get_activity_label};
+use crate::{mutation::LogMutator, parsing::dir_name_trait::DirName, utils::get_activity_label};
+
+#[derive(DirName)]
 pub struct VariantSupportFilter {
+    #[dirname(rename = "thresh", no_split)]
     num_supporting_cases: usize,
 }
 

@@ -2,11 +2,11 @@ use serde::Deserialize;
 
 use itertools::{iproduct, Itertools};
 
-use crate::CliError;
+use crate::{mutation::MutationChain, CliError};
 
 use super::{
     default_log_bootstrapper_replacement, default_probability, default_service_time_factor,
-    default_standard_deviations, MutationChainConfig, MutationConfig, PipelineConfig,
+    default_standard_deviations, MutationChainConfig, MutationConfig,
 };
 
 #[derive(Deserialize, Debug, Clone)]
@@ -17,14 +17,6 @@ pub enum MutationValue<T> {
 }
 
 impl<T> MutationValue<T> {
-    pub fn normalized(self) -> Self {
-        match self {
-            Self::Value(x) => Self::Vec(vec![x]),
-            Self::Vec(v) => Self::Vec(v),
-        }
-    }
-
-    // TODO: Typestate pattern? Only expose this if it has been normalized
     pub fn get_as_vec(self) -> Vec<T> {
         match self {
             Self::Vec(v) => v,
@@ -67,6 +59,10 @@ pub enum ParametrizedMutationConfig {
     VariantSupportFilter {
         num_supporting_cases: MutationValue<usize>,
     },
+    EndpointFilter {
+        start_activities: MutationValue<Option<Vec<String>>>,
+        end_activities: MutationValue<Option<Vec<String>>>,
+    },
     ActivityRemover {
         activity: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
@@ -107,78 +103,19 @@ pub enum ParametrizedMutationConfig {
     },
 }
 
-impl ParametrizedMutationConfig {
-    pub fn normalized(self) -> Self {
-        // Make all mutation-values vecs
-        match self {
-            Self::ServiceTimeStdShifter {
-                activity,
-                probability,
-                standard_deviations,
-            } => Self::ServiceTimeStdShifter {
-                activity: activity.normalized(),
-                probability: probability.normalized(),
-                standard_deviations: standard_deviations.normalized(),
-            },
-            Self::VariantSupportFilter {
-                num_supporting_cases,
-            } => Self::VariantSupportFilter {
-                num_supporting_cases: num_supporting_cases.normalized(),
-            },
-            Self::ActivityRemover {
-                activity,
-                probability,
-            } => Self::ActivityRemover {
-                activity: activity.normalized(),
-                probability: probability.normalized(),
-            },
-            Self::ActivityRenamer {
-                activity,
-                new_label,
-                probability,
-            } => Self::ActivityRenamer {
-                activity: activity.normalized(),
-                new_label: new_label.normalized(),
-                probability: probability.normalized(),
-            },
-            Self::ConstantActivity {
-                activity,
-                probability,
-            } => Self::ConstantActivity {
-                activity: activity.normalized(),
-                probability: probability.normalized(),
-            },
-            Self::EventSwapper {
-                activity_1,
-                activity_2,
-                probability,
-            } => Self::EventSwapper {
-                activity_1: activity_1.normalized(),
-                activity_2: activity_2.normalized(),
-                probability: probability.normalized(),
-            },
-            Self::LogBootstrapper { size, replacement } => Self::LogBootstrapper {
-                size: size.normalized(),
-                replacement: replacement.normalized(),
-            },
-            Self::PartialOrderCreator => Self::PartialOrderCreator,
-            Self::AttributeRemover { key } => Self::AttributeRemover {
-                key: key.normalized(),
-            },
-            Self::ServiceTimeMultiplier {
-                activity,
-                probability,
-                factor,
-            } => Self::ServiceTimeMultiplier {
-                activity: activity.normalized(),
-                probability: probability.normalized(),
-                factor: factor.normalized(),
-            },
-        }
+impl From<ParametrizedPipelineConfig> for Vec<MutationChain> {
+    fn from(value: ParametrizedPipelineConfig) -> Self {
+        std::convert::Into::<Vec<Vec<MutationConfig>>>::into(value)
+            .into_iter()
+            .map_into()
+            .collect()
     }
-    pub fn to_mutation_config_vec(self) -> Vec<MutationConfig> {
-        match self.normalized() {
-            Self::ServiceTimeStdShifter {
+}
+
+impl From<ParametrizedMutationConfig> for Vec<MutationConfig> {
+    fn from(value: ParametrizedMutationConfig) -> Self {
+        match value {
+            ParametrizedMutationConfig::ServiceTimeStdShifter {
                 activity,
                 probability,
                 standard_deviations,
@@ -193,7 +130,7 @@ impl ParametrizedMutationConfig {
                 standard_deviations: std,
             })
             .collect(),
-            Self::VariantSupportFilter {
+            ParametrizedMutationConfig::VariantSupportFilter {
                 num_supporting_cases,
             } => num_supporting_cases
                 .get_as_vec()
@@ -202,8 +139,17 @@ impl ParametrizedMutationConfig {
                     num_supporting_cases: *threshold,
                 })
                 .collect(),
+            ParametrizedMutationConfig::EndpointFilter {
+                start_activities,
+                end_activities,
+            } => iproduct!(start_activities.get_as_vec(), end_activities.get_as_vec())
+                .map(|(start_acts, end_acts)| MutationConfig::EndpointFilter {
+                    start_activities: start_acts,
+                    end_activities: end_acts,
+                })
+                .collect(),
 
-            Self::ServiceTimeMultiplier {
+            ParametrizedMutationConfig::ServiceTimeMultiplier {
                 activity,
                 probability,
                 factor,
@@ -220,13 +166,15 @@ impl ParametrizedMutationConfig {
                 },
             )
             .collect(),
-            Self::AttributeRemover { key } => key
+            ParametrizedMutationConfig::AttributeRemover { key } => key
                 .get_as_vec()
                 .into_iter()
                 .map(|k| MutationConfig::AttributeRemover { key: k })
                 .collect(),
-            Self::PartialOrderCreator => vec![MutationConfig::PartialOrderCreator],
-            Self::EventSwapper {
+            ParametrizedMutationConfig::PartialOrderCreator => {
+                vec![MutationConfig::PartialOrderCreator]
+            }
+            ParametrizedMutationConfig::EventSwapper {
                 activity_1,
                 activity_2,
                 probability,
@@ -241,7 +189,7 @@ impl ParametrizedMutationConfig {
                 probability: prob,
             })
             .collect(),
-            Self::LogBootstrapper { size, replacement } => {
+            ParametrizedMutationConfig::LogBootstrapper { size, replacement } => {
                 iproduct!(size.get_as_vec(), replacement.get_as_vec())
                     .map(|(s, replace)| MutationConfig::LogBootstrapper {
                         size: s,
@@ -249,7 +197,7 @@ impl ParametrizedMutationConfig {
                     })
                     .collect()
             }
-            Self::ConstantActivity {
+            ParametrizedMutationConfig::ConstantActivity {
                 activity,
                 probability,
             } => iproduct!(activity.get_as_vec(), probability.get_as_vec())
@@ -258,7 +206,7 @@ impl ParametrizedMutationConfig {
                     probability: prob,
                 })
                 .collect(),
-            Self::ActivityRenamer {
+            ParametrizedMutationConfig::ActivityRenamer {
                 activity,
                 new_label,
                 probability,
@@ -273,7 +221,7 @@ impl ParametrizedMutationConfig {
                 probability: prob,
             })
             .collect(),
-            Self::ActivityRemover {
+            ParametrizedMutationConfig::ActivityRemover {
                 activity,
                 probability,
             } => iproduct!(activity.get_as_vec(), probability.get_as_vec())
@@ -286,19 +234,13 @@ impl ParametrizedMutationConfig {
     }
 }
 
-impl ParametrizedPipelineConfig {
-    pub fn to_pipeline_config_vec(self) -> Vec<PipelineConfig> {
-        self.to_mutation_config_vec_vec()
-            .into_iter()
-            .map(|v| PipelineConfig { mutations: v })
-            .collect()
-    }
-
-    pub fn to_mutation_config_vec_vec(self) -> Vec<Vec<MutationConfig>> {
-        self.mutations
+impl From<ParametrizedPipelineConfig> for Vec<Vec<MutationConfig>> {
+    fn from(value: ParametrizedPipelineConfig) -> Self {
+        value
+            .mutations
             .iter()
             .cloned()
-            .map(ParametrizedMutationConfig::to_mutation_config_vec)
+            .map_into::<Vec<MutationConfig>>()
             .multi_cartesian_product()
             .collect_vec()
     }

@@ -1,15 +1,15 @@
 ## Available Mutators
 To see the parameters a mutator takes, follow its respective link
-- [ServiceTimeStdShifter](./src/mutators/service_time_std_shifter.rs#L20-L31)
-- [VariantSupportFilter](./src/mutators/filters/variant_support_filter.rs#L5-L7)
-- [ActivityRemover](./src/mutators/activity_remover.rs#L3-L7)
-- [ActivityRenamer](./src/mutators/activity_rename.rs#L10-L17)
-- [ConstantActivity](./src/mutators/constant_activity.rs#L6-L12)
-- [EventSwapper](./src/mutators/event_swapper.rs#L14-L25)
-- [LogBootstrapper](./src/mutators/log_bootstrapper.rs#L6-L13)
-- [PartialOrderCreator](./src/mutators/partial_order_creator.rs#L9-L12)
-- [AttributeRemover](./src/mutators/attribute_remover.rs#L3-L7)
-- [ServiceTimeMultiplier](./src/mutators/service_time_multiplier.rs#L14-L24)
+- [ServiceTimeStdShifter](./src/mutators/service_time_std_shifter.rs#L21-L36)
+- [VariantSupportFilter](./src/mutators/filters/variant_support_filter.rs#L6-L10)
+- [ActivityRemover](./src/mutators/activity_remover.rs#L9-L19)
+- [ActivityRenamer](./src/mutators/activity_rename.rs#L11-L22)
+- [ConstantActivity](./src/mutators/constant_activity.rs#L6-L15)
+- [EventSwapper](./src/mutators/event_swapper.rs#L15-L30)
+- [LogBootstrapper](./src/mutators/log_bootstrapper.rs#L6-L15)
+- [PartialOrderCreator](./src/mutators/partial_order_creator.rs#L10-L19)
+- [AttributeRemover](./src/mutators/attribute_remover.rs#L3-L9)
+- [ServiceTimeMultiplier](./src/mutators/service_time_multiplier.rs#L15-L29)
 
 ## Pipeline Configuration
 A mutation pipeline can be defined in a toml configuration file, and supplied to the 

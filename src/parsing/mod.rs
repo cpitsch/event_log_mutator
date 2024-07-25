@@ -1,5 +1,6 @@
 use std::{fs::read_to_string, path::PathBuf};
 
+pub mod dir_name_trait;
 pub mod parametrized_pipeline;
 
 use itertools::Itertools;
@@ -7,11 +8,11 @@ use serde::Deserialize;
 use toml::from_str;
 
 use crate::{
-    mutation::{LogMutator, MutationChain},
+    mutation::{LogMutatorWithAsDirName, MutationChain},
     mutators::{
-        filters::VariantSupportFilter, ActivityRemover, ActivityRenamer, AttributeRemover,
-        ConstantActivityMutator, EventSwapper, LogBootstrapper, PartialOrderCreator,
-        ServiceTimeMultiplier, ServiceTimeStdShifter,
+        filters::{EndpointFilter, VariantSupportFilter},
+        ActivityRemover, ActivityRenamer, AttributeRemover, ConstantActivityMutator, EventSwapper,
+        LogBootstrapper, PartialOrderCreator, ServiceTimeMultiplier, ServiceTimeStdShifter,
     },
     CliError,
 };
@@ -28,29 +29,9 @@ pub struct MutationChainConfig {
     /// Save the output log(s) gzipped. Defaults to false
     #[serde(default)] // Default to default bool (false)
     pub compress_output: bool,
-    /// A definition for a standard mutation pipeline
-    pub pipeline: Option<PipelineConfig>,
-    /// A definition for a parametrized mutation pipeline
-    pub parametrized_pipeline: Option<ParametrizedPipelineConfig>,
+    /// A definition for a mutation pipeline
+    pub pipeline: ParametrizedPipelineConfig,
 }
-
-#[derive(Deserialize, Debug, Clone)]
-pub enum PipelineEnum {
-    StandardPipeline(PipelineConfig),
-    ParametrizedPipeline(ParametrizedPipelineConfig),
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct PipelineConfig {
-    pub mutations: Vec<MutationConfig>,
-}
-
-// #[derive(Deserialize, Debug)]
-// pub struct MutationConfig {
-//     #[serde(rename = "type")]
-//     mutation_type: String,
-//     parameters: ParametersConfig,
-// }
 
 fn default_probability() -> f32 {
     1.0
@@ -80,6 +61,10 @@ pub enum MutationConfig {
     },
     VariantSupportFilter {
         num_supporting_cases: usize,
+    },
+    EndpointFilter {
+        start_activities: Option<Vec<String>>,
+        end_activities: Option<Vec<String>>,
     },
     ActivityRemover {
         activity: String,
@@ -121,7 +106,7 @@ pub enum MutationConfig {
     },
 }
 
-impl From<MutationConfig> for Box<dyn LogMutator> {
+impl From<MutationConfig> for Box<dyn LogMutatorWithAsDirName> {
     fn from(val: MutationConfig) -> Self {
         match val {
             MutationConfig::ServiceTimeStdShifter {
@@ -139,6 +124,10 @@ impl From<MutationConfig> for Box<dyn LogMutator> {
             MutationConfig::VariantSupportFilter {
                 num_supporting_cases,
             } => Box::new(VariantSupportFilter::new(num_supporting_cases)),
+            MutationConfig::EndpointFilter {
+                start_activities,
+                end_activities,
+            } => Box::new(EndpointFilter::new(start_activities, end_activities)),
             MutationConfig::ActivityRemover {
                 activity,
                 probability,
@@ -177,122 +166,16 @@ impl From<MutationConfig> for Box<dyn LogMutator> {
     }
 }
 
-impl MutationConfig {
-    /// Used to derive unique save-paths for parametrized pipelines.
-    pub fn as_dir_name(&self) -> String {
-        match self {
-            MutationConfig::ServiceTimeStdShifter {
-                activity,
-                probability,
-                standard_deviations,
-            } => format!(
-                "ServiceTimeStdShifter_{}_p{}_std{}",
-                activity.clone().unwrap_or("AllActivities".to_string()),
-                probability,
-                standard_deviations
-            ),
-            MutationConfig::VariantSupportFilter {
-                num_supporting_cases,
-            } => format!("VariantSupportFilter_thresh{}", num_supporting_cases),
-
-            MutationConfig::ActivityRemover {
-                activity,
-                probability,
-            } => format!("ActivityRemover_{}_p{}", activity, probability),
-            MutationConfig::ActivityRenamer {
-                activity,
-                new_label,
-                probability,
-            } => format!(
-                "ActivityRenamer_from_{}_to_{}_p{}",
-                activity, new_label, probability
-            ),
-            MutationConfig::ConstantActivity {
-                activity,
-                probability,
-            } => format!("ConstantActivity_{}_p{}", activity, probability),
-            MutationConfig::EventSwapper {
-                activity_1,
-                activity_2,
-                probability,
-            } => format!(
-                "EventSwapper_{}_swap_{}_p{}",
-                activity_1, activity_2, probability
-            ),
-            MutationConfig::LogBootstrapper { size, replacement } => format!(
-                "LogBootstrapper_{}_{}replacement",
-                size,
-                if *replacement { "no_" } else { "" }
-            ),
-            MutationConfig::PartialOrderCreator => "PartialOrderCreator".to_string(),
-            MutationConfig::AttributeRemover { key } => format!("AttributeRemover_{}", key),
-            MutationConfig::ServiceTimeMultiplier {
-                activity,
-                probability,
-                factor,
-            } => format!(
-                "ServiceTimeMultiplier_{}_p{}_x{}",
-                activity.clone().unwrap_or("All Activities".to_string()),
-                probability,
-                factor
-            ),
+impl From<Vec<MutationConfig>> for MutationChain {
+    fn from(val: Vec<MutationConfig>) -> Self {
+        MutationChain {
+            mutations: val.into_iter().map_into().collect(),
         }
     }
 }
-
-impl PipelineConfig {
-    pub fn new(mutations: Vec<MutationConfig>) -> Self {
-        Self { mutations }
-    }
-}
-
-impl From<PipelineConfig> for MutationChain {
-    fn from(value: PipelineConfig) -> Self {
-        let mut chain = MutationChain::new();
-        for mutation_config in value.mutations {
-            chain.mutations.push(mutation_config.into())
-        }
-        chain
-    }
-}
-
-// #[derive(Deserialize, Debug)]
-// pub struct ParametersConfig {
-//     activity: Option<String>,
-//     probability: Option<f64>,
-//     standard_deviations: Option<f64>,
-//     num_supporting_cases: i64,
-// }
 
 pub fn parse_toml(path: &PathBuf) -> Result<MutationChainConfig, CliError> {
     let contents = read_to_string(path).unwrap();
     let res: MutationChainConfig = from_str(&contents).expect("Invalid TOML format");
-
-    if res.pipeline.is_some() && res.parametrized_pipeline.is_some() {
-        // TODO: Make this an error, and return a result
-        Err(CliError::new(
-            clap::error::ErrorKind::ValueValidation,
-            "Pipeline and Parametrized Pipeline defined. Only one allowed",
-        ))
-    } else {
-        Ok(res)
-    }
+    Ok(res)
 }
-
-pub fn mutation_config_vec_to_path(mutation_configs: &[MutationConfig]) -> String {
-    mutation_configs
-        .iter()
-        .map(|conf| conf.as_dir_name())
-        .join("/")
-}
-
-// impl From<PipelineConfig> for MutationChain {
-//     fn from(value: PipelineConfig) -> Self {
-//         let mut mutation_chain = Self::new();
-//         for mutation_config in value.mutations {
-//             let mutation: Box<dyn LogMutator> = match mutation_config.mutation_type {
-//
-//             }
-//         }
-//     }
-// }

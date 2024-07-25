@@ -3,6 +3,8 @@ use process_mining::{
     EventLog,
 };
 
+use crate::parsing::dir_name_trait::DirName;
+
 pub trait EventMutator {
     /// Apply the mutation to a given event.
     fn apply(&self, evt: &Event) -> Event;
@@ -45,10 +47,13 @@ where
     }
 }
 
+pub trait LogMutatorWithAsDirName: LogMutator + DirName {}
+impl<T: LogMutator + DirName> LogMutatorWithAsDirName for T {}
+
 /// A Mutation pipeline to apply a number of mutations to an event log at once.
 #[derive(Default)]
 pub struct MutationChain {
-    pub mutations: Vec<Box<dyn LogMutator>>,
+    pub mutations: Vec<Box<dyn LogMutatorWithAsDirName>>,
 }
 
 impl MutationChain {
@@ -57,7 +62,7 @@ impl MutationChain {
     }
 
     /// Add a mutation to the pipeline.
-    pub fn with_mutation<T: LogMutator + 'static>(mut self, mutation: T) -> Self {
+    pub fn with_mutation<T: LogMutatorWithAsDirName + 'static>(mut self, mutation: T) -> Self {
         self.mutations.push(Box::new(mutation));
         self
     }

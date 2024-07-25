@@ -1,12 +1,14 @@
 use process_mining::{event_log::AttributeValue, EventLog};
 use rand::seq::SliceRandom;
 
-use crate::{mutation::LogMutator, utils::set_traceid};
+use crate::{mutation::LogMutator, parsing::dir_name_trait::DirName, utils::set_traceid};
 
 /// Mutator to create a new log by randomly sampling cases with replacement.
 /// The sampled cases are assigned unique case ids ("0" ... "`size`").
+#[derive(DirName)]
 pub struct LogBootstrapper {
     /// The number of cases to sample.
+    #[dirname(rename = "")]
     size: usize,
     /// Sample with replacement? Defaults to true.
     replacement: bool,

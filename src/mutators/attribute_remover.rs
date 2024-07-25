@@ -1,8 +1,10 @@
-use crate::mutation::EventMutator;
+use crate::{mutation::EventMutator, parsing::dir_name_trait::DirName};
 
 /// A Mutation to remove an attribute key from all events.
+#[derive(DirName)]
 pub struct AttributeRemover {
     /// The key to remove
+    #[dirname(rename = "")]
     key: String,
 }
 

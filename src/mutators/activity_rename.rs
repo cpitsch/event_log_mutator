@@ -4,15 +4,20 @@ use rand::random;
 use crate::{
     constants::NO_ACTIVITY_LABEL_MSG,
     mutation::TraceMutator,
+    parsing::dir_name_trait::DirName,
     utils::{get_activity_label, set_activity_label},
 };
 
+#[derive(DirName)]
 pub struct ActivityRenamer {
     /// The activity to rename. This modifier will only effect events with this label.
+    #[dirname(rename = "from")]
     activity: String,
     /// The new activity label.
+    #[dirname(rename = "to")]
     new_label: String,
     /// The probability of renaming. Ranges from 0 to 1.
+    #[dirname(rename = "p", no_split)]
     probability: f32,
 }
 
