@@ -1,5 +1,6 @@
 use proc_macro2::TokenStream;
-use syn::{DeriveInput, Variant};
+use quote::quote;
+use syn::{DataStruct, DeriveInput, Variant};
 
 fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
     let ident = variant.ident;
@@ -45,26 +46,39 @@ fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
     }
 }
 
+fn struct_to_flatten_function_content(s: DataStruct) -> TokenStream {
+    let fields: Vec<_> = s
+        .fields
+        .into_iter()
+        .map(|field| field.ident.unwrap())
+        .collect();
+    quote! {
+        iproduct!(#(self.#fields.get_as_vec()),*).map(|(#(#fields),*)| Self {
+            #(#fields: MutationValue::Value(#fields)),*
+        }).collect()
+    }
+}
+
 pub fn impl_flatten_mutation_value(ast: DeriveInput) -> proc_macro::TokenStream {
     let ident = ast.ident;
 
-    let variants = match ast.data {
-        syn::Data::Enum(e) => e.variants,
-        syn::Data::Union(_) => panic!("Unions not supported."),
-        syn::Data::Struct(_) => panic!("Structs not supported."),
+    let flatten_function_content = match ast.data {
+        syn::Data::Enum(e) => {
+            let cases = e.variants.into_iter().map(enum_variant_to_match_arm);
+            quote::quote! {
+                match self {
+                    #(#cases),*
+                }
+            }
+        }
+        syn::Data::Struct(s) => struct_to_flatten_function_content(s),
+        syn::Data::Union(_) => panic!("Unions not supported"),
     };
-
-    let cases: Vec<TokenStream> = variants
-        .into_iter()
-        .map(enum_variant_to_match_arm)
-        .collect();
 
     quote::quote! {
         impl FlattenMutationValue for #ident {
             fn flatten(self) -> Vec<Self> {
-                match self {
-                    #(#cases),*
-                }
+                #flatten_function_content
             }
         }
     }
