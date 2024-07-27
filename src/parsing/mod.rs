@@ -1,6 +1,7 @@
 use std::{fs::read_to_string, path::PathBuf};
 
 pub mod dir_name_trait;
+pub mod flatten_mutation_value_trait;
 pub mod parametrized_pipeline;
 
 use serde::Deserialize;

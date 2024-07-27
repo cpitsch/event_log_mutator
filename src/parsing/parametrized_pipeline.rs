@@ -9,6 +9,7 @@ use crate::{
         ActivityRemover, ActivityRenamer, AttributeRemover, ConstantActivityMutator, EventSwapper,
         LogBootstrapper, PartialOrderCreator, ServiceTimeMultiplier, ServiceTimeStdShifter,
     },
+    parsing::flatten_mutation_value_trait::FlattenMutationValue,
     CliError,
 };
 
@@ -62,7 +63,7 @@ fn zero_f32_mutation_value() -> MutationValue<f32> {
     MutationValue::Value(0.0)
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, FlattenMutationValue)]
 #[serde(tag = "type")]
 pub enum ParametrizedMutationConfig {
     ServiceTimeStdShifter {
@@ -129,162 +130,6 @@ pub enum ParametrizedMutationConfig {
         #[serde(default = "default_service_time_factor_mutation_value")]
         factor: MutationValue<f32>,
     },
-}
-
-impl ParametrizedMutationConfig {
-    fn flatten(self) -> Vec<Self> {
-        match self {
-            ParametrizedMutationConfig::ServiceTimeStdShifter {
-                activity,
-                probability,
-                standard_deviations,
-            } => iproduct!(
-                activity.get_as_vec(),
-                probability.get_as_vec(),
-                standard_deviations.get_as_vec()
-            )
-            .map(
-                |(act, prob, std)| ParametrizedMutationConfig::ServiceTimeStdShifter {
-                    activity: MutationValue::Value(act),
-                    probability: MutationValue::Value(prob),
-                    standard_deviations: MutationValue::Value(std),
-                },
-            )
-            .collect(),
-            ParametrizedMutationConfig::VariantSupportFilter {
-                num_supporting_cases,
-            } => num_supporting_cases
-                .get_as_vec()
-                .iter()
-                .map(
-                    |threshold| ParametrizedMutationConfig::VariantSupportFilter {
-                        num_supporting_cases: MutationValue::Value(*threshold),
-                    },
-                )
-                .collect(),
-            ParametrizedMutationConfig::EndpointFilter {
-                start_activities,
-                end_activities,
-            } => iproduct!(start_activities.get_as_vec(), end_activities.get_as_vec())
-                .map(
-                    |(start_acts, end_acts)| ParametrizedMutationConfig::EndpointFilter {
-                        start_activities: MutationValue::Value(start_acts),
-                        end_activities: MutationValue::Value(end_acts),
-                    },
-                )
-                .collect(),
-            ParametrizedMutationConfig::CaseDurationFilter {
-                years,
-                days,
-                hours,
-                minutes,
-                seconds,
-            } => iproduct!(
-                years.get_as_vec(),
-                days.get_as_vec(),
-                hours.get_as_vec(),
-                minutes.get_as_vec(),
-                seconds.get_as_vec()
-            )
-            .map(|(years, days, hours, minutes, seconds)| {
-                ParametrizedMutationConfig::CaseDurationFilter {
-                    years: MutationValue::Value(years),
-                    days: MutationValue::Value(days),
-                    hours: MutationValue::Value(hours),
-                    minutes: MutationValue::Value(minutes),
-                    seconds: MutationValue::Value(seconds),
-                }
-            })
-            .collect(),
-            ParametrizedMutationConfig::ServiceTimeMultiplier {
-                activity,
-                probability,
-                factor,
-            } => iproduct!(
-                activity.get_as_vec(),
-                probability.get_as_vec(),
-                factor.get_as_vec()
-            )
-            .map(
-                |(act, prob, factor)| ParametrizedMutationConfig::ServiceTimeMultiplier {
-                    activity: MutationValue::Value(act),
-                    probability: MutationValue::Value(prob),
-                    factor: MutationValue::Value(factor),
-                },
-            )
-            .collect(),
-            ParametrizedMutationConfig::AttributeRemover { key } => key
-                .get_as_vec()
-                .into_iter()
-                .map(|k| ParametrizedMutationConfig::AttributeRemover {
-                    key: MutationValue::Value(k),
-                })
-                .collect(),
-            ParametrizedMutationConfig::PartialOrderCreator => {
-                vec![ParametrizedMutationConfig::PartialOrderCreator]
-            }
-            ParametrizedMutationConfig::EventSwapper {
-                activity_1,
-                activity_2,
-                probability,
-            } => iproduct!(
-                activity_1.get_as_vec(),
-                activity_2.get_as_vec(),
-                probability.get_as_vec()
-            )
-            .map(
-                |(act_1, act_2, prob)| ParametrizedMutationConfig::EventSwapper {
-                    activity_1: MutationValue::Value(act_1),
-                    activity_2: MutationValue::Value(act_2),
-                    probability: MutationValue::Value(prob),
-                },
-            )
-            .collect(),
-            ParametrizedMutationConfig::LogBootstrapper { size, replacement } => {
-                iproduct!(size.get_as_vec(), replacement.get_as_vec())
-                    .map(|(s, replace)| ParametrizedMutationConfig::LogBootstrapper {
-                        size: MutationValue::Value(s),
-                        replacement: MutationValue::Value(replace),
-                    })
-                    .collect()
-            }
-            ParametrizedMutationConfig::ConstantActivity {
-                activity,
-                probability,
-            } => iproduct!(activity.get_as_vec(), probability.get_as_vec())
-                .map(|(act, prob)| ParametrizedMutationConfig::ConstantActivity {
-                    activity: MutationValue::Value(act),
-                    probability: MutationValue::Value(prob),
-                })
-                .collect(),
-            ParametrizedMutationConfig::ActivityRenamer {
-                activity,
-                new_label,
-                probability,
-            } => iproduct!(
-                activity.get_as_vec(),
-                new_label.get_as_vec(),
-                probability.get_as_vec()
-            )
-            .map(
-                |(act, label, prob)| ParametrizedMutationConfig::ActivityRenamer {
-                    activity: MutationValue::Value(act),
-                    new_label: MutationValue::Value(label),
-                    probability: MutationValue::Value(prob),
-                },
-            )
-            .collect(),
-            ParametrizedMutationConfig::ActivityRemover {
-                activity,
-                probability,
-            } => iproduct!(activity.get_as_vec(), probability.get_as_vec())
-                .map(|(act, prob)| ParametrizedMutationConfig::ActivityRemover {
-                    activity: MutationValue::Value(act),
-                    probability: MutationValue::Value(prob),
-                })
-                .collect(),
-        }
-    }
 }
 
 pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
