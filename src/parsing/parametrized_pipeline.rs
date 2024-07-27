@@ -2,12 +2,18 @@ use serde::Deserialize;
 
 use itertools::{iproduct, Itertools};
 
-use crate::{mutation::MutationChain, CliError};
-
-use super::{
-    default_log_bootstrapper_replacement, default_probability, default_service_time_factor,
-    default_standard_deviations, MutationChainConfig, MutationConfig,
+use crate::{
+    mutation::{LogMutatorWithAsDirName, MutationChain},
+    mutators::{
+        filters::{CaseDurationFilter, EndpointFilter, VariantSupportFilter},
+        ActivityRemover, ActivityRenamer, AttributeRemover, ConstantActivityMutator, EventSwapper,
+        LogBootstrapper, PartialOrderCreator, ServiceTimeMultiplier, ServiceTimeStdShifter,
+    },
+    parsing::flatten_mutation_value_trait::FlattenMutationValue,
+    CliError,
 };
+
+use super::MutationChainConfig;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(untagged)]
@@ -23,6 +29,13 @@ impl<T> MutationValue<T> {
             Self::Value(v) => vec![v],
         }
     }
+
+    pub fn inner_value(self) -> T {
+        match self {
+            Self::Value(v) => v,
+            Self::Vec(_) => panic!("Called get_value on non-flat MutationValue"),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -31,26 +44,26 @@ pub struct ParametrizedPipelineConfig {
 }
 
 fn default_probability_mutation_value() -> MutationValue<f32> {
-    MutationValue::Value(default_probability())
+    MutationValue::Value(1.0)
 }
 
 fn default_standard_deviations_mutation_value() -> MutationValue<f64> {
-    MutationValue::Value(default_standard_deviations())
+    MutationValue::Value(1.0)
 }
 
 fn default_service_time_factor_mutation_value() -> MutationValue<f32> {
-    MutationValue::Value(default_service_time_factor())
+    MutationValue::Value(1.0)
 }
 
 fn default_log_bootstrapper_replacement_value() -> MutationValue<bool> {
-    MutationValue::Value(default_log_bootstrapper_replacement())
+    MutationValue::Value(true)
 }
 
 fn zero_f32_mutation_value() -> MutationValue<f32> {
     MutationValue::Value(0.0)
 }
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Clone, FlattenMutationValue)]
 #[serde(tag = "type")]
 pub enum ParametrizedMutationConfig {
     ServiceTimeStdShifter {
@@ -119,169 +132,115 @@ pub enum ParametrizedMutationConfig {
     },
 }
 
-impl From<ParametrizedPipelineConfig> for Vec<MutationChain> {
-    fn from(value: ParametrizedPipelineConfig) -> Self {
-        std::convert::Into::<Vec<Vec<MutationConfig>>>::into(value)
-            .into_iter()
-            .map_into()
-            .collect()
-    }
-}
-
-impl From<ParametrizedMutationConfig> for Vec<MutationConfig> {
-    fn from(value: ParametrizedMutationConfig) -> Self {
-        match value {
-            ParametrizedMutationConfig::ServiceTimeStdShifter {
-                activity,
-                probability,
-                standard_deviations,
-            } => iproduct!(
-                activity.get_as_vec(),
-                probability.get_as_vec(),
-                standard_deviations.get_as_vec()
-            )
-            .map(|(act, prob, std)| MutationConfig::ServiceTimeStdShifter {
-                activity: act,
-                probability: prob,
-                standard_deviations: std,
-            })
-            .collect(),
-            ParametrizedMutationConfig::VariantSupportFilter {
-                num_supporting_cases,
-            } => num_supporting_cases
-                .get_as_vec()
-                .iter()
-                .map(|threshold| MutationConfig::VariantSupportFilter {
-                    num_supporting_cases: *threshold,
-                })
-                .collect(),
-            ParametrizedMutationConfig::EndpointFilter {
-                start_activities,
-                end_activities,
-            } => iproduct!(start_activities.get_as_vec(), end_activities.get_as_vec())
-                .map(|(start_acts, end_acts)| MutationConfig::EndpointFilter {
-                    start_activities: start_acts,
-                    end_activities: end_acts,
-                })
-                .collect(),
-            ParametrizedMutationConfig::CaseDurationFilter {
-                years,
-                days,
-                hours,
-                minutes,
-                seconds,
-            } => iproduct!(
-                years.get_as_vec(),
-                days.get_as_vec(),
-                hours.get_as_vec(),
-                minutes.get_as_vec(),
-                seconds.get_as_vec()
-            )
-            .map(
-                |(years, days, hours, minutes, seconds)| MutationConfig::CaseDurationFilter {
-                    years,
-                    days,
-                    hours,
-                    minutes,
-                    seconds,
-                },
-            )
-            .collect(),
-            ParametrizedMutationConfig::ServiceTimeMultiplier {
-                activity,
-                probability,
-                factor,
-            } => iproduct!(
-                activity.get_as_vec(),
-                probability.get_as_vec(),
-                factor.get_as_vec()
-            )
-            .map(
-                |(act, prob, factor)| MutationConfig::ServiceTimeMultiplier {
-                    activity: act,
-                    probability: prob,
-                    factor,
-                },
-            )
-            .collect(),
-            ParametrizedMutationConfig::AttributeRemover { key } => key
-                .get_as_vec()
+pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
+    configs: Vec<ParametrizedMutationConfig>,
+) -> Vec<MutationChain> {
+    configs
+        .into_iter()
+        .map(ParametrizedMutationConfig::flatten)
+        .multi_cartesian_product()
+        .map(|flat_configs| MutationChain {
+            mutations: flat_configs
                 .into_iter()
-                .map(|k| MutationConfig::AttributeRemover { key: k })
-                .collect(),
-            ParametrizedMutationConfig::PartialOrderCreator => {
-                vec![MutationConfig::PartialOrderCreator]
-            }
-            ParametrizedMutationConfig::EventSwapper {
-                activity_1,
-                activity_2,
-                probability,
-            } => iproduct!(
-                activity_1.get_as_vec(),
-                activity_2.get_as_vec(),
-                probability.get_as_vec()
-            )
-            .map(|(act_1, act_2, prob)| MutationConfig::EventSwapper {
-                activity_1: act_1,
-                activity_2: act_2,
-                probability: prob,
-            })
-            .collect(),
-            ParametrizedMutationConfig::LogBootstrapper { size, replacement } => {
-                iproduct!(size.get_as_vec(), replacement.get_as_vec())
-                    .map(|(s, replace)| MutationConfig::LogBootstrapper {
-                        size: s,
-                        replacement: replace,
-                    })
-                    .collect()
-            }
-            ParametrizedMutationConfig::ConstantActivity {
-                activity,
-                probability,
-            } => iproduct!(activity.get_as_vec(), probability.get_as_vec())
-                .map(|(act, prob)| MutationConfig::ConstantActivity {
-                    activity: act,
-                    probability: prob,
+                .map(|flat_config| -> Box<dyn LogMutatorWithAsDirName> {
+                    match flat_config {
+                        ParametrizedMutationConfig::ServiceTimeStdShifter {
+                            activity,
+                            probability,
+                            standard_deviations,
+                        } => {
+                            let mut mutator =
+                                ServiceTimeStdShifter::new(standard_deviations.inner_value())
+                                    .with_probability(probability.inner_value());
+                            if let Some(act) = activity.inner_value() {
+                                mutator = mutator.for_activity(act);
+                            }
+                            Box::new(mutator)
+                        }
+                        ParametrizedMutationConfig::VariantSupportFilter {
+                            num_supporting_cases,
+                        } => Box::new(VariantSupportFilter::new(
+                            num_supporting_cases.inner_value(),
+                        )),
+                        ParametrizedMutationConfig::EndpointFilter {
+                            start_activities,
+                            end_activities,
+                        } => Box::new(EndpointFilter::new(
+                            start_activities.inner_value(),
+                            end_activities.inner_value(),
+                        )),
+                        ParametrizedMutationConfig::CaseDurationFilter {
+                            years,
+                            days,
+                            hours,
+                            minutes,
+                            seconds,
+                        } => Box::new(CaseDurationFilter::new(
+                            Some(years.inner_value()),
+                            Some(days.inner_value()),
+                            Some(hours.inner_value()),
+                            Some(minutes.inner_value()),
+                            Some(seconds.inner_value()),
+                        )),
+                        ParametrizedMutationConfig::ActivityRemover {
+                            activity,
+                            probability,
+                        } => Box::new(
+                            ActivityRemover::new(activity.inner_value())
+                                .with_probability(probability.inner_value()),
+                        ),
+                        ParametrizedMutationConfig::ActivityRenamer {
+                            activity,
+                            new_label,
+                            probability,
+                        } => Box::new(
+                            ActivityRenamer::new(activity.inner_value(), new_label.inner_value())
+                                .with_probability(probability.inner_value()),
+                        ),
+                        ParametrizedMutationConfig::ConstantActivity {
+                            activity,
+                            probability,
+                        } => Box::new(
+                            ConstantActivityMutator::new(activity.inner_value())
+                                .with_probability(probability.inner_value()),
+                        ),
+                        ParametrizedMutationConfig::EventSwapper {
+                            activity_1,
+                            activity_2,
+                            probability,
+                        } => Box::new(
+                            EventSwapper::new(activity_1.inner_value(), activity_2.inner_value())
+                                .with_probability(probability.inner_value()),
+                        ),
+                        ParametrizedMutationConfig::LogBootstrapper { size, replacement } => {
+                            Box::new(
+                                LogBootstrapper::new(size.inner_value())
+                                    .with_replacement(replacement.inner_value()),
+                            )
+                        }
+                        ParametrizedMutationConfig::PartialOrderCreator => {
+                            Box::new(PartialOrderCreator::new())
+                        }
+                        ParametrizedMutationConfig::AttributeRemover { key } => {
+                            Box::new(AttributeRemover::new(key.inner_value()))
+                        }
+                        ParametrizedMutationConfig::ServiceTimeMultiplier {
+                            activity,
+                            probability,
+                            factor,
+                        } => {
+                            let mut mutator = ServiceTimeMultiplier::new(factor.inner_value())
+                                .with_probability(probability.inner_value());
+                            if let Some(act) = activity.inner_value() {
+                                mutator = mutator.for_activity(act);
+                            }
+                            Box::new(mutator)
+                        }
+                    }
                 })
                 .collect(),
-            ParametrizedMutationConfig::ActivityRenamer {
-                activity,
-                new_label,
-                probability,
-            } => iproduct!(
-                activity.get_as_vec(),
-                new_label.get_as_vec(),
-                probability.get_as_vec()
-            )
-            .map(|(act, label, prob)| MutationConfig::ActivityRenamer {
-                activity: act,
-                new_label: label,
-                probability: prob,
-            })
-            .collect(),
-            ParametrizedMutationConfig::ActivityRemover {
-                activity,
-                probability,
-            } => iproduct!(activity.get_as_vec(), probability.get_as_vec())
-                .map(|(act, prob)| MutationConfig::ActivityRemover {
-                    activity: act,
-                    probability: prob,
-                })
-                .collect(),
-        }
-    }
-}
-
-impl From<ParametrizedPipelineConfig> for Vec<Vec<MutationConfig>> {
-    fn from(value: ParametrizedPipelineConfig) -> Self {
-        value
-            .mutations
-            .iter()
-            .cloned()
-            .map_into::<Vec<MutationConfig>>()
-            .multi_cartesian_product()
-            .collect_vec()
-    }
+        })
+        .collect()
 }
 
 pub fn get_parametrized_pipeline_output_root(

@@ -8,7 +8,10 @@ use crate::cli::{Args, CliError};
 use clap::{error::ErrorKind, CommandFactory, Parser};
 use itertools::Itertools;
 use mutators::{LogBootstrapper, ServiceTimeMultiplier};
-use parsing::{MutationChainConfig, MutationConfig};
+use parsing::{
+    parametrized_pipeline::parametrized_mutation_config_vec_to_mutation_chain_vec,
+    MutationChainConfig,
+};
 use process_mining::{
     event_log::export_xes::export_xes_event_log_to_file, import_xes_file, EventLog,
     XESImportOptions,
@@ -74,11 +77,9 @@ fn execute_parametrized_pipeline(
     parsed_toml: MutationChainConfig,
     log: &EventLog,
 ) -> Result<(), CliError> {
-    let mutation_chains: Vec<MutationChain> =
-        std::convert::Into::<Vec<Vec<MutationConfig>>>::into(parsed_toml.pipeline.clone())
-            .into_iter()
-            .map_into()
-            .collect();
+    let mutation_chains = parametrized_mutation_config_vec_to_mutation_chain_vec(
+        parsed_toml.pipeline.mutations.clone(),
+    );
 
     // If effectively only one mutation config, you should be able to provide a specific
     // output file instead of an output root path
