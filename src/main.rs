@@ -33,6 +33,9 @@ pub mod parsing;
 pub mod preset;
 pub mod utils;
 
+#[cfg(test)]
+mod test_fixtures;
+
 pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     let path_to_pipeline = args.pipeline.clone().unwrap();
     if !path_to_pipeline.exists() {

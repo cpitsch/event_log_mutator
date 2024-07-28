@@ -14,3 +14,6 @@ rand = "0.8.5"
 serde = { version = "1.0.203", features = ["derive"]}
 toml = "0.8.14"
 derive-macros = { path = "derive-macros"}
+
+[dev-dependencies]
+rstest = "0.21.0"
