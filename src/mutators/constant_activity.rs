@@ -48,3 +48,22 @@ impl EventMutator for ConstantActivityMutator {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{mutation::TraceMutator, test_fixtures::abcd_trace, utils::get_activity_label};
+    use process_mining::event_log::Trace;
+    use rstest::rstest;
+
+    #[rstest]
+    fn all_events_rename(abcd_trace: Trace) {
+        let mutator = ConstantActivityMutator::new("NEW_ACTIVITY".to_string());
+        let new_trace = TraceMutator::apply(&mutator, &abcd_trace);
+
+        assert!(new_trace
+            .events
+            .iter()
+            .all(|evt| get_activity_label(evt).unwrap() == *"NEW_ACTIVITY"));
+    }
+}
