@@ -7,7 +7,7 @@ use crate::{
     FieldAttributes,
 };
 
-fn field_obj_to_quote(field: &mut syn::Field) -> deluxe::Result<proc_macro2::TokenStream> {
+fn named_field_to_quote(field: &mut syn::Field) -> deluxe::Result<proc_macro2::TokenStream> {
     let ident = field.ident.clone().unwrap();
     let name = ident.to_string();
     let attributes: FieldAttributes = extract_attributes(field)?;
@@ -47,14 +47,15 @@ pub fn impl_as_dir_name(ast: DeriveInput) -> TokenStream {
 
     let attr_str_quotes: Vec<proc_macro2::TokenStream> = field_objs
         .iter_mut()
-        .map(|field| field_obj_to_quote(field).unwrap())
+        .map(|field| named_field_to_quote(field).unwrap())
         .collect();
 
     quote::quote! {
         impl DirName for #ident {
             fn to_dir_name(&self) -> String {
-                let attr_strs: Vec<String> = vec![#(#attr_str_quotes),*];
-                format!("{}_{}", #ident_str, attr_strs.join("_"))
+                let mut name_components: Vec<String> = vec![#(#attr_str_quotes),*];
+                name_components.insert(0, #ident_str.to_string());
+                format!("{}", name_components.join("_"))
             }
         }
     }

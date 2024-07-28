@@ -15,8 +15,8 @@ mod tests {
         field_3: Option<String>,
     }
 
-    // #[derive(DirName)]
-    // struct UnitStruct;
+    #[derive(DirName)]
+    struct UnitStruct;
 
     // Currently would fail due to unwrapping the ident of the unnamed fields
     // #[derive(DirName)]
@@ -50,13 +50,11 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn for_unit_struct() {
-    //     let test_instance = UnitStruct {};
-    //
-    //     // Currently fails due to trailing underscore
-    //     assert_eq!(test_instance.to_dir_name(), "UnitStruct".to_string())
-    // }
+    #[test]
+    fn for_unit_struct() {
+        let test_instance = UnitStruct {};
+        assert_eq!(test_instance.to_dir_name(), "UnitStruct".to_string())
+    }
 
     // #[test]
     // fn for_tuple_sruct() {
