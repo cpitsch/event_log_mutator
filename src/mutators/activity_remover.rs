@@ -44,3 +44,37 @@ impl TraceMutator for ActivityRemover {
         new_trace
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_fixtures::abcd_trace;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case::remove_a("a")]
+    #[case::remove_b("b")]
+    #[case::remove_c("c")]
+    #[case::remove_d("d")]
+    fn activity_removes_rest_remains(abcd_trace: Trace, #[case] activity: String) {
+        let new_trace = ActivityRemover::new(activity.clone()).apply(&abcd_trace);
+
+        let all_activities: Vec<_> = new_trace
+            .events
+            .iter()
+            .map(|evt| get_activity_label(evt).unwrap())
+            .collect();
+
+        // One of the 4 activities is removed, the rest stays
+        assert_eq!(all_activities.len(), 3);
+
+        // This activity is not contained
+        assert!(!all_activities.contains(&activity));
+    }
+
+    #[rstest]
+    fn nonexistent_activity_doesnt_panic(abcd_trace: Trace) {
+        // This should not panic
+        let _ = ActivityRemover::new("DOESNT_EXIST").apply(&abcd_trace);
+    }
+}
