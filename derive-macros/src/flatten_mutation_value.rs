@@ -23,7 +23,7 @@ fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
                 })
                 .collect();
             quote::quote! {
-                Self::#ident(#(#fields),*) => iproduct!(#(#fields.get_as_vec()),*)
+                Self::#ident(#(#fields),*) => itertools::iproduct!(#(#fields.get_as_vec()),*)
                     .map(|(#(#fields),*)| Self::#ident(#(MutationValue::Value(#fields)),*))
                     .collect()
             }
@@ -37,7 +37,7 @@ fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
             quote::quote! {
                 Self::#ident {
                     #(#fields),*
-                } => iproduct!(#(#fields.get_as_vec()),*).map(|(#(#fields),*)| Self::#ident {
+                } => itertools::iproduct!(#(#fields.get_as_vec()),*).map(|(#(#fields),*)| Self::#ident {
                     #(#fields: MutationValue::Value(#fields)),*
                 }
                 ).collect()
@@ -53,7 +53,7 @@ fn struct_to_flatten_function_content(s: DataStruct) -> TokenStream {
         .map(|field| field.ident.unwrap())
         .collect();
     quote! {
-        iproduct!(#(self.#fields.get_as_vec()),*).map(|(#(#fields),*)| Self {
+        itertools::iproduct!(#(self.#fields.get_as_vec()),*).map(|(#(#fields),*)| Self {
             #(#fields: MutationValue::Value(#fields)),*
         }).collect()
     }
