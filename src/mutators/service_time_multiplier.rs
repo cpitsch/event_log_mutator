@@ -98,11 +98,6 @@ fn multiply_timedelta_by_float(timedelta: TimeDelta, factor: &f32) -> TimeDelta 
 
 impl TraceMutator for ServiceTimeMultiplier {
     fn apply(&self, trace: &Trace) -> Trace {
-        // new_trace
-        //     .events
-        //     .iter_mut()
-        //     .for_each(|event| *event = self.apply_event(event));
-
         let mut new_trace = trace.clone();
         for i in 0..new_trace.events.len() {
             let event = new_trace.events.get_mut(i).unwrap();
@@ -122,60 +117,16 @@ impl TraceMutator for ServiceTimeMultiplier {
             }
         }
 
-        // TODO: No longer needed because timestamps are updated
-        // Sort events by complete timestamp because we changed those only for some
-        // new_trace
-        //     .events
-        //     .sort_by_key(|evt| get_complete_timestamp(evt).expect(NO_COMPLETE_TIMESTAMP_MSG));
-        //
         new_trace
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, TimeZone, Utc};
-    use process_mining::event_log::Attribute;
 
     use super::*;
-
-    fn new_event(
-        activity: impl Into<String>,
-        start_timestamp: DateTime<Utc>,
-        service_time: TimeDelta,
-    ) -> Event {
-        Event {
-            attributes: vec![
-                Attribute::new(
-                    "concept:name".to_owned(),
-                    AttributeValue::String(activity.into()),
-                ),
-                Attribute::new(
-                    "start_timestamp".to_owned(),
-                    AttributeValue::Date(start_timestamp),
-                ),
-                Attribute::new(
-                    "time:timestamp".to_owned(),
-                    AttributeValue::Date(start_timestamp + service_time),
-                ),
-            ],
-        }
-    }
-
-    fn test_trace() -> Trace {
-        let date = Utc
-            .with_ymd_and_hms(2024, 4, 29, 1, 0, 0)
-            .earliest()
-            .unwrap();
-        Trace {
-            attributes: Vec::default(),
-            events: vec![
-                new_event("a", date, TimeDelta::hours(1)),
-                // Starts exactly as the previous finishes.
-                new_event("b", date + TimeDelta::hours(1), TimeDelta::hours(2)),
-            ],
-        }
-    }
+    use crate::test_fixtures::abcd_trace;
+    use rstest::rstest;
 
     fn get_control_flow(trace: &Trace) -> Vec<String> {
         trace
@@ -185,37 +136,33 @@ mod tests {
             .collect()
     }
 
-    #[test]
-    fn does_not_affect_control_flow() {
-        let trace = test_trace();
-
+    #[rstest]
+    fn does_not_affect_control_flow(abcd_trace: Trace) {
         let new_trace = ServiceTimeMultiplier::new(100.0)
             .for_activity("a")
-            .apply(&trace);
+            .apply(&abcd_trace);
 
-        assert!(get_control_flow(&trace) == get_control_flow(&new_trace));
+        assert_eq!(get_control_flow(&abcd_trace), get_control_flow(&new_trace));
     }
 
-    #[test]
-    fn default_affects_all_activities() {
-        let trace = test_trace();
-        let new_trace = ServiceTimeMultiplier::new(100.0).apply(&trace);
+    #[rstest]
+    fn default_affects_all_activities(abcd_trace: Trace) {
+        let new_trace = ServiceTimeMultiplier::new(100.0).apply(&abcd_trace);
 
-        assert!(trace
+        assert!(abcd_trace
             .events
             .iter()
             .zip(new_trace.events.iter())
             .all(|(e1, e2)| { get_service_time(e1) < get_service_time(e2) }));
     }
 
-    #[test]
-    fn only_affects_for_activity() {
-        let trace = test_trace();
+    #[rstest]
+    fn only_affects_for_activity(abcd_trace: Trace) {
         let new_trace = ServiceTimeMultiplier::new(100.0)
             .for_activity("a")
-            .apply(&trace);
+            .apply(&abcd_trace);
 
-        assert!(trace
+        assert!(abcd_trace
             .events
             .iter()
             .zip(new_trace.events.iter())
@@ -226,19 +173,19 @@ mod tests {
                 if get_activity_label(e1).unwrap() == "a" {
                     get_service_time(e1) < get_service_time(e2)
                 } else {
+                    // Service time is unchanged
                     get_service_time(e1) == get_service_time(e2)
                 }
             }));
     }
 
-    #[test]
-    fn zero_probability_does_nothing() {
-        let trace = test_trace();
+    #[rstest]
+    fn zero_probability_does_nothing(abcd_trace: Trace) {
         let new_trace = ServiceTimeMultiplier::new(100.0)
             .with_probability(0.0)
-            .apply(&trace);
+            .apply(&abcd_trace);
 
-        assert!(trace
+        assert!(abcd_trace
             .events
             .iter()
             .map(|evt| get_service_time(evt).unwrap())

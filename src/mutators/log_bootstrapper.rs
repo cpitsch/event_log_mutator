@@ -82,125 +82,52 @@ impl LogBootstrapper {
 mod tests {
     use std::collections::HashSet;
 
-    use chrono::{DateTime, TimeDelta, TimeZone, Utc};
     use process_mining::{
-        event_log::{Attribute, AttributeValue, Event, Trace},
+        event_log::{Attribute, AttributeValue},
         EventLog,
     };
 
     use crate::{
         mutation::LogMutator,
+        test_fixtures::abcd_log,
         utils::{get_string_by_key, get_traceid, get_traceids},
     };
 
     use super::LogBootstrapper;
+    use rstest::rstest;
 
-    fn new_event(
-        activity: impl Into<String>,
-        start_timestamp: DateTime<Utc>,
-        service_time: TimeDelta,
-    ) -> Event {
-        Event {
-            attributes: vec![
-                Attribute::new(
-                    "concept:name".to_owned(),
-                    AttributeValue::String(activity.into()),
-                ),
-                Attribute::new(
-                    "start_timestamp".to_owned(),
-                    AttributeValue::Date(start_timestamp),
-                ),
-                Attribute::new(
-                    "time:timestamp".to_owned(),
-                    AttributeValue::Date(start_timestamp + service_time),
-                ),
-            ],
-        }
-    }
-
-    fn test_log() -> EventLog {
-        let date = Utc
-            .with_ymd_and_hms(2024, 4, 29, 1, 0, 0)
-            .earliest()
-            .unwrap();
-
-        EventLog {
-            attributes: Vec::default(),
-            traces: vec![
-                Trace {
-                    attributes: vec![Attribute {
-                        key: "concept:name".to_string(),
-                        value: AttributeValue::String("1".to_string()),
-                        own_attributes: None,
-                    }],
-                    events: vec![new_event("a", date, TimeDelta::hours(1))],
-                },
-                Trace {
-                    attributes: vec![Attribute {
-                        key: "concept:name".to_string(),
-                        value: AttributeValue::String("2".to_string()),
-                        own_attributes: None,
-                    }],
-                    events: vec![new_event("b", date, TimeDelta::hours(1))],
-                },
-                Trace {
-                    attributes: vec![Attribute {
-                        key: "concept:name".to_string(),
-                        value: AttributeValue::String("3".to_string()),
-                        own_attributes: None,
-                    }],
-                    events: vec![new_event("c", date, TimeDelta::hours(1))],
-                },
-                Trace {
-                    attributes: vec![Attribute {
-                        key: "concept:name".to_string(),
-                        value: AttributeValue::String("4".to_string()),
-                        own_attributes: None,
-                    }],
-                    events: vec![new_event("d", date, TimeDelta::hours(1))],
-                },
-            ],
-            extensions: None,
-            classifiers: None,
-            global_trace_attrs: None,
-            global_event_attrs: None,
-        }
-    }
-
-    #[test]
+    #[rstest]
     #[should_panic]
-    fn sample_without_replacement_fails_with_large_size() {
-        let test_log = test_log();
+    fn sample_without_replacement_fails_with_large_size(abcd_log: EventLog) {
         LogBootstrapper::new(5)
             .with_replacement(false)
-            .apply(&test_log);
+            .apply(&abcd_log);
     }
 
-    #[test]
-    fn sample_without_replacement_has_no_duplicates() {
-        let test_log = test_log();
-        let trace_ids = get_traceids(&test_log);
+    #[rstest]
+    fn sample_without_replacement_has_no_duplicates(abcd_log: EventLog) {
+        let trace_ids = get_traceids(&abcd_log);
+        //
         // Do it a couple of times to make (more) sure that we aren't getting lucky
         for _ in 1..10 {
             let mutated_log = LogBootstrapper::new(4)
                 .with_replacement(false)
-                .apply(&test_log);
+                .apply(&abcd_log);
             let new_traceids = get_traceids(&mutated_log);
 
             assert_eq!(trace_ids, new_traceids);
         }
     }
 
-    #[test]
-    fn sample_without_replacement_is_random() {
-        let test_log = test_log();
+    #[rstest]
+    fn sample_without_replacement_is_random(abcd_log: EventLog) {
         let mut seen_trace_ids: HashSet<String> = HashSet::new();
 
         // Test that sampling multiple times yields different results.
         for _ in 1..10 {
             let mutated_log = LogBootstrapper::new(1)
                 .with_replacement(false)
-                .apply(&test_log);
+                .apply(&abcd_log);
             seen_trace_ids = seen_trace_ids
                 .union(&get_traceids(&mutated_log))
                 .cloned()
@@ -210,11 +137,9 @@ mod tests {
         assert!(seen_trace_ids.len() > 1);
     }
 
-    #[test]
-    fn sample_with_replacement_has_duplicates() {
-        let mut test_log = test_log();
-
-        test_log.traces.iter_mut().for_each(|trace| {
+    #[rstest]
+    fn sample_with_replacement_has_duplicates(mut abcd_log: EventLog) {
+        abcd_log.traces.iter_mut().for_each(|trace| {
             let traceid = get_traceid(trace).unwrap();
             trace.attributes.push(Attribute {
                 key: "original_traceid".to_string(),
@@ -226,7 +151,7 @@ mod tests {
         // Don't explicitly specify the
         let mutated_log = LogBootstrapper::new(1000)
             .with_replacement(true)
-            .apply(&test_log);
+            .apply(&abcd_log);
 
         let mut traceids: Vec<String> = mutated_log
             .traces

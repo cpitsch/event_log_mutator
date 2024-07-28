@@ -52,3 +52,41 @@ impl TraceMutator for ActivityRenamer {
         new_trace
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test_fixtures::abcd_trace;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case::remove_a("a")]
+    #[case::remove_b("b")]
+    #[case::remove_c("c")]
+    #[case::remove_d("d")]
+    fn activity_renames_correctly(abcd_trace: Trace, #[case] activity: String) {
+        let new_trace = ActivityRenamer::new(activity.clone(), "NEW_ACTIVITY").apply(&abcd_trace);
+
+        let all_activities: Vec<_> = new_trace
+            .events
+            .iter()
+            .map(|evt| get_activity_label(evt).unwrap())
+            .collect();
+
+        // The old activity is not contained
+        assert!(!all_activities.contains(&activity));
+
+        // The new activity is there now
+        assert!(all_activities.contains(&"NEW_ACTIVITY".to_string()));
+
+        // There are still 4 activities (Only the specified activity got renamed)
+        // and since it is entirely gone, the renaming worked correctly
+        assert_eq!(all_activities.len(), 4);
+    }
+
+    #[rstest]
+    fn nonexistent_activity_doesnt_panic(abcd_trace: Trace) {
+        // This should not panic
+        let _ = ActivityRenamer::new("DOESNT_EXIST", "NEW_ACTIVITY").apply(&abcd_trace);
+    }
+}

@@ -239,33 +239,12 @@ impl LogMutator for ServiceTimeStdShifter {
 
 #[cfg(test)]
 mod tests {
-    use chrono::{DateTime, TimeZone, Utc};
-    use process_mining::event_log::Attribute;
+    use chrono::{TimeZone, Utc};
+    use rstest::{fixture, rstest};
 
     use super::*;
 
-    fn new_event(
-        activity: impl Into<String>,
-        start_timestamp: DateTime<Utc>,
-        service_time: TimeDelta,
-    ) -> Event {
-        Event {
-            attributes: vec![
-                Attribute::new(
-                    "concept:name".to_owned(),
-                    AttributeValue::String(activity.into()),
-                ),
-                Attribute::new(
-                    "start_timestamp".to_owned(),
-                    AttributeValue::Date(start_timestamp),
-                ),
-                Attribute::new(
-                    "time:timestamp".to_owned(),
-                    AttributeValue::Date(start_timestamp + service_time),
-                ),
-            ],
-        }
-    }
+    use crate::test_fixtures::{log_from_traces, new_event};
 
     fn test_trace_1() -> Trace {
         let date = Utc
@@ -296,25 +275,14 @@ mod tests {
         }
     }
 
-    fn log_with_traces(traces: Vec<Trace>) -> EventLog {
-        EventLog {
-            attributes: Vec::new(),
-            traces,
-            extensions: None,
-            classifiers: None,
-            global_trace_attrs: None,
-            global_event_attrs: None,
-        }
-    }
-
+    #[fixture]
     fn test_log() -> EventLog {
-        log_with_traces(vec![test_trace_1(), test_trace_2()])
+        log_from_traces(vec![test_trace_1(), test_trace_2()])
     }
 
-    #[test]
-    fn correct_duration_extraction() {
-        let log = test_log();
-        let durations = get_activity_durations(&log);
+    #[rstest]
+    fn correct_duration_extraction(test_log: EventLog) {
+        let durations = get_activity_durations(&test_log);
 
         assert_eq!(
             vec![TimeDelta::hours(1)],
@@ -331,10 +299,9 @@ mod tests {
         );
     }
 
-    #[test]
-    fn correct_std_computation() {
-        let log = test_log();
-        let stds = get_activity_duration_stds(&log);
+    #[rstest]
+    fn correct_std_computation(test_log: EventLog) {
+        let stds = get_activity_duration_stds(&test_log);
 
         assert_eq!(TimeDelta::nanoseconds(0), stds.get("a").unwrap().clone());
 
@@ -343,10 +310,9 @@ mod tests {
         assert_eq!(TimeDelta::hours(1), stds.get("b").unwrap().clone());
     }
 
-    #[test]
-    fn applies_correctly() {
-        let log = test_log();
-        let new_log = ServiceTimeStdShifter::new(2.5).apply(&log);
+    #[rstest]
+    fn applies_correctly(test_log: EventLog) {
+        let new_log = ServiceTimeStdShifter::new(2.5).apply(&test_log);
 
         let new_durations = get_activity_durations(&new_log);
         assert_eq!(
