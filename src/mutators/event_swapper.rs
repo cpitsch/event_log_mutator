@@ -109,3 +109,45 @@ impl TraceMutator for EventSwapper {
         new_trace
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{test_fixtures::abcd_trace, utils::get_complete_timestamp};
+    use rstest::rstest;
+
+    #[rstest]
+    #[case::swap_a_d("a", "d", "dbca")]
+    #[case::swap_b_c("b", "c", "acbd")]
+    #[case::swap_b_c("b", "d", "adcb")]
+    // Since activity_2 doesn't exist, it stays the same
+    #[case::swap_a_non_existent("a", "NONEXISTENT", "abcd")]
+    fn event_swapper_swaps_correctly_and_updates_times(
+        abcd_trace: Trace,
+        #[case] activity_1: String,
+        #[case] activity_2: String,
+        #[case] expected: String,
+    ) {
+        let new_trace = EventSwapper::new(activity_1, activity_2).apply(&abcd_trace);
+
+        assert_eq!(
+            expected,
+            new_trace
+                .events
+                .iter()
+                .map(|evt| get_activity_label(evt).unwrap())
+                .join("")
+        );
+
+        // Sort by timestamp to make sure that the timestamps were updated correctly
+        assert_eq!(
+            expected,
+            new_trace
+                .events
+                .iter()
+                .sorted_by_key(|evt| get_complete_timestamp(evt).unwrap())
+                .map(|evt| get_activity_label(evt).unwrap())
+                .join("")
+        );
+    }
+}
