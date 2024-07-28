@@ -1,6 +1,6 @@
 use serde::Deserialize;
 
-use itertools::{iproduct, Itertools};
+use itertools::Itertools;
 
 use crate::{
     mutation::{LogMutatorWithAsDirName, MutationChain},
@@ -16,6 +16,7 @@ use crate::{
 use super::MutationChainConfig;
 
 #[derive(Deserialize, Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 #[serde(untagged)]
 pub enum MutationValue<T> {
     Value(T),
