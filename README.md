@@ -37,7 +37,7 @@ input = "path/to/input_log.xes"
 # The path where to store the mutated log. If not supplied, default to 
 # ./<input-log-name>_mutated.xes.gz.
 output = "path/to/output.xes.gz"
-# Gzip the event output logs. Defaults to false
+# Gzip the event logs. Defaults to false
 compress_output = true
 
 [pipeline]
@@ -79,7 +79,7 @@ configuration file is
 input = "path/to/input_log.xes"
 # The root directory in which the event logs are saved. Defaults to `.`.
 output = "pipeline_outputs/"
-# Gzip the event output logs. Defaults to false
+# Gzip the event logs. Defaults to false
 compress_output = true
 
 # The list of mutations to apply. They will be applied in exactly the order in the file
