@@ -3,8 +3,12 @@ use process_mining::event_log::Trace;
 
 use crate::{mutation::LogMutator, parsing::dir_name_trait::DirName, utils::get_activity_label};
 
+/// Mutation to retain only the cases whose variant (projection on the executed
+/// activity) occurs frequently enough.
 #[derive(DirName)]
 pub struct VariantSupportFilter {
+    /// The threshold to use for variant filtering. A variant must occur at least
+    /// this many times to not be removed from the event log.
     #[dirname(rename = "thresh", no_split)]
     num_supporting_cases: usize,
 }

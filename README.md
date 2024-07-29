@@ -1,15 +1,19 @@
 ## Available Mutators
 To see the parameters a mutator takes, follow its respective link
-- [ServiceTimeStdShifter](./src/mutators/service_time_std_shifter.rs#L21-L36)
-- [VariantSupportFilter](./src/mutators/filters/variant_support_filter.rs#L6-L10)
-- [ActivityRemover](./src/mutators/activity_remover.rs#L9-L19)
+
+- [ActivityRemover](./src/mutators/activity_remover.rs#L9-L18)
 - [ActivityRenamer](./src/mutators/activity_rename.rs#L11-L22)
+- [AttributeRemover](./src/mutators/attribute_remover.rs#L3-L9)
 - [ConstantActivity](./src/mutators/constant_activity.rs#L6-L15)
 - [EventSwapper](./src/mutators/event_swapper.rs#L15-L30)
 - [LogBootstrapper](./src/mutators/log_bootstrapper.rs#L6-L15)
 - [PartialOrderCreator](./src/mutators/partial_order_creator.rs#L10-L19)
-- [AttributeRemover](./src/mutators/attribute_remover.rs#L3-L9)
 - [ServiceTimeMultiplier](./src/mutators/service_time_multiplier.rs#L15-L29)
+- [ServiceTimeStdShifter](./src/mutators/service_time_std_shifter.rs#L21-L36)
+
+### Filters 
+- [VariantSupportFilter](./src/mutators/filters/variant_support_filter.rs#L6-L14)
+- [EndpointFilter](./src/mutators/filters/endpoint_filter.rs#L12-L21)
 
 ## Pipeline Configuration
 A mutation pipeline can be defined in a toml configuration file, and supplied to the 
@@ -33,7 +37,7 @@ input = "path/to/input_log.xes"
 # The path where to store the mutated log. If not supplied, default to 
 # ./<input-log-name>_mutated.xes.gz.
 output = "path/to/output.xes.gz"
-# Gzip the event output logs. Defaults to false
+# Gzip the event logs. Defaults to false
 compress_output = true
 
 [pipeline]
@@ -60,8 +64,10 @@ standard_deviations = 1.0
 ```
 
 ### Parametrized Pipeline
-The parametrized pipeline allows you to specify multiple arguments to the mutations, and
-create a mutated event log for each combination of parameters.
+If you need to apply a pipeline for various settings, you can parametrize the mutators by
+providing lists of values instead.
+For parametrized pipelines, the output argument specifies the root path to which to save
+the generated event logs.
 
 The event logs are stored as `log.xes(.gz)` in a path where each applied mutator + parameter 
 setting is a directory. So, for instance, one of the save paths for the following 
@@ -73,22 +79,25 @@ configuration file is
 input = "path/to/input_log.xes"
 # The root directory in which the event logs are saved. Defaults to `.`.
 output = "pipeline_outputs/"
-# Gzip the event output logs. Defaults to false
+# Gzip the event logs. Defaults to false
 compress_output = true
 
 # The list of mutations to apply. They will be applied in exactly the order in the file
-[parametrized_pipeline]
-[[parametrized_pipeline.mutations]]
+[pipeline]
+[[pipeline.mutations]]
 # Retain only the variants (sequences of activities) that have a support of at least 5
 # in the event log.
 type = "VariantSupportFilter"
 num_supporting_cases = 5
 
-[[parametrized_pipeline.mutations]]
-# For each event with the activity "a", increase its service time by the standard standard_deviation
-# of the activity "a", with probability 0.5.
+[[pipeline.mutations]]
+# For each event with the activity "a", increase its service time by various factors of the 
+# standard standard_deviation of the activity "a", with various probabilities.
+# This results in 25 different mutation chains from this pipeline file.
 type="ServiceTimeStdShifter"
 activity = "a"
+# This mutator typically expects a single float. Providing a list instead, will parametrize
+# the mutator
 probability = [0.1, 0.2, 0.3, 0.4, 0.5]
 standard_deviations = [0.1, 0.2, 0.3, 0.4, 0.5]
 ```

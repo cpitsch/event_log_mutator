@@ -13,7 +13,6 @@ pub struct ActivityRemover {
     #[dirname(rename = "")]
     activity: String,
     /// The probability of removal. Ranges from 0 to 1. Defaults to 1
-
     #[dirname(rename = "p", no_split)]
     probability: f32,
 }
