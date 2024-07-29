@@ -64,12 +64,10 @@ standard_deviations = 1.0
 ```
 
 ### Parametrized Pipeline
-- If you need to apply a pipeline for various settings, you can parametrize the mutators by
+If you need to apply a pipeline for various settings, you can parametrize the mutators by
 providing a list of values instead.
-- For parametrized pipelines, the output argument specifies the root path to which to save
+For parametrized pipelines, the output argument specifies the root path to which to save
 the generated event logs.
-
-The parametrized pipeline allows you to specify multiple arguments to the mutations, and
 
 The event logs are stored as `log.xes(.gz)` in a path where each applied mutator + parameter 
 setting is a directory. So, for instance, one of the save paths for the following 
