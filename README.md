@@ -65,7 +65,7 @@ standard_deviations = 1.0
 
 ### Parametrized Pipeline
 If you need to apply a pipeline for various settings, you can parametrize the mutators by
-providing a list of values instead.
+providing lists of values instead.
 For parametrized pipelines, the output argument specifies the root path to which to save
 the generated event logs.
 
@@ -96,6 +96,8 @@ num_supporting_cases = 5
 # This results in 25 different mutation chains from this pipeline file.
 type="ServiceTimeStdShifter"
 activity = "a"
+# This mutator typically expects a single float. Providing a list instead, will parametrize
+# the mutator
 probability = [0.1, 0.2, 0.3, 0.4, 0.5]
 standard_deviations = [0.1, 0.2, 0.3, 0.4, 0.5]
 ```
