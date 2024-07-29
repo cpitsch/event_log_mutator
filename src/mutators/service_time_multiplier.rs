@@ -60,21 +60,17 @@ impl ServiceTimeMultiplier {
     }
 
     fn apply_event(&self, evt: &Event) -> Event {
-        if self.should_mutate(evt) {
-            let mut new_event = evt.clone();
-            let start_timestamp = get_start_timestamp(&new_event).expect(NO_START_TIMESTAMP_MSG);
-            let service_time = get_service_time(&new_event).expect(NO_COMPLETE_TIMESTAMP_MSG);
-            let new_serivce_time = multiply_timedelta_by_float(service_time, &self.factor);
+        let mut new_event = evt.clone();
+        let start_timestamp = get_start_timestamp(&new_event).expect(NO_START_TIMESTAMP_MSG);
+        let service_time = get_service_time(&new_event).expect(NO_COMPLETE_TIMESTAMP_MSG);
+        let new_serivce_time = multiply_timedelta_by_float(service_time, &self.factor);
 
-            set_complete_timestamp(
-                &mut new_event,
-                // Round duration seconds to 6 decimal places so pm4py imports it correctly
-                AttributeValue::Date((start_timestamp + new_serivce_time).round_subsecs(6)),
-            );
-            new_event
-        } else {
-            evt.clone()
-        }
+        set_complete_timestamp(
+            &mut new_event,
+            // Round duration seconds to 6 decimal places so pm4py imports it correctly
+            AttributeValue::Date((start_timestamp + new_serivce_time).round_subsecs(6)),
+        );
+        new_event
     }
 }
 
