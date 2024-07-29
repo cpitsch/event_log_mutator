@@ -91,8 +91,9 @@ type = "VariantSupportFilter"
 num_supporting_cases = 5
 
 [[pipeline.mutations]]
-# For each event with the activity "a", increase its service time by the standard standard_deviation
-# of the activity "a", with probability 0.5.
+# For each event with the activity "a", increase its service time by various factors of the 
+# standard standard_deviation of the activity "a", with various probabilities.
+# This results in 25 different mutation chains from this pipeline file.
 type="ServiceTimeStdShifter"
 activity = "a"
 probability = [0.1, 0.2, 0.3, 0.4, 0.5]
