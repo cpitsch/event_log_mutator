@@ -1,7 +1,7 @@
 ## Available Mutators
 To see the parameters a mutator takes, follow its respective link
 
-- [ActivityRemover](./src/mutators/activity_remover.rs#L9-L19)
+- [ActivityRemover](./src/mutators/activity_remover.rs#L9-L18)
 - [ActivityRenamer](./src/mutators/activity_rename.rs#L11-L22)
 - [AttributeRemover](./src/mutators/attribute_remover.rs#L3-L9)
 - [ConstantActivity](./src/mutators/constant_activity.rs#L6-L15)
