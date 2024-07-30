@@ -1,15 +1,12 @@
 use chrono::{SubsecRound, TimeDelta};
-use process_mining::event_log::{AttributeValue, Event, Trace};
+use process_mining::event_log::{Event, Trace};
 use rand::random;
 
 use crate::{
-    constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG},
+    constants::{NO_ACTIVITY_LABEL_MSG, NO_START_TIMESTAMP_MSG},
     mutation::TraceMutator,
     parsing::dir_name_trait::DirName,
-    utils::{
-        get_activity_label, get_complete_timestamp, get_service_time, get_start_timestamp,
-        set_complete_timestamp, shift_events_by,
-    },
+    utils::{change_event_duration, get_activity_label, get_service_time, get_start_timestamp},
 };
 
 /// Mutation to increase the service time by a factor.
@@ -58,20 +55,6 @@ impl ServiceTimeMultiplier {
         self.probability = probability;
         self
     }
-
-    fn apply_event(&self, evt: &Event) -> Event {
-        let mut new_event = evt.clone();
-        let start_timestamp = get_start_timestamp(&new_event).expect(NO_START_TIMESTAMP_MSG);
-        let service_time = get_service_time(&new_event).expect(NO_COMPLETE_TIMESTAMP_MSG);
-        let new_serivce_time = multiply_timedelta_by_float(service_time, &self.factor);
-
-        set_complete_timestamp(
-            &mut new_event,
-            // Round duration seconds to 6 decimal places so pm4py imports it correctly
-            AttributeValue::Date((start_timestamp + new_serivce_time).round_subsecs(6)),
-        );
-        new_event
-    }
 }
 
 /// Helper function to multiply a timedelta by a float.
@@ -98,18 +81,14 @@ impl TraceMutator for ServiceTimeMultiplier {
         for i in 0..new_trace.events.len() {
             let event = new_trace.events.get_mut(i).unwrap();
             if self.should_mutate(event) {
-                let old_complete_timestamp =
-                    get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG);
-                *event = self.apply_event(event);
-                let shifted_by = get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG)
-                    - old_complete_timestamp;
-
-                // Need to move all following events if changed service time
-                // So: For each following event, move its start and completion timestamp
-                // by the amount of time added to this service time
-                // Otherwise, we induce control-flow changes that are unwanted side-effects
-                // from this mutation
-                shift_events_by(&mut new_trace, shifted_by, i + 1);
+                let start_timestamp = get_start_timestamp(event).expect(NO_START_TIMESTAMP_MSG);
+                let service_time = get_service_time(event).expect(NO_START_TIMESTAMP_MSG);
+                let new_service_time = multiply_timedelta_by_float(service_time, &self.factor);
+                change_event_duration(
+                    &mut new_trace,
+                    i,
+                    (start_timestamp + new_service_time).round_subsecs(6),
+                );
             }
         }
 
@@ -121,15 +100,28 @@ impl TraceMutator for ServiceTimeMultiplier {
 mod tests {
 
     use super::*;
-    use crate::test_fixtures::abcd_trace;
+    use crate::test_fixtures::{abcd_trace, get_control_flow};
+    use itertools::izip;
     use rstest::rstest;
 
-    fn get_control_flow(trace: &Trace) -> Vec<String> {
-        trace
-            .events
-            .iter()
-            .map(|evt| get_activity_label(evt).unwrap())
-            .collect()
+    #[rstest]
+    #[case::factor_1(1.0, 3600)]
+    #[case::float_factor(1.5, 5400)]
+    #[case::factor_0(0.0, 0)]
+    fn timedelta_multiplication(#[case] factor: f32, #[case] expected_seconds: i64) {
+        let delta = TimeDelta::hours(1);
+        let multiplied_delta = multiply_timedelta_by_float(delta, &factor);
+
+        assert_eq!(
+            multiplied_delta.num_seconds()
+                // Round due to floating point imprecision
+                + if multiplied_delta.subsec_nanos() >= 500_000_000 {
+                    1
+                } else {
+                    0
+                },
+            expected_seconds
+        )
     }
 
     #[rstest]
@@ -189,5 +181,51 @@ mod tests {
                 .events
                 .iter()
                 .map(|evt| get_service_time(evt).unwrap())));
+    }
+    #[rstest]
+    fn affects_times_correctly(abcd_trace: Trace) {
+        let durations: Vec<_> = abcd_trace
+            .events
+            .iter()
+            .map(|event| get_service_time(event).unwrap())
+            .collect();
+
+        let start_timestamps: Vec<_> = abcd_trace
+            .events
+            .iter()
+            .map(|event| get_start_timestamp(event).unwrap())
+            .collect();
+
+        let factor = 100.0;
+        let new_durations: Vec<_> = ServiceTimeMultiplier::new(factor)
+            .for_activity("a")
+            .with_probability(1.0)
+            .apply(&abcd_trace)
+            .events
+            .iter()
+            .map(|event| get_service_time(event).unwrap())
+            .collect();
+
+        izip!(
+            get_control_flow(&abcd_trace),
+            start_timestamps,
+            durations,
+            new_durations
+        )
+        .for_each(|(act, start, old_dur, new_dur)| {
+            if act == *"a" {
+                // Activity a is incremented by 1 day
+                // Currently fails due to rounding the completion timestamp to 6 digits
+                // So the service time isnt exactly this..
+                let expected_completion_timestamp =
+                    (start + multiply_timedelta_by_float(old_dur, &factor)).round_subsecs(6);
+                let expected_dur = expected_completion_timestamp - start;
+
+                assert_eq!(new_dur, expected_dur);
+            } else {
+                // All others are left untouched
+                assert_eq!(new_dur, old_dur)
+            }
+        });
     }
 }

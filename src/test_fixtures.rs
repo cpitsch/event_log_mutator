@@ -2,6 +2,8 @@ use chrono::{DateTime, TimeDelta, TimeZone, Utc};
 use process_mining::event_log::{Attribute, AttributeValue, Event, EventLog, Trace};
 use rstest::fixture;
 
+use crate::utils::get_activity_label;
+
 pub fn new_event(
     activity: impl Into<String>,
     start_timestamp: DateTime<Utc>,
@@ -34,6 +36,14 @@ pub fn log_from_traces(traces: Vec<Trace>) -> EventLog {
         global_trace_attrs: None,
         global_event_attrs: None,
     }
+}
+
+pub fn get_control_flow(trace: &Trace) -> Vec<String> {
+    trace
+        .events
+        .iter()
+        .map(|evt| get_activity_label(evt).unwrap())
+        .collect()
 }
 
 #[fixture]

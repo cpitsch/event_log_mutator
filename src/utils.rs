@@ -111,6 +111,15 @@ pub fn shift_events_by(trace: &mut Trace, by: TimeDelta, from: usize) {
     })
 }
 
+pub fn change_event_duration(trace: &mut Trace, index: usize, to: DateTime<Utc>) {
+    let evt = trace.events.get_mut(index).unwrap();
+    let old_complete_timestamp = get_complete_timestamp(evt).unwrap();
+    let timestamp_difference = to - old_complete_timestamp;
+    set_complete_timestamp(evt, AttributeValue::Date(to));
+
+    shift_events_by(trace, timestamp_difference, index + 1);
+}
+
 pub fn get_traceids(log: &EventLog) -> HashSet<String> {
     log.traces
         .iter()
