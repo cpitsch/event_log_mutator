@@ -6,20 +6,20 @@ use std::path::PathBuf;
 
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
-    /// The path to the input XES file (.xes or .xes.gz)
-    #[clap(short, long, value_name = "PATH")]
-    pub input: Option<PathBuf>,
-
     /// The path to a toml file with a mutation pipeline to apply
     #[clap(long, value_name = "PATH")]
     pub pipeline: Option<PathBuf>,
 
-    /// The path to write the mutated log to. Defaults to /path/to/input_mutated.xes
+    /// The path to the input XES file (.xes or .xes.gz)
+    #[clap(short, long, value_name = "PATH")]
+    pub input: Option<PathBuf>,
+
+    /// The path to write the mutated log to. Defaults to path/to/input_mutated.xes
     #[clap(short, long, value_name = "PATH")]
     pub output: Option<PathBuf>,
 
-    /// If present, and no preset is selected, apply mutations to the event log. Otherwise, only
-    /// apply bootstrapping
+    /// If present, and no preset is selected, apply mutations to the event log.
+    /// Otherwise, only apply bootstrapping
     #[clap(long)]
     pub mutate: bool,
 
@@ -27,7 +27,8 @@ pub struct Args {
     #[clap(long, value_enum)]
     pub preset: Option<Preset>,
 
-    /// Minimum number of supporting cases for variant. Only relevant for --filter-variant-support
+    /// Minimum number of supporting cases for variant. Only relevant for
+    /// --filter-variant-support
     #[clap(long)]
     pub support: Option<usize>,
 
