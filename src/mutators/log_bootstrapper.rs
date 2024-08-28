@@ -13,7 +13,7 @@ pub struct LogBootstrapper {
     /// Sample with replacement? Defaults to true.
     replacement: bool,
     /// Optional seed for the random case sampling. Ensures reproducible results
-    /// across runs.
+    /// across runs. Use [`LogBootstrapper::with_seed`] to set the seed.
     seed: Option<u64>,
     #[dirname(ignore)]
     rng: StdRng,

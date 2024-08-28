@@ -9,11 +9,12 @@ pub struct ConstantActivityMutator {
     /// The activity label to use.
     #[dirname(rename = "")]
     activity: String,
-    /// The probability of applying the mutation to an event
+    /// The probability of applying the mutation to an event. Use
+    /// [`ConstantActivityMutator::with_probability`] to set the probability.
     #[dirname(rename = "p", no_split)]
     probability: f32,
     /// Optional seed for the random number generator. Ensures reproducible results
-    /// across runs.
+    /// across runs. Use [`ConstantActivityMutator::with_seed`] to set the seed.
     seed: Option<u64>,
     #[dirname(ignore)]
     rng: StdRng,

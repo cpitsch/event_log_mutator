@@ -16,11 +16,12 @@ pub struct ActivityRenamer {
     /// The new activity label.
     #[dirname(rename = "to")]
     new_label: String,
-    /// The probability of renaming. Ranges from 0 to 1.
+    /// The probability of renaming. Ranges from 0 to 1. Use
+    /// [`ActivityRenamer::with_probability`] to set the probability.
     #[dirname(rename = "p", no_split)]
     probability: f32,
     /// Optional seed for the random number generator. Ensures reproducible results
-    /// across runs.
+    /// across runs. Use [`ActivityRenamer::with_seed`] to set the seed.
     seed: Option<u64>,
     #[dirname(ignore)]
     rng: StdRng,

@@ -24,11 +24,12 @@ pub struct EventSwapper {
     // The second activity label for swapping.
     #[dirname(rename = "swap")]
     activity_2: String,
-    /// The probability of applying this modifier (per pair)
+    /// The probability of applying this modifier (per pair). Use
+    /// [`EventSwapper::with_probability`] to set the probability.
     #[dirname(rename = "p", no_split)]
     probability: f32,
     /// Optional seed for the random number generator. Ensures reproducible results
-    /// across runs.
+    /// across runs. Use [`EventSwapper::with_seed`] to set the seed.
     seed: Option<u64>,
     #[dirname(ignore)]
     rng: StdRng,

@@ -14,18 +14,18 @@ use crate::{
 #[derive(DirName)]
 pub struct ServiceTimeAdder {
     /// Only apply the mutation to events with this activity. Defaults to all activities.
-    /// Use [`ServiceTimeMutation::for_activity`] to set a specific activity.
+    /// Use [`ServiceTimeAdder::for_activity`] to set a specific activity.
     #[dirname(rename = "")]
     activity: Option<String>,
-    /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
-    /// Use [`ServiceTimeMutation::with_probability`] to set a probability.
-    #[dirname(rename = "p", no_split)]
-    probability: f32,
     /// The time difference to add to the service time.
     #[dirname(rename = "by")]
     timedelta: TimeDelta,
+    /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
+    /// Use [`ServiceTimeAdder::with_probability`] to set a probability.
+    #[dirname(rename = "p", no_split)]
+    probability: f32,
     /// Optional seed for the random number generator. Ensures reproducible results
-    /// across runs.
+    /// across runs. Use [`ServiceTimeAdder::with_seed`] to set the seed.
     seed: Option<u64>,
     #[dirname(ignore)]
     rng: StdRng,

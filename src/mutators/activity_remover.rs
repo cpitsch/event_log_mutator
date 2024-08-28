@@ -12,11 +12,12 @@ pub struct ActivityRemover {
     /// The activity label to remove.
     #[dirname(rename = "")]
     activity: String,
-    /// The probability of removal. Ranges from 0 to 1. Defaults to 1
+    /// The probability of removal. Ranges from 0 to 1. Defaults to 1. use
+    /// [`ActivityRemover::with_probability`] to set the probability.
     #[dirname(rename = "p", no_split)]
     probability: f32,
     /// Optional seed for the random number generator. Ensures reproducible results
-    /// across runs.
+    /// across runs. Use [`ActivityRemover::with_seed`] to set the seed.
     seed: Option<u64>,
     #[dirname(ignore)]
     rng: StdRng,

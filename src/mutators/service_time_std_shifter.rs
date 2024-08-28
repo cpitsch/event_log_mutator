@@ -23,18 +23,18 @@ use crate::{
 #[derive(DirName)]
 pub struct ServiceTimeStdShifter {
     /// Only mutate events with this activity. Defaults to all activities (None).
-    /// Use [`ServiceTimeMultiplier::for_activity`] to for a specific activity.
+    /// Use [`ServiceTimeStdShifter::for_activity`] to for a specific activity.
     #[dirname(rename = "")]
     activity: Option<String>,
-    /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
-    /// Use [`ServiceTimeMultiplier::with_probability`] for a specific probability.
-    #[dirname(rename = "p", no_split)]
-    probability: f32,
     /// The number of standard deviations to shift the duration by.
     #[dirname(rename = "std", no_split)]
     standard_deviations: f64,
+    /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
+    /// Use [`ServiceTimeStdShifter::with_probability`] for a specific probability.
+    #[dirname(rename = "p", no_split)]
+    probability: f32,
     /// Optional seed for the random number generator. Ensures reproducible results
-    /// across runs.
+    /// across runs. Use [`ServiceTimeStdShifter::with_seed`] to set the seed.
     seed: Option<u64>,
     #[dirname(ignore)]
     rng: StdRng,

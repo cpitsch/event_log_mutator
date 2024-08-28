@@ -16,15 +16,15 @@ pub struct ServiceTimeMultiplier {
     /// Use [`ServiceTimeMultiplier::for_activity`] to for a specific activity.
     #[dirname(rename = "")]
     activity: Option<String>,
+    /// The factor to multiply the service time by.
+    #[dirname(rename = "x", no_split)]
+    factor: f32,
     /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
     /// Use [`ServiceTimeMultiplier::with_probability`] for a specific probability.
     #[dirname(rename = "p", no_split)]
     probability: f32,
-    /// The factor to multiply the service time by.
-    #[dirname(rename = "x", no_split)]
-    factor: f32,
     /// Optional seed for the random number generator. Ensures reproducible results
-    /// across runs.
+    /// across runs. Use [`ServiceTimeMultiplier::with_seed`] to set the seed.
     seed: Option<u64>,
     #[dirname(ignore)]
     rng: StdRng,
