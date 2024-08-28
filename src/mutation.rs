@@ -7,24 +7,24 @@ use crate::parsing::dir_name_trait::DirName;
 
 pub trait EventMutator {
     /// Apply the mutation to a given event.
-    fn apply(&self, evt: &Event) -> Event;
+    fn apply(&mut self, evt: &Event) -> Event;
 }
 
 pub trait TraceMutator {
     /// Apply the mutation to a given trace.
-    fn apply(&self, trace: &Trace) -> Trace;
+    fn apply(&mut self, trace: &Trace) -> Trace;
 }
 
 pub trait LogMutator {
     /// Apply the mutation to an entire Event Log.
-    fn apply(&self, log: &EventLog) -> EventLog;
+    fn apply(&mut self, log: &EventLog) -> EventLog;
 }
 
 impl<T> TraceMutator for T
 where
     T: EventMutator,
 {
-    fn apply(&self, trace: &Trace) -> Trace {
+    fn apply(&mut self, trace: &Trace) -> Trace {
         let mut new_trace = trace.clone();
         new_trace
             .events
@@ -38,7 +38,7 @@ impl<T> LogMutator for T
 where
     T: TraceMutator,
 {
-    fn apply(&self, log: &EventLog) -> EventLog {
+    fn apply(&mut self, log: &EventLog) -> EventLog {
         let mut new_log = log.clone();
         new_log.traces.iter_mut().for_each(|trace| {
             *trace = self.apply(trace);
@@ -69,9 +69,9 @@ impl MutationChain {
 }
 
 impl LogMutator for MutationChain {
-    fn apply(&self, log: &EventLog) -> EventLog {
+    fn apply(&mut self, log: &EventLog) -> EventLog {
         let mut new_log = log.clone();
-        self.mutations.iter().for_each(|mutation| {
+        self.mutations.iter_mut().for_each(|mutation| {
             new_log = mutation.apply(&new_log);
         });
 

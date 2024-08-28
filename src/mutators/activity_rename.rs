@@ -42,7 +42,7 @@ impl ActivityRenamer {
 }
 
 impl TraceMutator for ActivityRenamer {
-    fn apply(&self, trace: &Trace) -> Trace {
+    fn apply(&mut self, trace: &Trace) -> Trace {
         let mut new_trace = trace.clone();
         new_trace.events.iter_mut().for_each(|evt| {
             if self.should_mutate(evt) {

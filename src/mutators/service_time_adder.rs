@@ -59,7 +59,10 @@ impl ServiceTimeAdder {
 }
 
 impl TraceMutator for ServiceTimeAdder {
-    fn apply(&self, trace: &process_mining::event_log::Trace) -> process_mining::event_log::Trace {
+    fn apply(
+        &mut self,
+        trace: &process_mining::event_log::Trace,
+    ) -> process_mining::event_log::Trace {
         let mut new_trace = trace.clone();
         for i in 0..new_trace.events.len() {
             let event = new_trace.events.get_mut(i).unwrap();

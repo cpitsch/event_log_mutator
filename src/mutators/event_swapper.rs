@@ -50,7 +50,7 @@ impl EventSwapper {
 }
 
 impl TraceMutator for EventSwapper {
-    fn apply(&self, trace: &Trace) -> Trace {
+    fn apply(&mut self, trace: &Trace) -> Trace {
         let mut new_trace = trace.clone();
 
         // Get all indices of activity 1 and 2

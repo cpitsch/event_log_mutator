@@ -33,7 +33,7 @@ impl ConstantActivityMutator {
 }
 
 impl EventMutator for ConstantActivityMutator {
-    fn apply(&self, evt: &Event) -> Event {
+    fn apply(&mut self, evt: &Event) -> Event {
         if self.should_mutate() {
             let mut new_event = evt.clone();
 
@@ -51,15 +51,14 @@ impl EventMutator for ConstantActivityMutator {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::ConstantActivityMutator;
     use crate::{mutation::TraceMutator, test_fixtures::abcd_trace, utils::get_activity_label};
     use process_mining::event_log::Trace;
     use rstest::rstest;
 
     #[rstest]
     fn all_events_rename(abcd_trace: Trace) {
-        let mutator = ConstantActivityMutator::new("NEW_ACTIVITY".to_string());
-        let new_trace = TraceMutator::apply(&mutator, &abcd_trace);
+        let new_trace = ConstantActivityMutator::new("NEW_ACTIVITY".to_string()).apply(&abcd_trace);
 
         assert!(new_trace
             .events

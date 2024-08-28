@@ -76,7 +76,7 @@ fn multiply_timedelta_by_float(timedelta: TimeDelta, factor: &f32) -> TimeDelta 
 }
 
 impl TraceMutator for ServiceTimeMultiplier {
-    fn apply(&self, trace: &Trace) -> Trace {
+    fn apply(&mut self, trace: &Trace) -> Trace {
         let mut new_trace = trace.clone();
         for i in 0..new_trace.events.len() {
             let event = new_trace.events.get_mut(i).unwrap();

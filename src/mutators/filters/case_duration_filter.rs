@@ -63,7 +63,7 @@ impl CaseDurationFilter {
 }
 
 impl LogMutator for CaseDurationFilter {
-    fn apply(&self, log: &process_mining::EventLog) -> process_mining::EventLog {
+    fn apply(&mut self, log: &process_mining::EventLog) -> process_mining::EventLog {
         let mut new_log = log.clone();
         let max_duration = chrono::TimeDelta::seconds(self.get_total_seconds());
         new_log

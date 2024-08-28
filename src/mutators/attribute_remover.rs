@@ -15,7 +15,10 @@ impl AttributeRemover {
 }
 
 impl EventMutator for AttributeRemover {
-    fn apply(&self, evt: &process_mining::event_log::Event) -> process_mining::event_log::Event {
+    fn apply(
+        &mut self,
+        evt: &process_mining::event_log::Event,
+    ) -> process_mining::event_log::Event {
         let mut new_event = evt.clone();
         new_event.attributes.retain(|attr| attr.key != self.key);
         new_event
@@ -26,7 +29,7 @@ impl EventMutator for AttributeRemover {
 mod tests {
     use std::collections::HashSet;
 
-    use super::*;
+    use super::AttributeRemover;
     use crate::mutation::TraceMutator;
     use crate::test_fixtures::abcd_trace;
     use process_mining::event_log::Trace;
@@ -44,8 +47,7 @@ mod tests {
         ]);
         remaining_keys.retain(|k| k != &key);
 
-        let mutator = AttributeRemover::new(key);
-        let new_trace = TraceMutator::apply(&mutator, &abcd_trace);
+        let new_trace = AttributeRemover::new(key).apply(&abcd_trace);
 
         // All events have the appropriate key removed
         new_trace.events.iter().for_each(|evt| {
@@ -58,6 +60,6 @@ mod tests {
     #[rstest]
     fn nonexistent_attribute_doesnt_panic(abcd_trace: Trace) {
         // This should not panic
-        let _ = TraceMutator::apply(&AttributeRemover::new("DOESNT_EXIST"), &abcd_trace);
+        let _ = AttributeRemover::new("DOESNT_EXIST").apply(&abcd_trace);
     }
 }
