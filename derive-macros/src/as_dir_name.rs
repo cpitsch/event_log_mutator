@@ -2,12 +2,21 @@ use deluxe::extract_attributes;
 use proc_macro::TokenStream;
 use syn::{DeriveInput, Fields};
 
-use crate::{
-    utils::{type_is_bool, type_is_option},
-    FieldAttributes,
-};
+use crate::utils::{type_is_bool, type_is_option};
 
-fn named_field_to_quote(field: &mut syn::Field) -> deluxe::Result<proc_macro2::TokenStream> {
+#[derive(deluxe::ExtractAttributes)]
+#[deluxe(attributes(dirname))]
+struct FieldAttributes {
+    rename: Option<String>,
+    #[deluxe(default = false)]
+    no_split: bool,
+    #[deluxe(default = false)]
+    ignore: bool,
+}
+
+fn named_field_to_quote(
+    field: &mut syn::Field,
+) -> deluxe::Result<Option<proc_macro2::TokenStream>> {
     let ident = field.ident.clone().unwrap();
     let name = ident.to_string();
     let attributes: FieldAttributes = extract_attributes(field)?;
@@ -15,23 +24,25 @@ fn named_field_to_quote(field: &mut syn::Field) -> deluxe::Result<proc_macro2::T
     let is_no_space_name = attributes.no_split;
     let name = attributes.rename.unwrap_or(name);
 
-    if type_is_option(&field.ty) {
-        Ok(quote::quote! {
+    if attributes.ignore {
+        Ok(None)
+    } else if type_is_option(&field.ty) {
+        Ok(Some(quote::quote! {
             match self.#ident.clone() {
                 Some(val) => {
                     format!("{}{}{}", #name, if #name.is_empty() || #is_no_space_name {""} else {"_"}, val)
                 }
                 None => format!("No_{}", #name)
             }
-        })
+        }))
     } else if type_is_bool(&field.ty) {
-        Ok(quote::quote! {
+        Ok(Some(quote::quote! {
             format!("{}{}", if self.#ident {""} else {"no_"}, #name)
-        })
+        }))
     } else {
-        Ok(quote::quote! {
+        Ok(Some(quote::quote! {
             format!("{}{}{}", #name, if #name.is_empty() || #is_no_space_name {""} else {"_"}, self.#ident)
-        })
+        }))
     }
 }
 
@@ -84,7 +95,7 @@ pub fn impl_as_dir_name(ast: DeriveInput) -> TokenStream {
         Fields::Named(mut named_fields) => named_fields
             .named
             .iter_mut()
-            .map(|field| named_field_to_quote(field).unwrap())
+            .filter_map(|field| named_field_to_quote(field).unwrap())
             .collect(),
     };
 

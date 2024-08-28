@@ -7,14 +7,6 @@ mod as_dir_name;
 mod flatten_mutation_value;
 mod utils;
 
-#[derive(deluxe::ExtractAttributes)]
-#[deluxe(attributes(dirname))]
-struct FieldAttributes {
-    rename: Option<String>,
-    #[deluxe(default = false)]
-    no_split: bool,
-}
-
 #[proc_macro_derive(DirName, attributes(dirname))]
 pub fn as_dir_name_macro(item: TokenStream) -> TokenStream {
     let ast: DeriveInput = syn::parse(item).unwrap();

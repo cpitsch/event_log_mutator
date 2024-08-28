@@ -21,6 +21,15 @@ mod tests {
     #[derive(DirName)]
     struct TupleStruct(i32, bool);
 
+    #[derive(DirName)]
+    struct StructWithIgnoreField {
+        field_1: bool,
+        field_2: f32,
+        #[dirname(ignore)]
+        #[allow(dead_code)]
+        hidden_field: String,
+    }
+
     #[test]
     fn for_true_and_some() {
         let test_instance = MyStruct {
@@ -60,5 +69,19 @@ mod tests {
         let test_instance = TupleStruct(1, true);
 
         assert_eq!(test_instance.to_dir_name(), "TupleStruct_1_true");
+    }
+
+    #[test]
+    fn ignored_field_is_ignored() {
+        let test_instance = StructWithIgnoreField {
+            field_1: true,
+            field_2: 1.0,
+            hidden_field: "This shouldn't show".into(),
+        };
+
+        assert_eq!(
+            test_instance.to_dir_name(),
+            "StructWithIgnoreField_field_1_field_2_1"
+        )
     }
 }
