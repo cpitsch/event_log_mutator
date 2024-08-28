@@ -1,5 +1,5 @@
 use process_mining::event_log::{AttributeValue, Event};
-use rand::random;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{mutation::EventMutator, parsing::dir_name_trait::DirName, utils::set_activity_label};
 
@@ -12,6 +12,11 @@ pub struct ConstantActivityMutator {
     /// The probability of applying the mutation to an event
     #[dirname(rename = "p", no_split)]
     probability: f32,
+    /// Optional seed for the random number generator. Ensures reproducible results
+    /// across runs.
+    seed: Option<u64>,
+    #[dirname(ignore)]
+    rng: StdRng,
 }
 
 impl ConstantActivityMutator {
@@ -19,15 +24,23 @@ impl ConstantActivityMutator {
         Self {
             activity: activity.into(),
             probability: 1.0,
+            seed: None,
+            rng: StdRng::from_entropy(),
         }
     }
 
-    fn should_mutate(&self) -> bool {
-        random::<f32>() < self.probability
+    fn should_mutate(&mut self) -> bool {
+        self.rng.gen::<f32>() < self.probability
     }
 
     pub fn with_probability(mut self, probability: f32) -> Self {
         self.probability = probability;
+        self
+    }
+
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self.rng = StdRng::seed_from_u64(seed);
         self
     }
 }
@@ -52,7 +65,11 @@ impl EventMutator for ConstantActivityMutator {
 #[cfg(test)]
 mod tests {
     use super::ConstantActivityMutator;
-    use crate::{mutation::TraceMutator, test_fixtures::abcd_trace, utils::get_activity_label};
+    use crate::{
+        mutation::TraceMutator,
+        test_fixtures::{abcd_trace, get_control_flow},
+        utils::get_activity_label,
+    };
     use process_mining::event_log::Trace;
     use rstest::rstest;
 
@@ -64,5 +81,24 @@ mod tests {
             .events
             .iter()
             .all(|evt| get_activity_label(evt).unwrap() == *"NEW_ACTIVITY"));
+    }
+
+    #[rstest]
+    fn seeded_gives_same_result(abcd_trace: Trace) {
+        for _ in 1..1000 {
+            let new_trace_1 = ConstantActivityMutator::new("New Activity")
+                .with_probability(0.5)
+                .with_seed(42)
+                .apply(&abcd_trace);
+            let new_trace_2 = ConstantActivityMutator::new("New Activity")
+                .with_probability(0.5)
+                .with_seed(42)
+                .apply(&abcd_trace);
+
+            assert_eq!(
+                get_control_flow(&new_trace_1),
+                get_control_flow(&new_trace_2)
+            )
+        }
     }
 }
