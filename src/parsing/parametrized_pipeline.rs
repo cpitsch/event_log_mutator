@@ -70,7 +70,7 @@ fn zero_f32_mutation_value() -> MutationValue<f32> {
 #[serde(tag = "type")]
 pub enum ParametrizedMutationConfig {
     ServiceTimeStdShifter {
-        activity: MutationValue<Option<String>>,
+        activity: Option<MutationValue<String>>,
         #[serde(default = "default_standard_deviations_mutation_value")]
         standard_deviations: MutationValue<f64>,
         #[serde(default = "default_probability_mutation_value")]
@@ -81,8 +81,8 @@ pub enum ParametrizedMutationConfig {
         num_supporting_cases: MutationValue<usize>,
     },
     EndpointFilter {
-        start_activities: MutationValue<Option<Vec<String>>>,
-        end_activities: MutationValue<Option<Vec<String>>>,
+        start_activities: Option<MutationValue<Vec<String>>>,
+        end_activities: Option<MutationValue<Vec<String>>>,
     },
     CaseDurationFilter {
         #[serde(default = "zero_f32_mutation_value")]
@@ -133,7 +133,7 @@ pub enum ParametrizedMutationConfig {
         key: MutationValue<String>,
     },
     ServiceTimeMultiplier {
-        activity: MutationValue<Option<String>>,
+        activity: Option<MutationValue<String>>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
         #[serde(default = "default_service_time_factor_mutation_value")]
@@ -164,8 +164,8 @@ pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
                             let mut mutator =
                                 ServiceTimeStdShifter::new(standard_deviations.inner_value())
                                     .with_probability(probability.inner_value());
-                            if let Some(act) = activity.inner_value() {
-                                mutator = mutator.for_activity(act);
+                            if let Some(act) = activity {
+                                mutator = mutator.for_activity(act.inner_value());
                             }
                             if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
                                 mutator = mutator.with_seed(s);
@@ -181,8 +181,8 @@ pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
                             start_activities,
                             end_activities,
                         } => Box::new(EndpointFilter::new(
-                            start_activities.inner_value(),
-                            end_activities.inner_value(),
+                            start_activities.and_then(|val| Some(val.inner_value())),
+                            end_activities.and_then(|val| Some(val.inner_value())),
                         )),
                         ParametrizedMutationConfig::CaseDurationFilter {
                             years,
@@ -279,8 +279,8 @@ pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
                         } => {
                             let mut mutator = ServiceTimeMultiplier::new(factor.inner_value())
                                 .with_probability(probability.inner_value());
-                            if let Some(act) = activity.inner_value() {
-                                mutator = mutator.for_activity(act);
+                            if let Some(act) = activity {
+                                mutator = mutator.for_activity(act.inner_value());
                             }
                             if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
                                 mutator = mutator.with_seed(s);

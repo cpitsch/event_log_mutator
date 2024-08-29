@@ -42,7 +42,10 @@ pub fn parse_toml_string(content: &str) -> MutationChainConfig {
 mod tests {
     use std::str::FromStr;
 
+    use rstest::rstest;
     use tests::parametrized_pipeline::ParametrizedMutationConfig;
+
+    use crate::test_fixtures::mininmal_toml_example;
 
     use super::parametrized_pipeline::MutationValue;
     use super::*;
@@ -84,7 +87,7 @@ probability = 0.5
             ParametrizedPipelineConfig {
                 mutations: vec![
                     ParametrizedMutationConfig::ServiceTimeStdShifter {
-                        activity: MutationValue::Value(Some("a".to_string())),
+                        activity: Some(MutationValue::Value("a".to_string())),
                         standard_deviations: MutationValue::Value(1.0),
                         probability: MutationValue::Value(0.5),
                         seed: Some(MutationValue::Value(42))
@@ -98,5 +101,10 @@ probability = 0.5
                 ]
             }
         )
+    }
+
+    #[rstest]
+    fn minimal_example_parses(mininmal_toml_example: &str) {
+        let _ = parse_toml_string(mininmal_toml_example);
     }
 }

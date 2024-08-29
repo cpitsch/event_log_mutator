@@ -112,3 +112,58 @@ pub fn abcd_log() -> EventLog {
         global_event_attrs: None,
     }
 }
+
+/// A toml file containing only the required fields for all mutators
+#[fixture]
+pub fn mininmal_toml_example() -> &'static str {
+    return "
+input = \"input_log.xes.gz\"
+
+[pipeline]
+[[pipeline.mutations]]
+type = \"ServiceTimeStdShifter\"
+standard_deviations = 1.0
+
+[[pipeline.mutations]]
+type = \"VariantSupportFilter\"
+num_supporting_cases = 25
+
+[[pipeline.mutations]]
+type = \"EndpointFilter\"
+
+[[pipeline.mutations]]
+type = \"CaseDurationFilter\"
+
+[[pipeline.mutations]]
+type = \"ActivityRemover\"
+activity = \"a\"
+
+[[pipeline.mutations]]
+type = \"ActivityRenamer\"
+activity = \"a\"
+new_label = \"a'\"
+
+[[pipeline.mutations]]
+type = \"ConstantActivity\"
+activity = \"new_activity\"
+
+[[pipeline.mutations]]
+type = \"EventSwapper\"
+activity_1 = \"b\"
+activity_2 = \"c\"
+
+[[pipeline.mutations]]
+type = \"LogBootstrapper\"
+size = 2000
+
+[[pipeline.mutations]]
+type = \"PartialOrderCreator\"
+
+[[pipeline.mutations]]
+type = \"AttributeRemover\"
+key = \"start_timestamp\"
+
+[[pipeline.mutations]]
+type = \"ServiceTimeMultiplier\"
+";
+}
