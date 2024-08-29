@@ -117,26 +117,29 @@ fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
             ]
             .concat();
 
-            let mutation_value_fields_trailing_comma = if optional_mutation_value_fields.is_empty()
-            {
-                quote::quote! {}
-            } else {
-                quote::quote! {,}
-            };
-
-            let optional_mutation_value_fields_trailing_comma = if other_fields.is_empty() {
-                quote::quote! {}
-            } else {
-                quote::quote! {,}
-            };
+            let all_field_quotes: Vec<_> = mutation_value_fields
+                .iter()
+                .map(|ident| {
+                    quote::quote! {
+                        MutationValue::Value(#ident)
+                    }
+                })
+                .chain(optional_mutation_value_fields.iter().map(|ident| {
+                    quote::quote! {
+                        #ident
+                    }
+                }))
+                .chain(other_fields.iter().map(|ident| {
+                    quote::quote! {
+                        #ident
+                    }
+                }))
+                .collect();
 
             quote::quote! {
                 Self::#ident(#(#fields),*) => itertools::iproduct!(#(#all_iproduct_quotes),*)
-                    // .map(|(#(#all_mutation_value_idents),*)| Self::#ident(#(MutationValue::Value(#fields)),*))
                     .map(|(#(#all_mutation_value_idents),*)| Self::#ident(
-                            #(MutationValue::Value(#mutation_value_fields)),* #mutation_value_fields_trailing_comma
-                            #(#optional_mutation_value_fields),* #optional_mutation_value_fields_trailing_comma
-                            #(#other_fields),*
+                            #(#all_field_quotes),*
                     ))
                     .collect()
             }
@@ -200,27 +203,31 @@ fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
             ]
             .concat();
 
-            let mutation_value_fields_trailing_comma = if optional_mutation_value_fields.is_empty()
-            {
-                quote::quote! {}
-            } else {
-                quote::quote! {,}
-            };
-
-            let optional_mutation_value_fields_trailing_comma = if other_fields.is_empty() {
-                quote::quote! {}
-            } else {
-                quote::quote! {,}
-            };
+            let all_field_quotes: Vec<_> = mutation_value_fields
+                .iter()
+                .map(|ident| {
+                    quote::quote! {
+                        #ident: MutationValue::Value(#ident)
+                    }
+                })
+                .chain(optional_mutation_value_fields.iter().map(|ident| {
+                    quote::quote! {
+                        #ident
+                    }
+                }))
+                .chain(other_fields.iter().map(|ident| {
+                    quote::quote! {
+                        #ident: #ident.clone()
+                    }
+                }))
+                .collect();
 
             quote::quote! {
                 Self::#ident {
                     #(#fields),*
                 } => itertools::iproduct!(#(#all_iproduct_quotes),*)
                     .map(|(#(#all_mutation_value_idents),*)| Self::#ident {
-                        #(#mutation_value_fields: MutationValue::Value(#mutation_value_fields)),* #mutation_value_fields_trailing_comma
-                        #(#optional_mutation_value_fields: #optional_mutation_value_fields),* #optional_mutation_value_fields_trailing_comma
-                        #(#other_fields: #other_fields.clone()),*
+                        #(#all_field_quotes),*
                     }).collect()
             }
         }
@@ -228,12 +235,7 @@ fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
 }
 
 fn struct_to_flatten_function_content(s: DataStruct) -> TokenStream {
-    // let fields: Vec<_> = s
-    //     .fields
-    //     .into_iter()
-    //     .map(|field| field.ident.unwrap())
-    //     .collect();
-
+    // Get fields of type MutationValue<_>
     let mutation_value_fields: Vec<_> = s
         .fields
         .iter()
@@ -242,6 +244,7 @@ fn struct_to_flatten_function_content(s: DataStruct) -> TokenStream {
         .map(|field| field.ident.unwrap())
         .collect();
 
+    // Get fields of type Option<MutationValue<_>>
     let optional_mutation_value_fields: Vec<_> = s
         .fields
         .iter()
@@ -250,6 +253,7 @@ fn struct_to_flatten_function_content(s: DataStruct) -> TokenStream {
         .map(|field| field.ident.unwrap())
         .collect();
 
+    // All other fields
     let other_fields: Vec<_> = s
         .fields
         .iter()
@@ -277,28 +281,35 @@ fn struct_to_flatten_function_content(s: DataStruct) -> TokenStream {
         }))
         .collect();
 
+    // Need to precompute to ensure correct number of commas when one of the two
+    // is empty
     let all_mutation_value_idents = [
         mutation_value_fields.clone(),
         optional_mutation_value_fields.clone(),
     ]
     .concat();
 
-    let mutation_value_fields_trailing_comma = if optional_mutation_value_fields.is_empty() {
-        quote::quote! {}
-    } else {
-        quote::quote! {,}
-    };
-
-    let optional_mutation_value_fields_trailing_comma = if other_fields.is_empty() {
-        quote::quote! {}
-    } else {
-        quote::quote! {,}
-    };
+    let all_field_quotes: Vec<_> = mutation_value_fields
+        .iter()
+        .map(|ident| {
+            quote::quote! {
+                #ident: MutationValue::Value(#ident)
+            }
+        })
+        .chain(optional_mutation_value_fields.iter().map(|ident| {
+            quote::quote! {
+                #ident
+            }
+        }))
+        .chain(other_fields.iter().map(|ident| {
+            quote::quote! {
+                #ident: self.#ident
+            }
+        }))
+        .collect();
     quote! {
         itertools::iproduct!(#(#all_iproduct_quotes),*).map(|(#(#all_mutation_value_idents),*)| Self {
-            #(#mutation_value_fields: MutationValue::Value(#mutation_value_fields)),* #mutation_value_fields_trailing_comma
-            #(#optional_mutation_value_fields),* #optional_mutation_value_fields_trailing_comma
-            #(#other_fields: self.#other_fields),*
+            #(#all_field_quotes),*
         }).collect()
     }
 }
