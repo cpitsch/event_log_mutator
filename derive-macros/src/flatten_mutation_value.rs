@@ -1,6 +1,36 @@
+use core::panic;
+
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DataStruct, DeriveInput, Variant};
+use syn::{DataStruct, DeriveInput, GenericArgument, PathArguments, Variant};
+
+fn is_mutation_value(ty: &syn::Type) -> bool {
+    if let syn::Type::Path(type_path) = ty {
+        if type_path.path.segments.len() == 1 {
+            return &type_path.path.segments[0].ident == "MutationValue";
+        }
+    }
+    false
+}
+
+fn is_optional_mutation_value(ty: &syn::Type) -> bool {
+    if let syn::Type::Path(type_path) = ty {
+        if type_path.path.segments.len() == 1 {
+            let segment = &type_path.path.segments[0];
+
+            if segment.ident == "Option" {
+                if let PathArguments::AngleBracketed(angle_bracketed) = &segment.arguments {
+                    if angle_bracketed.args.len() == 1 {
+                        if let GenericArgument::Type(ty_) = &angle_bracketed.args[0] {
+                            return is_mutation_value(ty_);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    false
+}
 
 fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
     let ident = variant.ident;
@@ -13,7 +43,7 @@ fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
         syn::Fields::Unnamed(unnamed_fields) => {
             let fields: Vec<_> = unnamed_fields
                 .unnamed
-                .into_iter()
+                .iter()
                 .enumerate()
                 .map(|(i, _)| {
                     syn::Ident::new(
@@ -22,39 +52,253 @@ fn enum_variant_to_match_arm(variant: Variant) -> TokenStream {
                     )
                 })
                 .collect();
+
+            let mutation_value_fields: Vec<_> = unnamed_fields
+                .unnamed
+                .iter()
+                .enumerate()
+                .filter(|field| is_mutation_value(&field.1.ty))
+                .map(|(i, _)| {
+                    syn::Ident::new(
+                        format!("field{}", i).as_str(),
+                        proc_macro2::Span::call_site(),
+                    )
+                })
+                .collect();
+            let optional_mutation_value_fields: Vec<_> = unnamed_fields
+                .unnamed
+                .iter()
+                .enumerate()
+                .filter(|field| is_optional_mutation_value(&field.1.ty))
+                .map(|(i, _)| {
+                    syn::Ident::new(
+                        format!("field{}", i).as_str(),
+                        proc_macro2::Span::call_site(),
+                    )
+                })
+                .collect();
+            let other_fields: Vec<_> = unnamed_fields
+                .unnamed
+                .iter()
+                .enumerate()
+                .filter(|field| {
+                    !is_mutation_value(&field.1.ty) && !is_optional_mutation_value(&field.1.ty)
+                })
+                .map(|(i, _)| {
+                    syn::Ident::new(
+                        format!("field{}", i).as_str(),
+                        proc_macro2::Span::call_site(),
+                    )
+                })
+                .collect();
+
+            let all_iproduct_quotes: Vec<_> = mutation_value_fields
+                .iter()
+                .map(|ident| {
+                    quote::quote! {
+                        #ident.get_as_vec()
+                    }
+                })
+                .chain(optional_mutation_value_fields.iter().map(|ident| {
+                    quote::quote! {
+                        #ident.map_or(vec![None], |mutation_val| {
+                            mutation_val
+                                .get_as_vec()
+                                .into_iter()
+                                .map(|val| Some(MutationValue::Value(val))).collect()
+                        })
+                    }
+                }))
+                .collect();
+
+            let all_mutation_value_idents = [
+                mutation_value_fields.clone(),
+                optional_mutation_value_fields.clone(),
+            ]
+            .concat();
+
+            let mutation_value_fields_trailing_comma = if optional_mutation_value_fields.is_empty()
+            {
+                quote::quote! {}
+            } else {
+                quote::quote! {,}
+            };
+
+            let optional_mutation_value_fields_trailing_comma = if other_fields.is_empty() {
+                quote::quote! {}
+            } else {
+                quote::quote! {,}
+            };
+
             quote::quote! {
-                Self::#ident(#(#fields),*) => itertools::iproduct!(#(#fields.get_as_vec()),*)
-                    .map(|(#(#fields),*)| Self::#ident(#(MutationValue::Value(#fields)),*))
+                Self::#ident(#(#fields),*) => itertools::iproduct!(#(#all_iproduct_quotes),*)
+                    // .map(|(#(#all_mutation_value_idents),*)| Self::#ident(#(MutationValue::Value(#fields)),*))
+                    .map(|(#(#all_mutation_value_idents),*)| Self::#ident(
+                            #(MutationValue::Value(#mutation_value_fields)),* #mutation_value_fields_trailing_comma
+                            #(#optional_mutation_value_fields),* #optional_mutation_value_fields_trailing_comma
+                            #(#other_fields),*
+                    ))
                     .collect()
             }
         }
         syn::Fields::Named(named_fields) => {
             let fields: Vec<_> = named_fields
                 .named
-                .into_iter()
+                .iter()
+                .cloned()
                 .map(|field| field.ident.unwrap())
                 .collect();
+
+            let mutation_value_fields: Vec<_> = named_fields
+                .named
+                .iter()
+                .filter(|field| is_mutation_value(&field.ty))
+                .cloned()
+                .map(|field| field.ident.unwrap())
+                .collect();
+
+            let optional_mutation_value_fields: Vec<_> = named_fields
+                .named
+                .iter()
+                .filter(|field| is_optional_mutation_value(&field.ty))
+                .cloned()
+                .map(|field| field.ident.unwrap())
+                .collect();
+
+            let other_fields: Vec<_> = named_fields
+                .named
+                .iter()
+                .filter(|field| {
+                    !is_mutation_value(&field.ty) && !is_optional_mutation_value(&field.ty)
+                })
+                .cloned()
+                .map(|field| field.ident.unwrap())
+                .collect();
+
+            let all_iproduct_quotes: Vec<_> = mutation_value_fields
+                .iter()
+                .map(|ident| {
+                    quote::quote! {
+                        #ident.get_as_vec()
+                    }
+                })
+                .chain(optional_mutation_value_fields.iter().map(|ident| {
+                    quote::quote! {
+                        #ident.map_or(vec![None], |mutation_val| {
+                            mutation_val
+                                .get_as_vec()
+                                .into_iter()
+                                .map(|val| Some(MutationValue::Value(val))).collect()
+                        })
+                    }
+                }))
+                .collect();
+
+            let all_mutation_value_idents = [
+                mutation_value_fields.clone(),
+                optional_mutation_value_fields.clone(),
+            ]
+            .concat();
+
+            let mutation_value_fields_trailing_comma = if optional_mutation_value_fields.is_empty()
+            {
+                quote::quote! {}
+            } else {
+                quote::quote! {,}
+            };
+
+            let optional_mutation_value_fields_trailing_comma = if other_fields.is_empty() {
+                quote::quote! {}
+            } else {
+                quote::quote! {,}
+            };
+
             quote::quote! {
                 Self::#ident {
                     #(#fields),*
-                } => itertools::iproduct!(#(#fields.get_as_vec()),*).map(|(#(#fields),*)| Self::#ident {
-                    #(#fields: MutationValue::Value(#fields)),*
-                }
-                ).collect()
+                } => itertools::iproduct!(#(#all_iproduct_quotes),*)
+                    .map(|(#(#all_mutation_value_idents),*)| Self::#ident {
+                        #(#mutation_value_fields: MutationValue::Value(#mutation_value_fields)),* #mutation_value_fields_trailing_comma
+                        #(#optional_mutation_value_fields: #optional_mutation_value_fields),* #optional_mutation_value_fields_trailing_comma
+                        #(#other_fields: #other_fields.clone()),*
+                    }).collect()
             }
         }
     }
 }
 
 fn struct_to_flatten_function_content(s: DataStruct) -> TokenStream {
-    let fields: Vec<_> = s
+    // let fields: Vec<_> = s
+    //     .fields
+    //     .into_iter()
+    //     .map(|field| field.ident.unwrap())
+    //     .collect();
+
+    let mutation_value_fields: Vec<_> = s
         .fields
-        .into_iter()
+        .iter()
+        .filter(|field| is_mutation_value(&field.ty))
+        .cloned()
         .map(|field| field.ident.unwrap())
         .collect();
+
+    let optional_mutation_value_fields: Vec<_> = s
+        .fields
+        .iter()
+        .filter(|field| is_optional_mutation_value(&field.ty))
+        .cloned()
+        .map(|field| field.ident.unwrap())
+        .collect();
+
+    let other_fields: Vec<_> = s
+        .fields
+        .iter()
+        .filter(|field| !is_mutation_value(&field.ty) && !is_optional_mutation_value(&field.ty))
+        .cloned()
+        .map(|field| field.ident.unwrap())
+        .collect();
+
+    let all_iproduct_quotes: Vec<_> = mutation_value_fields
+        .iter()
+        .map(|ident| {
+            quote::quote! {
+                self.#ident.get_as_vec()
+            }
+        })
+        .chain(optional_mutation_value_fields.iter().map(|ident| {
+            quote::quote! {
+                self.#ident.map_or(vec![None], |mutation_val| {
+                    mutation_val
+                        .get_as_vec()
+                        .into_iter()
+                        .map(|val| Some(MutationValue::Value(val))).collect()
+                })
+            }
+        }))
+        .collect();
+
+    let all_mutation_value_idents = [
+        mutation_value_fields.clone(),
+        optional_mutation_value_fields.clone(),
+    ]
+    .concat();
+
+    let mutation_value_fields_trailing_comma = if optional_mutation_value_fields.is_empty() {
+        quote::quote! {}
+    } else {
+        quote::quote! {,}
+    };
+
+    let optional_mutation_value_fields_trailing_comma = if other_fields.is_empty() {
+        quote::quote! {}
+    } else {
+        quote::quote! {,}
+    };
     quote! {
-        itertools::iproduct!(#(self.#fields.get_as_vec()),*).map(|(#(#fields),*)| Self {
-            #(#fields: MutationValue::Value(#fields)),*
+        itertools::iproduct!(#(#all_iproduct_quotes),*).map(|(#(#all_mutation_value_idents),*)| Self {
+            #(#mutation_value_fields: MutationValue::Value(#mutation_value_fields)),* #mutation_value_fields_trailing_comma
+            #(#optional_mutation_value_fields),* #optional_mutation_value_fields_trailing_comma
+            #(#other_fields: self.#other_fields),*
         }).collect()
     }
 }

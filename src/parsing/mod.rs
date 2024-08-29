@@ -23,6 +23,9 @@ pub struct MutationChainConfig {
     pub compress_output: bool,
     /// A definition for a mutation pipeline
     pub pipeline: ParametrizedPipelineConfig,
+    /// Seed to use for mutations involving randomness.
+    /// Overwritten by seeds set on a mutation-level.
+    pub seed: Option<u64>,
 }
 
 pub fn parse_toml(path: &PathBuf) -> Result<MutationChainConfig, CliError> {

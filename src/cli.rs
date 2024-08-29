@@ -43,6 +43,10 @@ pub struct Args {
     /// Abort if the output path already exists.
     #[clap(long)]
     pub no_overwrite: bool,
+
+    /// The seed to use for mutations involving randomness.
+    #[clap(long)]
+    pub seed: Option<u64>,
 }
 
 #[derive(Debug)]

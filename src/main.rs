@@ -69,8 +69,13 @@ pub fn overwrite_pipeline_config_with_cli_args(
         config.input.clone_from(input);
     }
     // If an output dir is explicitly specified, override pipeline config with that
-    if let Some(output) = &args.output {
-        config.output = Some(output.clone());
+    if args.output.is_some() {
+        config.output = args.output.clone();
+    }
+
+    // If a seed is explicitly specified, override pipeline config with that
+    if args.seed.is_some() {
+        config.seed = args.seed;
     }
 
     config
@@ -82,6 +87,7 @@ fn execute_parametrized_pipeline(
 ) -> Result<(), CliError> {
     let mut mutation_chains = parametrized_mutation_config_vec_to_mutation_chain_vec(
         parsed_toml.pipeline.mutations.clone(),
+        parsed_toml.seed,
     );
 
     // If effectively only one mutation config, you should be able to provide a specific
