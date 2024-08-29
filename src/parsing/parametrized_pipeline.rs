@@ -181,8 +181,8 @@ pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
                             start_activities,
                             end_activities,
                         } => Box::new(EndpointFilter::new(
-                            start_activities.and_then(|val| Some(val.inner_value())),
-                            end_activities.and_then(|val| Some(val.inner_value())),
+                            start_activities.map(MutationValue::inner_value),
+                            end_activities.map(MutationValue::inner_value),
                         )),
                         ParametrizedMutationConfig::CaseDurationFilter {
                             years,
