@@ -59,7 +59,7 @@ impl EndpointFilter {
 }
 
 impl LogMutator for EndpointFilter {
-    fn apply(&self, log: &process_mining::EventLog) -> process_mining::EventLog {
+    fn apply(&mut self, log: &process_mining::EventLog) -> process_mining::EventLog {
         let mut new_log = log.clone();
         let all_activities: Vec<String> = get_activities(log).into_iter().collect();
 

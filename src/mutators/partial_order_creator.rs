@@ -19,7 +19,7 @@ impl PartialOrderCreator {
 }
 
 impl TraceMutator for PartialOrderCreator {
-    fn apply(&self, trace: &Trace) -> Trace {
+    fn apply(&mut self, trace: &Trace) -> Trace {
         let mut new_trace = trace.clone();
 
         if let Some(evt) = new_trace.events.get_mut(0) {

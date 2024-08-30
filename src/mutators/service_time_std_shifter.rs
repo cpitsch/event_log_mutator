@@ -6,7 +6,7 @@ use process_mining::{
     event_log::{AttributeValue, Event, Trace},
     EventLog,
 };
-use rand::random;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG},
@@ -23,16 +23,21 @@ use crate::{
 #[derive(DirName)]
 pub struct ServiceTimeStdShifter {
     /// Only mutate events with this activity. Defaults to all activities (None).
-    /// Use [`ServiceTimeMultiplier::for_activity`] to for a specific activity.
+    /// Use [`ServiceTimeStdShifter::for_activity`] to for a specific activity.
     #[dirname(rename = "")]
     activity: Option<String>,
-    /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
-    /// Use [`ServiceTimeMultiplier::with_probability`] for a specific probability.
-    #[dirname(rename = "p", no_split)]
-    probability: f32,
     /// The number of standard deviations to shift the duration by.
     #[dirname(rename = "std", no_split)]
     standard_deviations: f64,
+    /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
+    /// Use [`ServiceTimeStdShifter::with_probability`] for a specific probability.
+    #[dirname(rename = "p", no_split)]
+    probability: f32,
+    /// Optional seed for the random number generator. Ensures reproducible results
+    /// across runs. Use [`ServiceTimeStdShifter::with_seed`] to set the seed.
+    seed: Option<u64>,
+    #[dirname(ignore)]
+    rng: StdRng,
 }
 
 impl ServiceTimeStdShifter {
@@ -41,10 +46,12 @@ impl ServiceTimeStdShifter {
             activity: None,
             probability: 1.0,
             standard_deviations,
+            seed: None,
+            rng: StdRng::from_entropy(),
         }
     }
 
-    fn should_mutate(&self, event: &Event) -> bool {
+    fn should_mutate(&mut self, event: &Event) -> bool {
         (
             // Check that the event matches the requirements
             self.activity.clone().map_or(true, |act| {
@@ -52,7 +59,7 @@ impl ServiceTimeStdShifter {
             })
         ) && (
             // Check mutation probability
-            random::<f32>() < self.probability
+            self.rng.gen::<f32>() < self.probability
         )
     }
 
@@ -63,6 +70,12 @@ impl ServiceTimeStdShifter {
 
     pub fn with_probability(mut self, probability: f32) -> Self {
         self.probability = probability;
+        self
+    }
+
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self.rng = StdRng::seed_from_u64(seed);
         self
     }
 
@@ -94,7 +107,7 @@ impl ServiceTimeStdShifter {
     /// Apply the service time mutation to an event. Checks `self.should_mutate(evt)`.
     /// Also shifts the following events by the service time increment.
     fn apply_trace(
-        &self,
+        &mut self,
         trace: &Trace,
         shift_amounts: &HashMap<String, chrono::TimeDelta>,
     ) -> Trace {
@@ -214,7 +227,7 @@ fn get_activity_duration_stds(log: &EventLog) -> HashMap<String, chrono::TimeDel
 }
 
 impl LogMutator for ServiceTimeStdShifter {
-    fn apply(&self, log: &process_mining::EventLog) -> EventLog {
+    fn apply(&mut self, log: &process_mining::EventLog) -> EventLog {
         // First collect the duration for each activity
         let stds = get_activity_duration_stds(log);
         let shift_amounts: HashMap<String, chrono::TimeDelta> = stds
@@ -329,5 +342,46 @@ mod tests {
             ],
             new_durations.get("b").unwrap().clone()
         );
+    }
+
+    #[rstest]
+    fn seeded_gives_same_result(test_log: EventLog) {
+        let new_log_1 = ServiceTimeStdShifter::new(2.0)
+            .for_activity("a")
+            .with_probability(0.5)
+            .with_seed(42)
+            .apply(&test_log);
+
+        let new_log_2 = ServiceTimeStdShifter::new(2.0)
+            .for_activity("a")
+            .with_probability(0.5)
+            .with_seed(42)
+            .apply(&test_log);
+
+        let log_1_service_times: Vec<Vec<_>> = new_log_1
+            .traces
+            .iter()
+            .map(|trace| {
+                trace
+                    .events
+                    .iter()
+                    .map(|evt| get_service_time(evt).unwrap())
+                    .collect()
+            })
+            .collect();
+
+        let log_2_service_times: Vec<Vec<_>> = new_log_2
+            .traces
+            .iter()
+            .map(|trace| {
+                trace
+                    .events
+                    .iter()
+                    .map(|evt| get_service_time(evt).unwrap())
+                    .collect()
+            })
+            .collect();
+
+        assert_eq!(log_1_service_times, log_2_service_times);
     }
 }

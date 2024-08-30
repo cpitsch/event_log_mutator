@@ -34,12 +34,13 @@ impl<T> MutationValue<T> {
     pub fn inner_value(self) -> T {
         match self {
             Self::Value(v) => v,
-            Self::Vec(_) => panic!("Called get_value on non-flat MutationValue"),
+            Self::Vec(_) => panic!("Called inner_value on non-flat MutationValue"),
         }
     }
 }
 
 #[derive(Deserialize, Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct ParametrizedPipelineConfig {
     pub mutations: Vec<ParametrizedMutationConfig>,
 }
@@ -65,21 +66,23 @@ fn zero_f32_mutation_value() -> MutationValue<f32> {
 }
 
 #[derive(Deserialize, Debug, Clone, FlattenMutationValue)]
+#[cfg_attr(test, derive(PartialEq))]
 #[serde(tag = "type")]
 pub enum ParametrizedMutationConfig {
     ServiceTimeStdShifter {
-        activity: MutationValue<Option<String>>,
-        #[serde(default = "default_probability_mutation_value")]
-        probability: MutationValue<f32>,
+        activity: Option<MutationValue<String>>,
         #[serde(default = "default_standard_deviations_mutation_value")]
         standard_deviations: MutationValue<f64>,
+        #[serde(default = "default_probability_mutation_value")]
+        probability: MutationValue<f32>,
+        seed: Option<MutationValue<u64>>,
     },
     VariantSupportFilter {
         num_supporting_cases: MutationValue<usize>,
     },
     EndpointFilter {
-        start_activities: MutationValue<Option<Vec<String>>>,
-        end_activities: MutationValue<Option<Vec<String>>>,
+        start_activities: Option<MutationValue<Vec<String>>>,
+        end_activities: Option<MutationValue<Vec<String>>>,
     },
     CaseDurationFilter {
         #[serde(default = "zero_f32_mutation_value")]
@@ -97,44 +100,51 @@ pub enum ParametrizedMutationConfig {
         activity: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
+        seed: Option<MutationValue<u64>>,
     },
     ActivityRenamer {
         activity: MutationValue<String>,
         new_label: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
+        seed: Option<MutationValue<u64>>,
     },
     ConstantActivity {
         activity: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
+        seed: Option<MutationValue<u64>>,
     },
     EventSwapper {
         activity_1: MutationValue<String>,
         activity_2: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
+        seed: Option<MutationValue<u64>>,
     },
     LogBootstrapper {
         size: MutationValue<usize>,
         #[serde(default = "default_log_bootstrapper_replacement_value")]
         replacement: MutationValue<bool>,
+        seed: Option<MutationValue<u64>>,
     },
     PartialOrderCreator,
     AttributeRemover {
         key: MutationValue<String>,
     },
     ServiceTimeMultiplier {
-        activity: MutationValue<Option<String>>,
+        activity: Option<MutationValue<String>>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
         #[serde(default = "default_service_time_factor_mutation_value")]
         factor: MutationValue<f32>,
+        seed: Option<MutationValue<u64>>,
     },
 }
 
 pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
     configs: Vec<ParametrizedMutationConfig>,
+    root_seed: Option<u64>,
 ) -> Vec<MutationChain> {
     configs
         .into_iter()
@@ -149,12 +159,16 @@ pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
                             activity,
                             probability,
                             standard_deviations,
+                            seed,
                         } => {
                             let mut mutator =
                                 ServiceTimeStdShifter::new(standard_deviations.inner_value())
                                     .with_probability(probability.inner_value());
-                            if let Some(act) = activity.inner_value() {
-                                mutator = mutator.for_activity(act);
+                            if let Some(act) = activity {
+                                mutator = mutator.for_activity(act.inner_value());
+                            }
+                            if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
+                                mutator = mutator.with_seed(s);
                             }
                             Box::new(mutator)
                         }
@@ -167,8 +181,8 @@ pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
                             start_activities,
                             end_activities,
                         } => Box::new(EndpointFilter::new(
-                            start_activities.inner_value(),
-                            end_activities.inner_value(),
+                            start_activities.map(MutationValue::inner_value),
+                            end_activities.map(MutationValue::inner_value),
                         )),
                         ParametrizedMutationConfig::CaseDurationFilter {
                             years,
@@ -186,38 +200,70 @@ pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
                         ParametrizedMutationConfig::ActivityRemover {
                             activity,
                             probability,
-                        } => Box::new(
-                            ActivityRemover::new(activity.inner_value())
-                                .with_probability(probability.inner_value()),
-                        ),
+                            seed,
+                        } => {
+                            let mut mutator = ActivityRemover::new(activity.inner_value())
+                                .with_probability(probability.inner_value());
+                            if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
+                                mutator = mutator.with_seed(s);
+                            }
+                            Box::new(mutator)
+                        }
                         ParametrizedMutationConfig::ActivityRenamer {
                             activity,
                             new_label,
                             probability,
-                        } => Box::new(
-                            ActivityRenamer::new(activity.inner_value(), new_label.inner_value())
-                                .with_probability(probability.inner_value()),
-                        ),
+                            seed,
+                        } => {
+                            let mut mutator = ActivityRenamer::new(
+                                activity.inner_value(),
+                                new_label.inner_value(),
+                            )
+                            .with_probability(probability.inner_value());
+                            if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
+                                mutator = mutator.with_seed(s);
+                            }
+                            Box::new(mutator)
+                        }
                         ParametrizedMutationConfig::ConstantActivity {
                             activity,
                             probability,
-                        } => Box::new(
-                            ConstantActivityMutator::new(activity.inner_value())
-                                .with_probability(probability.inner_value()),
-                        ),
+                            seed,
+                        } => {
+                            let mut mutator = ConstantActivityMutator::new(activity.inner_value())
+                                .with_probability(probability.inner_value());
+                            if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
+                                mutator = mutator.with_seed(s);
+                            }
+                            Box::new(mutator)
+                        }
                         ParametrizedMutationConfig::EventSwapper {
                             activity_1,
                             activity_2,
                             probability,
-                        } => Box::new(
-                            EventSwapper::new(activity_1.inner_value(), activity_2.inner_value())
-                                .with_probability(probability.inner_value()),
-                        ),
-                        ParametrizedMutationConfig::LogBootstrapper { size, replacement } => {
-                            Box::new(
-                                LogBootstrapper::new(size.inner_value())
-                                    .with_replacement(replacement.inner_value()),
+                            seed,
+                        } => {
+                            let mut mutator = EventSwapper::new(
+                                activity_1.inner_value(),
+                                activity_2.inner_value(),
                             )
+                            .with_probability(probability.inner_value());
+                            if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
+                                mutator = mutator.with_seed(s);
+                            }
+                            Box::new(mutator)
+                        }
+                        ParametrizedMutationConfig::LogBootstrapper {
+                            size,
+                            replacement,
+                            seed,
+                        } => {
+                            let mut mutator = LogBootstrapper::new(size.inner_value())
+                                .with_replacement(replacement.inner_value());
+                            if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
+                                mutator = mutator.with_seed(s);
+                            }
+                            Box::new(mutator)
                         }
                         ParametrizedMutationConfig::PartialOrderCreator => {
                             Box::new(PartialOrderCreator::new())
@@ -229,11 +275,15 @@ pub fn parametrized_mutation_config_vec_to_mutation_chain_vec(
                             activity,
                             probability,
                             factor,
+                            seed,
                         } => {
                             let mut mutator = ServiceTimeMultiplier::new(factor.inner_value())
                                 .with_probability(probability.inner_value());
-                            if let Some(act) = activity.inner_value() {
-                                mutator = mutator.for_activity(act);
+                            if let Some(act) = activity {
+                                mutator = mutator.for_activity(act.inner_value());
+                            }
+                            if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
+                                mutator = mutator.with_seed(s);
                             }
                             Box::new(mutator)
                         }

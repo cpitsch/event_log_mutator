@@ -69,8 +69,13 @@ pub fn overwrite_pipeline_config_with_cli_args(
         config.input.clone_from(input);
     }
     // If an output dir is explicitly specified, override pipeline config with that
-    if let Some(output) = &args.output {
-        config.output = Some(output.clone());
+    if args.output.is_some() {
+        config.output = args.output.clone();
+    }
+
+    // If a seed is explicitly specified, override pipeline config with that
+    if args.seed.is_some() {
+        config.seed = args.seed;
     }
 
     config
@@ -80,8 +85,9 @@ fn execute_parametrized_pipeline(
     parsed_toml: MutationChainConfig,
     log: &EventLog,
 ) -> Result<(), CliError> {
-    let mutation_chains = parametrized_mutation_config_vec_to_mutation_chain_vec(
+    let mut mutation_chains = parametrized_mutation_config_vec_to_mutation_chain_vec(
         parsed_toml.pipeline.mutations.clone(),
+        parsed_toml.seed,
     );
 
     // If effectively only one mutation config, you should be able to provide a specific
@@ -91,7 +97,7 @@ fn execute_parametrized_pipeline(
             .output
             .clone()
             .unwrap_or_else(|| get_output_path(&parsed_toml.input));
-        let mutation_chain = mutation_chains.first().unwrap();
+        let mut mutation_chain = mutation_chains.pop().unwrap();
         let mutated_log = mutation_chain.apply(log);
 
         write_xes(
@@ -100,7 +106,7 @@ fn execute_parametrized_pipeline(
             parsed_toml.compress_output,
         )?;
     } else {
-        for mutation_chain in mutation_chains {
+        for mut mutation_chain in mutation_chains {
             // Path creation
             let mut path = get_parametrized_pipeline_output_root(&parsed_toml)?;
             path.push_str(
@@ -225,7 +231,7 @@ fn run_cli(mut args: Args) -> Result<(), CliError> {
     if input.exists() && input.is_file() {
         let log = import_xes_file(input.to_str().unwrap(), XESImportOptions::default()).unwrap();
 
-        let mutation_chain = if let Some(preset) = args.preset {
+        let mut mutation_chain = if let Some(preset) = args.preset {
             println!("Using preset {:?}", preset);
             preset.into_mutation_chain(&log, args.clone())
         } else {

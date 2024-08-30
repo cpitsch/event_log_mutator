@@ -1,5 +1,5 @@
 use process_mining::{event_log::AttributeValue, EventLog};
-use rand::seq::SliceRandom;
+use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
 
 use crate::{mutation::LogMutator, parsing::dir_name_trait::DirName, utils::set_traceid};
 
@@ -12,6 +12,11 @@ pub struct LogBootstrapper {
     size: usize,
     /// Sample with replacement? Defaults to true.
     replacement: bool,
+    /// Optional seed for the random case sampling. Ensures reproducible results
+    /// across runs. Use [`LogBootstrapper::with_seed`] to set the seed.
+    seed: Option<u64>,
+    #[dirname(ignore)]
+    rng: StdRng,
 }
 
 impl LogBootstrapper {
@@ -19,12 +24,20 @@ impl LogBootstrapper {
         Self {
             size,
             replacement: true,
+            seed: None,
+            rng: StdRng::from_entropy(),
         }
+    }
+
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self.rng = StdRng::seed_from_u64(seed);
+        self
     }
 }
 
 impl LogMutator for LogBootstrapper {
-    fn apply(&self, log: &EventLog) -> EventLog {
+    fn apply(&mut self, log: &EventLog) -> EventLog {
         if self.replacement {
             self.sample_with_replacement(log)
         } else {
@@ -39,16 +52,15 @@ impl LogBootstrapper {
         self
     }
 
-    fn sample_with_replacement(&self, log: &EventLog) -> EventLog {
+    fn sample_with_replacement(&mut self, log: &EventLog) -> EventLog {
         let mut new_log = log.clone();
         // Sample `output_size` random cases
-        let rng = &mut rand::thread_rng();
         new_log.traces = Vec::with_capacity(self.size);
 
         for i in 0..self.size {
             let mut new_trace = log
                 .traces
-                .choose(rng)
+                .choose(&mut self.rng)
                 .expect("Cannot bootstrap an empty event log.")
                 .clone();
 
@@ -60,7 +72,7 @@ impl LogBootstrapper {
         new_log
     }
 
-    fn sample_without_replacement(&self, log: &EventLog) -> EventLog {
+    fn sample_without_replacement(&mut self, log: &EventLog) -> EventLog {
         if self.size > log.traces.len() {
             panic!("Cannot sample without replacement with a size larger than the event log");
         }
@@ -68,10 +80,9 @@ impl LogBootstrapper {
         let mut new_log = log.clone();
 
         // Sample `output_size` random cases
-        let rng = &mut rand::thread_rng();
         new_log.traces = log
             .traces
-            .choose_multiple(rng, self.size)
+            .choose_multiple(&mut self.rng, self.size)
             .cloned()
             .collect();
         new_log
@@ -120,7 +131,7 @@ mod tests {
     }
 
     #[rstest]
-    fn sample_without_replacement_is_random(abcd_log: EventLog) {
+    fn unseeded_sample_without_replacement_is_random(abcd_log: EventLog) {
         let mut seen_trace_ids: HashSet<String> = HashSet::new();
 
         // Test that sampling multiple times yields different results.
@@ -169,5 +180,40 @@ mod tests {
     fn default_is_with_replacement() {
         let mutator = LogBootstrapper::new(10);
         assert!(mutator.replacement);
+    }
+
+    #[rstest]
+    fn seeded_gives_same_result(mut abcd_log: EventLog) {
+        abcd_log.traces.iter_mut().for_each(|trace| {
+            let traceid = get_traceid(trace).unwrap();
+            trace.attributes.push(Attribute {
+                key: "original_traceid".to_string(),
+                value: AttributeValue::String(traceid),
+                own_attributes: None,
+            });
+        });
+
+        let new_log_1 = LogBootstrapper::new(1000)
+            .with_replacement(true)
+            .with_seed(42)
+            .apply(&abcd_log);
+        let new_log_2 = LogBootstrapper::new(1000)
+            .with_replacement(true)
+            .with_seed(42)
+            .apply(&abcd_log);
+
+        let log_1_caseids: Vec<_> = new_log_1
+            .traces
+            .iter()
+            .map(|trace| get_string_by_key(trace, "original_traceid").unwrap())
+            .collect();
+
+        let log_2_caseids: Vec<_> = new_log_2
+            .traces
+            .iter()
+            .map(|trace| get_string_by_key(trace, "original_traceid").unwrap())
+            .collect();
+
+        assert_eq!(log_1_caseids, log_2_caseids);
     }
 }

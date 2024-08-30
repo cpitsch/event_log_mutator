@@ -1,6 +1,6 @@
 use chrono::TimeDelta;
 use process_mining::event_log::Event;
-use rand::random;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG},
@@ -14,16 +14,21 @@ use crate::{
 #[derive(DirName)]
 pub struct ServiceTimeAdder {
     /// Only apply the mutation to events with this activity. Defaults to all activities.
-    /// Use [`ServiceTimeMutation::for_activity`] to set a specific activity.
+    /// Use [`ServiceTimeAdder::for_activity`] to set a specific activity.
     #[dirname(rename = "")]
     activity: Option<String>,
-    /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
-    /// Use [`ServiceTimeMutation::with_probability`] to set a probability.
-    #[dirname(rename = "p", no_split)]
-    probability: f32,
     /// The time difference to add to the service time.
     #[dirname(rename = "by")]
     timedelta: TimeDelta,
+    /// The probability to apply the mutation to a matching event. Ranges from 0 to 1.
+    /// Use [`ServiceTimeAdder::with_probability`] to set a probability.
+    #[dirname(rename = "p", no_split)]
+    probability: f32,
+    /// Optional seed for the random number generator. Ensures reproducible results
+    /// across runs. Use [`ServiceTimeAdder::with_seed`] to set the seed.
+    seed: Option<u64>,
+    #[dirname(ignore)]
+    rng: StdRng,
 }
 
 impl ServiceTimeAdder {
@@ -32,10 +37,12 @@ impl ServiceTimeAdder {
             activity: None,
             probability: 1.0,
             timedelta: delta,
+            seed: None,
+            rng: StdRng::from_entropy(),
         }
     }
 
-    fn should_mutate(&self, event: &Event) -> bool {
+    fn should_mutate(&mut self, event: &Event) -> bool {
         (
             // Check that the event matches the requirements
             self.activity.clone().map_or(true, |act| {
@@ -43,7 +50,7 @@ impl ServiceTimeAdder {
             })
         ) && (
             // Check mutation probability
-            random::<f32>() < self.probability
+            self.rng.gen::<f32>() < self.probability
         )
     }
 
@@ -56,10 +63,19 @@ impl ServiceTimeAdder {
         self.probability = probability;
         self
     }
+
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self.rng = StdRng::seed_from_u64(seed);
+        self
+    }
 }
 
 impl TraceMutator for ServiceTimeAdder {
-    fn apply(&self, trace: &process_mining::event_log::Trace) -> process_mining::event_log::Trace {
+    fn apply(
+        &mut self,
+        trace: &process_mining::event_log::Trace,
+    ) -> process_mining::event_log::Trace {
         let mut new_trace = trace.clone();
         for i in 0..new_trace.events.len() {
             let event = new_trace.events.get_mut(i).unwrap();
@@ -175,5 +191,35 @@ mod tests {
                 }
             },
         );
+    }
+
+    #[rstest]
+    fn seeded_gives_same_result(abcd_trace: Trace) {
+        let increment = TimeDelta::days(1);
+        let new_trace_1 = ServiceTimeAdder::new(increment)
+            .for_activity("a")
+            .with_probability(0.5)
+            .with_seed(42)
+            .apply(&abcd_trace);
+
+        let new_trace_2 = ServiceTimeAdder::new(increment)
+            .for_activity("a")
+            .with_probability(0.5)
+            .with_seed(42)
+            .apply(&abcd_trace);
+
+        let trace_1_service_times: Vec<_> = new_trace_1
+            .events
+            .iter()
+            .map(|evt| get_service_time(evt).unwrap())
+            .collect();
+
+        let trace_2_service_times: Vec<_> = new_trace_2
+            .events
+            .iter()
+            .map(|evt| get_service_time(evt).unwrap())
+            .collect();
+
+        assert_eq!(trace_1_service_times, trace_2_service_times);
     }
 }

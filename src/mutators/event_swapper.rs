@@ -1,6 +1,6 @@
 use itertools::Itertools;
 use process_mining::event_log::{AttributeValue, Trace};
-use rand::random;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     constants::NO_START_TIMESTAMP_MSG,
@@ -24,9 +24,15 @@ pub struct EventSwapper {
     // The second activity label for swapping.
     #[dirname(rename = "swap")]
     activity_2: String,
-    /// The probability of applying this modifier (per pair)
+    /// The probability of applying this modifier (per pair). Use
+    /// [`EventSwapper::with_probability`] to set the probability.
     #[dirname(rename = "p", no_split)]
     probability: f32,
+    /// Optional seed for the random number generator. Ensures reproducible results
+    /// across runs. Use [`EventSwapper::with_seed`] to set the seed.
+    seed: Option<u64>,
+    #[dirname(ignore)]
+    rng: StdRng,
 }
 
 impl EventSwapper {
@@ -35,22 +41,28 @@ impl EventSwapper {
             activity_1: activity_1.into(),
             activity_2: activity_2.into(),
             probability: 1.0,
+            seed: None,
+            rng: StdRng::from_entropy(),
         }
     }
 
-    // fn should_mutate(&self, trace: &Trace, idx_1: &usize, idx_2: &usize) -> bool {
-    fn should_mutate(&self) -> bool {
-        random::<f32>() < self.probability
+    fn should_mutate(&mut self) -> bool {
+        self.rng.gen::<f32>() < self.probability
     }
 
     pub fn with_probability(mut self, probability: f32) -> Self {
         self.probability = probability;
         self
     }
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self.rng = StdRng::seed_from_u64(seed);
+        self
+    }
 }
 
 impl TraceMutator for EventSwapper {
-    fn apply(&self, trace: &Trace) -> Trace {
+    fn apply(&mut self, trace: &Trace) -> Trace {
         let mut new_trace = trace.clone();
 
         // Get all indices of activity 1 and 2
@@ -113,7 +125,10 @@ impl TraceMutator for EventSwapper {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{test_fixtures::abcd_trace, utils::get_complete_timestamp};
+    use crate::{
+        test_fixtures::{abcd_trace, get_control_flow},
+        utils::get_complete_timestamp,
+    };
     use rstest::rstest;
 
     #[rstest]
@@ -149,5 +164,24 @@ mod tests {
                 .map(|evt| get_activity_label(evt).unwrap())
                 .join("")
         );
+    }
+
+    #[rstest]
+    fn seeded_gives_same_result(abcd_trace: Trace) {
+        for _ in 1..1000 {
+            let new_trace_1 = EventSwapper::new("b", "c")
+                .with_probability(0.5)
+                .with_seed(42)
+                .apply(&abcd_trace);
+            let new_trace_2 = EventSwapper::new("b", "c")
+                .with_probability(0.5)
+                .with_seed(42)
+                .apply(&abcd_trace);
+
+            assert_eq!(
+                get_control_flow(&new_trace_1),
+                get_control_flow(&new_trace_2)
+            )
+        }
     }
 }

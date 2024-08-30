@@ -1,5 +1,5 @@
 use process_mining::event_log::{AttributeValue, Event, Trace};
-use rand::random;
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     constants::NO_ACTIVITY_LABEL_MSG,
@@ -16,9 +16,15 @@ pub struct ActivityRenamer {
     /// The new activity label.
     #[dirname(rename = "to")]
     new_label: String,
-    /// The probability of renaming. Ranges from 0 to 1.
+    /// The probability of renaming. Ranges from 0 to 1. Use
+    /// [`ActivityRenamer::with_probability`] to set the probability.
     #[dirname(rename = "p", no_split)]
     probability: f32,
+    /// Optional seed for the random number generator. Ensures reproducible results
+    /// across runs. Use [`ActivityRenamer::with_seed`] to set the seed.
+    seed: Option<u64>,
+    #[dirname(ignore)]
+    rng: StdRng,
 }
 
 impl ActivityRenamer {
@@ -27,22 +33,30 @@ impl ActivityRenamer {
             activity: activity.into(),
             new_label: new_label.into(),
             probability: 1.0,
+            seed: None,
+            rng: StdRng::from_entropy(),
         }
     }
 
-    fn should_mutate(&self, event: &Event) -> bool {
+    fn should_mutate(&mut self, event: &Event) -> bool {
         get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG) == self.activity
-            && random::<f32>() < self.probability
+            && self.rng.gen::<f32>() < self.probability
     }
 
     pub fn with_probability(mut self, probability: f32) -> Self {
         self.probability = probability;
         self
     }
+
+    pub fn with_seed(mut self, seed: u64) -> Self {
+        self.seed = Some(seed);
+        self.rng = StdRng::seed_from_u64(seed);
+        self
+    }
 }
 
 impl TraceMutator for ActivityRenamer {
-    fn apply(&self, trace: &Trace) -> Trace {
+    fn apply(&mut self, trace: &Trace) -> Trace {
         let mut new_trace = trace.clone();
         new_trace.events.iter_mut().for_each(|evt| {
             if self.should_mutate(evt) {
@@ -56,7 +70,7 @@ impl TraceMutator for ActivityRenamer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_fixtures::abcd_trace;
+    use crate::test_fixtures::{abcd_trace, get_control_flow};
     use rstest::rstest;
 
     #[rstest]
@@ -88,5 +102,24 @@ mod tests {
     fn nonexistent_activity_doesnt_panic(abcd_trace: Trace) {
         // This should not panic
         let _ = ActivityRenamer::new("DOESNT_EXIST", "NEW_ACTIVITY").apply(&abcd_trace);
+    }
+
+    #[rstest]
+    fn seeded_gives_same_result(abcd_trace: Trace) {
+        for _ in 1..1000 {
+            let new_trace_1 = ActivityRenamer::new("b", "NEW_B")
+                .with_probability(0.5)
+                .with_seed(42)
+                .apply(&abcd_trace);
+            let new_trace_2 = ActivityRenamer::new("b", "NEW_B")
+                .with_probability(0.5)
+                .with_seed(42)
+                .apply(&abcd_trace);
+
+            assert_eq!(
+                get_control_flow(&new_trace_1),
+                get_control_flow(&new_trace_2)
+            )
+        }
     }
 }

@@ -22,7 +22,7 @@ impl VariantSupportFilter {
 }
 
 impl LogMutator for VariantSupportFilter {
-    fn apply(&self, log: &process_mining::EventLog) -> process_mining::EventLog {
+    fn apply(&mut self, log: &process_mining::EventLog) -> process_mining::EventLog {
         let mut new_log = log.clone();
         let variant_counts = log.traces.iter().map(get_variant).counts();
 
