@@ -44,6 +44,8 @@ input = "path/to/input_log.xes"
 output = "path/to/output.xes.gz"
 # Gzip the event logs. Defaults to false
 compress_output = true
+# Seed for reproducibility
+seed = 42
 
 [pipeline]
 # The list of mutations to apply. They will be applied in exactly the order in the file
@@ -86,6 +88,8 @@ input = "path/to/input_log.xes"
 output = "pipeline_outputs/"
 # Gzip the event logs. Defaults to false
 compress_output = true
+# Seed for reproducibility
+seed = 42
 
 # The list of mutations to apply. They will be applied in exactly the order in the file
 [pipeline]
