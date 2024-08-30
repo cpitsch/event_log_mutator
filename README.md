@@ -1,3 +1,8 @@
+<div align="center">
+  <h1>Event Log Mutator</h1>
+  <a href="https://github.com/cpitsch/event_log_mutator/actions?query=workflow%3ATests"><img src="https://github.com/cpitsch/event_log_mutator/workflows/Tests/badge.svg" alt="Tests Status"></a>
+</div>
+
 ## Available Mutators
 To see the parameters a mutator takes, follow its respective link
 
