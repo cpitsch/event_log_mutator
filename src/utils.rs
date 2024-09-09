@@ -6,6 +6,7 @@ use process_mining::{
     event_log::{AttributeValue, Attributes, Event, Trace, XESEditableAttribute},
     EventLog,
 };
+use rand::{rngs::StdRng, seq::SliceRandom};
 
 use crate::constants::{
     ACTIVITY_KEY, NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG,
@@ -192,4 +193,15 @@ pub fn get_end_activities(trace: &Trace) -> HashSet<String> {
         .map(|(activity, _)| activity)
         .cloned()
         .collect()
+}
+
+pub fn sample_log_without_replacement(rng: &mut StdRng, log: &EventLog, size: usize) -> EventLog {
+    if size > log.traces.len() {
+        panic!("Cannot sample without replacement with a size larger than the event log");
+    }
+
+    let mut new_log = log.clone();
+
+    new_log.traces = log.traces.choose_multiple(rng, size).cloned().collect();
+    new_log
 }
