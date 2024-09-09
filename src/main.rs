@@ -88,6 +88,7 @@ fn execute_parametrized_pipeline(
     let mut mutation_chains = parametrized_mutation_config_vec_to_mutation_chain_vec(
         parsed_toml.pipeline.mutations.clone(),
         parsed_toml.seed,
+        get_parametrized_pipeline_output_root(&parsed_toml)?,
     );
 
     // If effectively only one mutation config, you should be able to provide a specific
