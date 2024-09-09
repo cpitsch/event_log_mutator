@@ -205,3 +205,23 @@ pub fn sample_log_without_replacement(rng: &mut StdRng, log: &EventLog, size: us
     new_log.traces = log.traces.choose_multiple(rng, size).cloned().collect();
     new_log
 }
+
+pub fn sample_log_with_replacement(rng: &mut StdRng, log: &EventLog, size: usize) -> EventLog {
+    let mut new_log = log.clone();
+    // Sample `output_size` random cases
+    new_log.traces = Vec::with_capacity(size);
+
+    for i in 0..size {
+        let mut new_trace = log
+            .traces
+            .choose(rng)
+            .expect("Cannot bootstrap an empty event log.")
+            .clone();
+
+        set_traceid(&mut new_trace, AttributeValue::String(i.to_string()));
+
+        new_log.traces.push(new_trace);
+    }
+
+    new_log
+}

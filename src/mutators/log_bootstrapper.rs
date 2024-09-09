@@ -1,7 +1,11 @@
-use process_mining::{event_log::AttributeValue, EventLog};
-use rand::{rngs::StdRng, seq::SliceRandom, SeedableRng};
+use process_mining::EventLog;
+use rand::{rngs::StdRng, SeedableRng};
 
-use crate::{mutation::LogMutator, parsing::dir_name_trait::DirName, utils::set_traceid};
+use crate::{
+    mutation::LogMutator,
+    parsing::dir_name_trait::DirName,
+    utils::{sample_log_with_replacement, sample_log_without_replacement},
+};
 
 /// Mutator to create a new log by randomly sampling cases with replacement.
 /// The sampled cases are assigned unique case ids ("0" ... "`size`").
@@ -53,39 +57,11 @@ impl LogBootstrapper {
     }
 
     fn sample_with_replacement(&mut self, log: &EventLog) -> EventLog {
-        let mut new_log = log.clone();
-        // Sample `output_size` random cases
-        new_log.traces = Vec::with_capacity(self.size);
-
-        for i in 0..self.size {
-            let mut new_trace = log
-                .traces
-                .choose(&mut self.rng)
-                .expect("Cannot bootstrap an empty event log.")
-                .clone();
-
-            set_traceid(&mut new_trace, AttributeValue::String(i.to_string()));
-
-            new_log.traces.push(new_trace);
-        }
-
-        new_log
+        sample_log_with_replacement(&mut self.rng, log, self.size)
     }
 
     fn sample_without_replacement(&mut self, log: &EventLog) -> EventLog {
-        if self.size > log.traces.len() {
-            panic!("Cannot sample without replacement with a size larger than the event log");
-        }
-
-        let mut new_log = log.clone();
-
-        // Sample `output_size` random cases
-        new_log.traces = log
-            .traces
-            .choose_multiple(&mut self.rng, self.size)
-            .cloned()
-            .collect();
-        new_log
+        sample_log_without_replacement(&mut self.rng, log, self.size)
     }
 }
 
