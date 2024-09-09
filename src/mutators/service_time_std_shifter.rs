@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use chrono::{SubsecRound, TimeDelta};
-use itertools::Itertools;
 use process_mining::{
     event_log::{AttributeValue, Event, Trace},
     EventLog,
@@ -14,7 +13,7 @@ use crate::{
     parsing::dir_name_trait::DirName,
     utils::{
         get_activity_label, get_complete_timestamp, get_service_time, get_start_timestamp,
-        set_complete_timestamp, shift_events_by,
+        set_complete_timestamp, set_start_timestamp,
     },
 };
 
@@ -54,8 +53,8 @@ impl ServiceTimeStdShifter {
     fn should_mutate(&mut self, event: &Event) -> bool {
         (
             // Check that the event matches the requirements
-            self.activity.clone().map_or(true, |act| {
-                get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG) == act
+            self.activity.as_ref().map_or(true, |act| {
+                get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG) == *act
             })
         ) && (
             // Check mutation probability
@@ -81,15 +80,10 @@ impl ServiceTimeStdShifter {
 
     /// Apply the service time mutation to an event. Note: this does _not_ check
     /// `self.should_mutate(evt)`, as this is done by [`apply_trace`].
-    fn apply_event(
-        &self,
-        evt: &Event,
-        shift_amounts: &HashMap<String, chrono::TimeDelta>,
-    ) -> Event {
-        let mut new_event = evt.clone();
-        let activity = get_activity_label(&new_event).expect(NO_ACTIVITY_LABEL_MSG);
-        let start_timestamp = get_start_timestamp(&new_event).expect(NO_START_TIMESTAMP_MSG);
-        let service_time = get_service_time(&new_event).expect(NO_COMPLETE_TIMESTAMP_MSG);
+    fn mutate_event(&self, evt: &mut Event, shift_amounts: &HashMap<String, chrono::TimeDelta>) {
+        let activity = get_activity_label(evt).expect(NO_ACTIVITY_LABEL_MSG);
+        let start_timestamp = get_start_timestamp(evt).expect(NO_START_TIMESTAMP_MSG);
+        let service_time = get_service_time(evt).expect(NO_COMPLETE_TIMESTAMP_MSG);
         let increment = shift_amounts
             .get(&activity)
             .cloned()
@@ -97,40 +91,45 @@ impl ServiceTimeStdShifter {
         let new_serivce_time = service_time + increment;
 
         set_complete_timestamp(
-            &mut new_event,
+            evt,
             // Round duration seconds to 6 decimal places so pm4py imports it correctly
             AttributeValue::Date((start_timestamp + new_serivce_time).round_subsecs(6)),
         );
-        new_event
     }
 
     /// Apply the service time mutation to an event. Checks `self.should_mutate(evt)`.
     /// Also shifts the following events by the service time increment.
-    fn apply_trace(
+    fn mutate_trace(
         &mut self,
-        trace: &Trace,
+        trace: &mut Trace,
         shift_amounts: &HashMap<String, chrono::TimeDelta>,
-    ) -> Trace {
-        let mut new_trace = trace.clone();
-        for i in 0..new_trace.events.len() {
-            let event = new_trace.events.get_mut(i).unwrap();
+    ) {
+        let mut shift_amount = TimeDelta::zero();
+
+        trace.events.iter_mut().for_each(|event| {
+            let start_timestamp = get_start_timestamp(event).expect(NO_START_TIMESTAMP_MSG);
+            let complete_timestamp =
+                get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG);
+
+            if !shift_amount.is_zero() {
+                set_start_timestamp(event, AttributeValue::Date(start_timestamp + shift_amount));
+                set_complete_timestamp(
+                    event,
+                    AttributeValue::Date(complete_timestamp + shift_amount),
+                );
+            }
+
             if self.should_mutate(event) {
-                let old_complete_timestamp =
-                    get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG);
-                *event = self.apply_event(event, shift_amounts);
+                self.mutate_event(event, shift_amounts);
                 let shifted_by = get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG)
-                    - old_complete_timestamp;
+                    - complete_timestamp;
 
                 // Need to move all following events if changed service time
-                // So: For each following event, move its start and completion timestamp
-                // by the amount of time added to this service time
-                // Otherwise, we induce control-flow changes that are unwanted side-effects
-                // from this mutation
-                shift_events_by(&mut new_trace, shifted_by, i + 1);
+                // Otherwise, we induce control-flow changes that are unwanted
+                // side-effects from this mutation
+                shift_amount += shifted_by;
             }
-        }
-
-        new_trace
+        });
     }
 }
 
@@ -190,40 +189,30 @@ fn multiply_timedelta_by_float(timedelta: TimeDelta, factor: &f64) -> TimeDelta 
 
 /// Compute a hashmap mapping each activity in the event log to a vec of all its
 /// durations.
-fn get_activity_durations(log: &EventLog) -> HashMap<String, Vec<chrono::TimeDelta>> {
+fn get_activity_durations(log: &EventLog) -> HashMap<String, Vec<TimeDelta>> {
+    let mut res: HashMap<String, Vec<TimeDelta>> = HashMap::new();
+
     log.traces
         .iter()
-        .map(|trace| {
-            trace
-                .events
-                .iter()
-                .map(|evt| {
-                    let act = get_activity_label(evt).expect(NO_ACTIVITY_LABEL_MSG);
-                    let duration = get_service_time(evt).expect(NO_START_TIMESTAMP_MSG);
-                    (act, duration)
-                })
-                .collect_vec()
-        })
-        .concat()
-        .into_iter()
-        .sorted_by_key(|(key, _)| key.clone())
-        .group_by(|(key, _)| key.clone())
-        .into_iter()
-        .map(|(key, group)| {
-            let values = group.map(|(_, v)| v).collect_vec();
-            (key.clone(), values)
-        })
-        .collect()
+        .flat_map(|trace| trace.events.iter())
+        .for_each(|evt| {
+            let activity = get_activity_label(evt).expect(NO_ACTIVITY_LABEL_MSG);
+            let service_time = get_service_time(evt).expect(NO_START_TIMESTAMP_MSG);
+
+            res.entry(activity).or_default().push(service_time);
+        });
+    res
 }
 
-/// Compute a hashmap mapping each activity in the event log to the standard deviation
-/// of its duration
+// Compute a hashmap mapping each activity in the event log to the standard deviation
+// of its duration
 fn get_activity_duration_stds(log: &EventLog) -> HashMap<String, chrono::TimeDelta> {
     let durations = get_activity_durations(log);
-    durations
+    let res: HashMap<_, _> = durations
         .into_iter()
         .map(|(act, durs)| (act, timedelta_standard_deviation(durs)))
-        .collect()
+        .collect();
+    res
 }
 
 impl LogMutator for ServiceTimeStdShifter {
@@ -231,21 +220,20 @@ impl LogMutator for ServiceTimeStdShifter {
         // First collect the duration for each activity
         let stds = get_activity_duration_stds(log);
         let shift_amounts: HashMap<String, chrono::TimeDelta> = stds
-            .iter()
+            .into_iter()
             .map(|(act, std)| {
                 (
-                    act.clone(),
-                    multiply_timedelta_by_float(*std, &self.standard_deviations),
+                    act,
+                    multiply_timedelta_by_float(std, &self.standard_deviations),
                 )
             })
             .collect();
 
         let mut new_log = log.clone();
-        new_log.traces = new_log
+        new_log
             .traces
-            .iter()
-            .map(|trace| self.apply_trace(trace, &shift_amounts))
-            .collect();
+            .iter_mut()
+            .for_each(|trace| self.mutate_trace(trace, &shift_amounts));
         new_log
     }
 }
