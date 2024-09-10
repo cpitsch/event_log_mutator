@@ -11,7 +11,7 @@ use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG},
     mutation::LogMutator,
     parsing::dir_name_trait::DirName,
-    utils::{
+    utils::attributes::{
         get_activity_label, get_complete_timestamp, get_service_time, get_start_timestamp,
         set_complete_timestamp, set_start_timestamp,
     },

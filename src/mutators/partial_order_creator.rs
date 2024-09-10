@@ -4,7 +4,7 @@ use crate::{
     constants::NO_COMPLETE_TIMESTAMP_MSG,
     mutation::TraceMutator,
     parsing::dir_name_trait::DirName,
-    utils::{get_complete_timestamp, set_start_timestamp},
+    utils::attributes::{get_complete_timestamp, set_start_timestamp},
 };
 
 /// Mutation to add service time information to an event log by assuming the timespan

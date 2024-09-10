@@ -4,7 +4,10 @@ use rand::{rngs::StdRng, SeedableRng};
 use crate::{
     mutation::LogMutator,
     parsing::dir_name_trait::DirName,
-    utils::{get_traceid, get_traceids, sample_log_without_replacement},
+    utils::{
+        attributes::{get_traceid, get_traceids},
+        sampling::sample_log_without_replacement,
+    },
     write_xes,
 };
 

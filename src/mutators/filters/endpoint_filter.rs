@@ -6,7 +6,7 @@ use process_mining::{event_log::Trace, EventLog};
 use crate::{
     mutation::LogMutator,
     parsing::dir_name_trait::DirName,
-    utils::{get_activities, get_end_activities, get_start_activities},
+    utils::attributes::{get_activities, get_end_activities, get_start_activities},
 };
 
 /// Mutation to retain only the cases which start or end with certain activities

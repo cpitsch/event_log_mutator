@@ -4,7 +4,7 @@ use rand::{rngs::StdRng, SeedableRng};
 use crate::{
     mutation::LogMutator,
     parsing::dir_name_trait::DirName,
-    utils::{sample_log_with_replacement, sample_log_without_replacement},
+    utils::sampling::{sample_log_with_replacement, sample_log_without_replacement},
 };
 
 /// Mutator to create a new log by randomly sampling cases with replacement.
@@ -81,7 +81,7 @@ mod tests {
     use crate::{
         mutation::LogMutator,
         test_fixtures::abcd_log,
-        utils::{get_string_by_key, get_traceid, get_traceids},
+        utils::attributes::{get_string_by_key, get_traceid, get_traceids},
     };
 
     use super::LogBootstrapper;

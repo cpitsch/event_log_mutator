@@ -1,7 +1,9 @@
 use itertools::Itertools;
 use process_mining::{event_log::Trace, EventLog};
 
-use crate::{mutation::LogMutator, parsing::dir_name_trait::DirName, utils::get_activity_label};
+use crate::{
+    mutation::LogMutator, parsing::dir_name_trait::DirName, utils::attributes::get_activity_label,
+};
 
 /// Mutation to retain only the cases whose variant (projection on the executed
 /// activity) occurs frequently enough.

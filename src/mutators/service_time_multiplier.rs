@@ -6,7 +6,9 @@ use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_START_TIMESTAMP_MSG},
     mutation::TraceMutator,
     parsing::dir_name_trait::DirName,
-    utils::{change_event_duration, get_activity_label, get_service_time, get_start_timestamp},
+    utils::attributes::{
+        change_event_duration, get_activity_label, get_service_time, get_start_timestamp,
+    },
 };
 
 /// Mutation to increase the service time by a factor.

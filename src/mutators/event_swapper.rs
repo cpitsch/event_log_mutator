@@ -6,7 +6,7 @@ use crate::{
     constants::NO_START_TIMESTAMP_MSG,
     mutation::TraceMutator,
     parsing::dir_name_trait::DirName,
-    utils::{
+    utils::attributes::{
         get_activity_label, get_service_time, get_start_timestamp, set_complete_timestamp,
         set_start_timestamp,
     },
@@ -123,7 +123,7 @@ mod tests {
     use super::*;
     use crate::{
         test_fixtures::{abcd_trace, get_control_flow},
-        utils::get_complete_timestamp,
+        utils::attributes::get_complete_timestamp,
     };
     use rstest::rstest;
 

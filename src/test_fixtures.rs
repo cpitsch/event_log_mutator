@@ -2,7 +2,7 @@ use chrono::{DateTime, TimeDelta, TimeZone, Utc};
 use process_mining::event_log::{Attribute, AttributeValue, Event, EventLog, Trace};
 use rstest::fixture;
 
-use crate::utils::get_activity_label;
+use crate::utils::attributes::get_activity_label;
 
 pub fn new_event(
     activity: impl Into<String>,

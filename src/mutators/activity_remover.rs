@@ -3,7 +3,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     constants::NO_ACTIVITY_LABEL_MSG, mutation::TraceMutator, parsing::dir_name_trait::DirName,
-    utils::get_activity_label,
+    utils::attributes::get_activity_label,
 };
 
 /// Mutator to remove events that have the given activity label.

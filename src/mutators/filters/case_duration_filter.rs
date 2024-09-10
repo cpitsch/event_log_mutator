@@ -2,7 +2,7 @@ use process_mining::{event_log::Trace, EventLog};
 
 use crate::{
     constants::NO_COMPLETE_TIMESTAMP_MSG, mutation::LogMutator, parsing::dir_name_trait::DirName,
-    utils::get_complete_timestamp,
+    utils::attributes::get_complete_timestamp,
 };
 
 #[derive(DirName)]
