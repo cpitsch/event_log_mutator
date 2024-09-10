@@ -4,7 +4,7 @@ use rand::{rngs::StdRng, SeedableRng};
 use crate::{
     mutation::LogMutator,
     parsing::dir_name_trait::DirName,
-    utils::sampling::{sample_log_with_replacement, sample_log_without_replacement},
+    utils::sampling::{sample_log_with_replacement_mut, sample_log_without_replacement_mut},
 };
 
 /// Mutator to create a new log by randomly sampling cases with replacement.
@@ -42,14 +42,10 @@ impl LogBootstrapper {
 
 impl LogMutator for LogBootstrapper {
     fn apply_mut(&mut self, log: &mut EventLog) {
-        log.traces = self.apply(log).traces;
-    }
-
-    fn apply(&mut self, log: &EventLog) -> EventLog {
         if self.replacement {
-            self.sample_with_replacement(log)
+            sample_log_with_replacement_mut(&mut self.rng, log, self.size);
         } else {
-            self.sample_without_replacement(log)
+            sample_log_without_replacement_mut(&mut self.rng, log, self.size);
         }
     }
 }
@@ -58,14 +54,6 @@ impl LogBootstrapper {
     pub fn with_replacement(mut self, replacement: bool) -> Self {
         self.replacement = replacement;
         self
-    }
-
-    fn sample_with_replacement(&mut self, log: &EventLog) -> EventLog {
-        sample_log_with_replacement(&mut self.rng, log, self.size)
-    }
-
-    fn sample_without_replacement(&mut self, log: &EventLog) -> EventLog {
-        sample_log_without_replacement(&mut self.rng, log, self.size)
     }
 }
 

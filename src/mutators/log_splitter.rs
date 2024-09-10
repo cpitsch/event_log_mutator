@@ -2,6 +2,7 @@ use process_mining::EventLog;
 use rand::{rngs::StdRng, SeedableRng};
 
 use crate::{
+    constants::NO_TRACEID_MSG,
     mutation::LogMutator,
     parsing::dir_name_trait::DirName,
     utils::{
@@ -56,21 +57,17 @@ impl LogSplitter {
 }
 
 impl LogMutator for LogSplitter {
-    fn apply(&mut self, log: &EventLog) -> EventLog {
-        let size = ((log.traces.len() as f64) * self.frac).round() as usize;
-        let new_log = sample_log_without_replacement(&mut self.rng, log, size);
-        if let Some(path) = self.save_path.clone() {
-            let trace_ids = get_traceids(&new_log);
-            let mut complement = log.clone();
-            complement
-                .traces
-                .retain(|trace| !trace_ids.contains(&get_traceid(trace).unwrap()));
-            write_xes(&complement, path, self.save_compressed).unwrap();
-        }
-        new_log
-    }
-
     fn apply_mut(&mut self, log: &mut EventLog) {
-        log.traces = self.apply(log).traces;
+        let size = ((log.traces.len() as f64) * self.frac).round() as usize;
+        let discarded_log = sample_log_without_replacement(&mut self.rng, log, size);
+        let discarded_traceids = get_traceids(&discarded_log);
+
+        log.traces.retain(|trace| {
+            !discarded_traceids.contains(&get_traceid(trace).expect(NO_TRACEID_MSG))
+        });
+
+        if let Some(path) = self.save_path.clone() {
+            write_xes(&discarded_log, path, self.save_compressed).unwrap();
+        }
     }
 }

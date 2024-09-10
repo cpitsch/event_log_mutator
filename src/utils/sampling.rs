@@ -19,11 +19,7 @@ pub fn sample_log_without_replacement(rng: &mut StdRng, log: &EventLog, size: us
     new_log
 }
 
-pub fn sample_log_without_replacement_mut(
-    rng: &mut StdRng,
-    mut log: EventLog,
-    size: usize,
-) -> EventLog {
+pub fn sample_log_without_replacement_mut(rng: &mut StdRng, log: &mut EventLog, size: usize) {
     if size > log.traces.len() {
         panic!("Cannot sample without replacement with a size larger than the event log");
     }
@@ -35,7 +31,6 @@ pub fn sample_log_without_replacement_mut(
         .collect();
     log.traces
         .retain(|trace| retain_traceids.contains(&get_traceid(trace).expect(NO_TRACEID_MSG)));
-    log
 }
 
 pub fn sample_log_with_replacement(rng: &mut StdRng, log: &EventLog, size: usize) -> EventLog {
@@ -58,11 +53,7 @@ pub fn sample_log_with_replacement(rng: &mut StdRng, log: &EventLog, size: usize
     new_log
 }
 
-pub fn sample_log_with_replacement_mut(
-    rng: &mut StdRng,
-    mut log: EventLog,
-    size: usize,
-) -> EventLog {
+pub fn sample_log_with_replacement_mut(rng: &mut StdRng, log: &mut EventLog, size: usize) {
     log.traces = (0..size)
         .map(|traceid| {
             let mut trace = log
@@ -74,5 +65,4 @@ pub fn sample_log_with_replacement_mut(
             trace
         })
         .collect();
-    log
 }
