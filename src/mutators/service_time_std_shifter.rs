@@ -216,7 +216,7 @@ fn get_activity_duration_stds(log: &EventLog) -> HashMap<String, chrono::TimeDel
 }
 
 impl LogMutator for ServiceTimeStdShifter {
-    fn apply(&mut self, log: &process_mining::EventLog) -> EventLog {
+    fn apply_mut(&mut self, log: &mut EventLog) {
         // First collect the duration for each activity
         let stds = get_activity_duration_stds(log);
         let shift_amounts: HashMap<String, chrono::TimeDelta> = stds
@@ -229,12 +229,9 @@ impl LogMutator for ServiceTimeStdShifter {
             })
             .collect();
 
-        let mut new_log = log.clone();
-        new_log
-            .traces
+        log.traces
             .iter_mut()
             .for_each(|trace| self.mutate_trace(trace, &shift_amounts));
-        new_log
     }
 }
 

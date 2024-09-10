@@ -66,4 +66,8 @@ impl LogMutator for LogSplitter {
         }
         new_log
     }
+
+    fn apply_mut(&mut self, log: &mut EventLog) {
+        log.traces = self.apply(log).traces;
+    }
 }

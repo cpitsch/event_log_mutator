@@ -41,6 +41,10 @@ impl LogBootstrapper {
 }
 
 impl LogMutator for LogBootstrapper {
+    fn apply_mut(&mut self, log: &mut EventLog) {
+        log.traces = self.apply(log).traces;
+    }
+
     fn apply(&mut self, log: &EventLog) -> EventLog {
         if self.replacement {
             self.sample_with_replacement(log)

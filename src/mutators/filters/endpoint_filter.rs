@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use itertools::Itertools;
-use process_mining::event_log::Trace;
+use process_mining::{event_log::Trace, EventLog};
 
 use crate::{
     mutation::LogMutator,
@@ -59,8 +59,7 @@ impl EndpointFilter {
 }
 
 impl LogMutator for EndpointFilter {
-    fn apply(&mut self, log: &process_mining::EventLog) -> process_mining::EventLog {
-        let mut new_log = log.clone();
+    fn apply_mut(&mut self, log: &mut EventLog) {
         let all_activities: Vec<String> = get_activities(log).into_iter().collect();
 
         let start_acts = self
@@ -74,10 +73,7 @@ impl LogMutator for EndpointFilter {
             .map(|v| v.0)
             .unwrap_or(all_activities);
 
-        new_log
-            .traces
+        log.traces
             .retain(|trace| self.keep_trace(trace, &start_acts, &end_acts));
-
-        new_log
     }
 }

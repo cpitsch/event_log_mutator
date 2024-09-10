@@ -1,5 +1,5 @@
 use chrono::TimeDelta;
-use process_mining::event_log::Event;
+use process_mining::event_log::{Event, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
@@ -72,22 +72,17 @@ impl ServiceTimeAdder {
 }
 
 impl TraceMutator for ServiceTimeAdder {
-    fn apply(
-        &mut self,
-        trace: &process_mining::event_log::Trace,
-    ) -> process_mining::event_log::Trace {
-        let mut new_trace = trace.clone();
-        for i in 0..new_trace.events.len() {
-            let event = new_trace.events.get_mut(i).unwrap();
+    fn apply_mut(&mut self, trace: &mut Trace) {
+        for i in 0..trace.events.len() {
+            let event = trace.events.get_mut(i).unwrap();
             if self.should_mutate(event) {
                 let new_complete_timestamp = get_complete_timestamp(event)
                     .expect(NO_COMPLETE_TIMESTAMP_MSG)
                     + self.timedelta;
 
-                change_event_duration(&mut new_trace, i, new_complete_timestamp);
+                change_event_duration(trace, i, new_complete_timestamp);
             }
         }
-        new_trace
     }
 }
 

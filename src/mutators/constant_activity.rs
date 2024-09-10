@@ -47,18 +47,9 @@ impl ConstantActivityMutator {
 }
 
 impl EventMutator for ConstantActivityMutator {
-    fn apply(&mut self, evt: &Event) -> Event {
+    fn apply_mut(&mut self, evt: &mut Event) {
         if self.should_mutate() {
-            let mut new_event = evt.clone();
-
-            set_activity_label(
-                &mut new_event,
-                AttributeValue::String(self.activity.clone()),
-            );
-
-            new_event
-        } else {
-            evt.clone()
+            set_activity_label(evt, AttributeValue::String(self.activity.clone()));
         }
     }
 }

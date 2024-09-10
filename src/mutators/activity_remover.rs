@@ -51,10 +51,8 @@ impl ActivityRemover {
 }
 
 impl TraceMutator for ActivityRemover {
-    fn apply(&mut self, trace: &Trace) -> Trace {
-        let mut new_trace = trace.clone();
-        new_trace.events.retain(|evt| !self.should_remove(evt));
-        new_trace
+    fn apply_mut(&mut self, trace: &mut Trace) {
+        trace.events.retain(|evt| !self.should_remove(evt));
     }
 }
 

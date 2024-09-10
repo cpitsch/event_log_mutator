@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use process_mining::event_log::Trace;
+use process_mining::{event_log::Trace, EventLog};
 
 use crate::{mutation::LogMutator, parsing::dir_name_trait::DirName, utils::get_activity_label};
 
@@ -22,17 +22,14 @@ impl VariantSupportFilter {
 }
 
 impl LogMutator for VariantSupportFilter {
-    fn apply(&mut self, log: &process_mining::EventLog) -> process_mining::EventLog {
-        let mut new_log = log.clone();
+    fn apply_mut(&mut self, log: &mut EventLog) {
         let variant_counts = log.traces.iter().map(get_variant).counts();
 
-        new_log.traces.retain(|trace| {
+        log.traces.retain(|trace| {
             let variant = get_variant(trace);
             let count = variant_counts.get(&variant).unwrap_or(&0);
             *count >= self.num_supporting_cases
         });
-
-        new_log
     }
 }
 

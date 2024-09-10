@@ -1,4 +1,4 @@
-use process_mining::event_log::Trace;
+use process_mining::{event_log::Trace, EventLog};
 
 use crate::{
     constants::NO_COMPLETE_TIMESTAMP_MSG, mutation::LogMutator, parsing::dir_name_trait::DirName,
@@ -63,12 +63,9 @@ impl CaseDurationFilter {
 }
 
 impl LogMutator for CaseDurationFilter {
-    fn apply(&mut self, log: &process_mining::EventLog) -> process_mining::EventLog {
-        let mut new_log = log.clone();
+    fn apply_mut(&mut self, log: &mut EventLog) {
         let max_duration = chrono::TimeDelta::seconds(self.get_total_seconds());
-        new_log
-            .traces
+        log.traces
             .retain(|trace| self.keep_trace(trace, &max_duration));
-        new_log
     }
 }

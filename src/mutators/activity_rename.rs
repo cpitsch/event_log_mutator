@@ -56,14 +56,12 @@ impl ActivityRenamer {
 }
 
 impl TraceMutator for ActivityRenamer {
-    fn apply(&mut self, trace: &Trace) -> Trace {
-        let mut new_trace = trace.clone();
-        new_trace.events.iter_mut().for_each(|evt| {
+    fn apply_mut(&mut self, trace: &mut Trace) {
+        trace.events.iter_mut().for_each(|evt| {
             if self.should_mutate(evt) {
                 set_activity_label(evt, AttributeValue::String(self.new_label.clone()));
             }
         });
-        new_trace
     }
 }
 
