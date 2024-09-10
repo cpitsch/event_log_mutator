@@ -1,12 +1,12 @@
 use chrono::TimeDelta;
-use process_mining::event_log::Event;
+use process_mining::event_log::{Event, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG},
     mutation::TraceMutator,
     parsing::dir_name_trait::DirName,
-    utils::{change_event_duration, get_activity_label, get_complete_timestamp},
+    utils::attributes::{change_event_duration, get_activity_label, get_complete_timestamp},
 };
 
 /// Mutation to increase the service time by a constant amount by increasing
@@ -72,22 +72,17 @@ impl ServiceTimeAdder {
 }
 
 impl TraceMutator for ServiceTimeAdder {
-    fn apply(
-        &mut self,
-        trace: &process_mining::event_log::Trace,
-    ) -> process_mining::event_log::Trace {
-        let mut new_trace = trace.clone();
-        for i in 0..new_trace.events.len() {
-            let event = new_trace.events.get_mut(i).unwrap();
+    fn apply_mut(&mut self, trace: &mut Trace) {
+        for i in 0..trace.events.len() {
+            let event = trace.events.get_mut(i).unwrap();
             if self.should_mutate(event) {
                 let new_complete_timestamp = get_complete_timestamp(event)
                     .expect(NO_COMPLETE_TIMESTAMP_MSG)
                     + self.timedelta;
 
-                change_event_duration(&mut new_trace, i, new_complete_timestamp);
+                change_event_duration(trace, i, new_complete_timestamp);
             }
         }
-        new_trace
     }
 }
 
@@ -97,7 +92,7 @@ mod tests {
     use super::*;
     use crate::{
         test_fixtures::{abcd_trace, get_control_flow},
-        utils::get_service_time,
+        utils::attributes::get_service_time,
     };
     use itertools::izip;
     use process_mining::event_log::Trace;

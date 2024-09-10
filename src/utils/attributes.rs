@@ -6,13 +6,11 @@ use process_mining::{
     event_log::{AttributeValue, Attributes, Event, Trace, XESEditableAttribute},
     EventLog,
 };
-use rand::{rngs::StdRng, seq::SliceRandom};
 
 use crate::constants::{
     ACTIVITY_KEY, NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG,
     NO_TRACEID_MSG, START_TIMESTAMP_KEY, TIMESTAMP_KEY, TRACEID_KEY,
 };
-
 pub trait HasAttributes {
     fn get_attributes(&self) -> &Attributes;
 }
@@ -169,6 +167,7 @@ pub fn get_start_activities(trace: &Trace) -> HashSet<String> {
 }
 
 pub fn get_end_activities(trace: &Trace) -> HashSet<String> {
+    // TODO: Could this just be get_start_activities on the reversed trace?
     let activity_timestamp_pairs = trace
         .events
         .iter()
@@ -193,35 +192,4 @@ pub fn get_end_activities(trace: &Trace) -> HashSet<String> {
         .map(|(activity, _)| activity)
         .cloned()
         .collect()
-}
-
-pub fn sample_log_without_replacement(rng: &mut StdRng, log: &EventLog, size: usize) -> EventLog {
-    if size > log.traces.len() {
-        panic!("Cannot sample without replacement with a size larger than the event log");
-    }
-
-    let mut new_log = log.clone();
-
-    new_log.traces = log.traces.choose_multiple(rng, size).cloned().collect();
-    new_log
-}
-
-pub fn sample_log_with_replacement(rng: &mut StdRng, log: &EventLog, size: usize) -> EventLog {
-    let mut new_log = log.clone();
-    // Sample `output_size` random cases
-    new_log.traces = Vec::with_capacity(size);
-
-    for i in 0..size {
-        let mut new_trace = log
-            .traces
-            .choose(rng)
-            .expect("Cannot bootstrap an empty event log.")
-            .clone();
-
-        set_traceid(&mut new_trace, AttributeValue::String(i.to_string()));
-
-        new_log.traces.push(new_trace);
-    }
-
-    new_log
 }

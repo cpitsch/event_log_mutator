@@ -6,7 +6,7 @@ use crate::{
     constants::NO_START_TIMESTAMP_MSG,
     mutation::TraceMutator,
     parsing::dir_name_trait::DirName,
-    utils::{
+    utils::attributes::{
         get_activity_label, get_service_time, get_start_timestamp, set_complete_timestamp,
         set_start_timestamp,
     },
@@ -62,16 +62,14 @@ impl EventSwapper {
 }
 
 impl TraceMutator for EventSwapper {
-    fn apply(&mut self, trace: &Trace) -> Trace {
-        let mut new_trace = trace.clone();
-
+    fn apply_mut(&mut self, trace: &mut Trace) {
         // Get all indices of activity 1 and 2
-        let act_1_indices = new_trace
+        let act_1_indices = trace
             .events
             .iter()
             .positions(|evt| get_activity_label(evt) == Some(self.activity_1.clone()))
             .collect_vec();
-        let act_2_indices = new_trace
+        let act_2_indices = trace
             .events
             .iter()
             .positions(|evt| get_activity_label(evt) == Some(self.activity_2.clone()))
@@ -84,41 +82,39 @@ impl TraceMutator for EventSwapper {
                 if self.should_mutate() {
                     // Swap their start_timestamp, and update their complete timestamp
                     // based on their service time
-                    let event_1_start = get_start_timestamp(new_trace.events.get(*idx_1).unwrap())
+                    let event_1_start = get_start_timestamp(trace.events.get(*idx_1).unwrap())
                         .expect(NO_START_TIMESTAMP_MSG);
-                    let event_2_start = get_start_timestamp(new_trace.events.get(*idx_2).unwrap())
+                    let event_2_start = get_start_timestamp(trace.events.get(*idx_2).unwrap())
                         .expect(NO_START_TIMESTAMP_MSG);
 
                     let evt_1_service_time =
-                        get_service_time(new_trace.events.get(*idx_1).unwrap()).unwrap();
+                        get_service_time(trace.events.get(*idx_1).unwrap()).unwrap();
                     let evt_2_service_time =
-                        get_service_time(new_trace.events.get(*idx_2).unwrap()).unwrap();
+                        get_service_time(trace.events.get(*idx_2).unwrap()).unwrap();
 
                     // Swap start timestamps
                     set_start_timestamp(
-                        new_trace.events.get_mut(*idx_1).unwrap(),
+                        trace.events.get_mut(*idx_1).unwrap(),
                         AttributeValue::Date(event_2_start),
                     );
                     set_start_timestamp(
-                        new_trace.events.get_mut(*idx_2).unwrap(),
+                        trace.events.get_mut(*idx_2).unwrap(),
                         AttributeValue::Date(event_1_start),
                     );
                     // Update complete timestamps to match old service time
                     set_complete_timestamp(
-                        new_trace.events.get_mut(*idx_1).unwrap(),
+                        trace.events.get_mut(*idx_1).unwrap(),
                         AttributeValue::Date(event_2_start + evt_1_service_time),
                     );
                     set_complete_timestamp(
-                        new_trace.events.get_mut(*idx_2).unwrap(),
+                        trace.events.get_mut(*idx_2).unwrap(),
                         AttributeValue::Date(event_1_start + evt_2_service_time),
                     );
 
                     // Swap them in the trace events vec
-                    new_trace.events.swap(*idx_1, *idx_2);
+                    trace.events.swap(*idx_1, *idx_2);
                 }
             });
-
-        new_trace
     }
 }
 
@@ -127,7 +123,7 @@ mod tests {
     use super::*;
     use crate::{
         test_fixtures::{abcd_trace, get_control_flow},
-        utils::get_complete_timestamp,
+        utils::attributes::get_complete_timestamp,
     };
     use rstest::rstest;
 

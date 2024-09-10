@@ -4,7 +4,7 @@ use crate::{
     constants::NO_COMPLETE_TIMESTAMP_MSG,
     mutation::TraceMutator,
     parsing::dir_name_trait::DirName,
-    utils::{get_complete_timestamp, set_start_timestamp},
+    utils::attributes::{get_complete_timestamp, set_start_timestamp},
 };
 
 /// Mutation to add service time information to an event log by assuming the timespan
@@ -19,29 +19,21 @@ impl PartialOrderCreator {
 }
 
 impl TraceMutator for PartialOrderCreator {
-    fn apply(&mut self, trace: &Trace) -> Trace {
-        let mut new_trace = trace.clone();
-
-        if let Some(evt) = new_trace.events.get_mut(0) {
+    fn apply_mut(&mut self, trace: &mut Trace) {
+        if let Some(evt) = trace.events.get_mut(0) {
             // Set its start_timestamp to its completion timestamp since we have no
             // information on this. This means the first event always has service time 0.
-            set_start_timestamp(
-                evt,
-                AttributeValue::Date(get_complete_timestamp(evt).expect(NO_COMPLETE_TIMESTAMP_MSG)),
-            );
-        }
+            let first_complete_timestamp =
+                get_complete_timestamp(evt).expect(NO_COMPLETE_TIMESTAMP_MSG);
+            set_start_timestamp(evt, AttributeValue::Date(first_complete_timestamp));
 
-        // Use trace instead of new_trace, because we do not change the complete
-        // timestamps anyways, and this allows for this nice zip and iter_mut combintation
-        trace
-            .events
-            .iter()
-            .zip(new_trace.events.iter_mut().skip(1))
-            .for_each(|(e1, e2)| {
-                let e1_complete_timestamp =
-                    get_complete_timestamp(e1).expect(NO_COMPLETE_TIMESTAMP_MSG);
-                set_start_timestamp(e2, AttributeValue::Date(e1_complete_timestamp));
-            });
-        new_trace
+            let mut previous_timestamp = first_complete_timestamp;
+
+            for event in trace.events.iter_mut().skip(1) {
+                set_start_timestamp(event, AttributeValue::Date(previous_timestamp));
+                previous_timestamp =
+                    get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG);
+            }
+        }
     }
 }

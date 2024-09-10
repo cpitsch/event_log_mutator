@@ -1,7 +1,9 @@
 use process_mining::event_log::{AttributeValue, Event};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
-use crate::{mutation::EventMutator, parsing::dir_name_trait::DirName, utils::set_activity_label};
+use crate::{
+    mutation::EventMutator, parsing::dir_name_trait::DirName, utils::attributes::set_activity_label,
+};
 
 /// Replace the activity label of all events with a constant one.
 #[derive(DirName)]
@@ -47,18 +49,9 @@ impl ConstantActivityMutator {
 }
 
 impl EventMutator for ConstantActivityMutator {
-    fn apply(&mut self, evt: &Event) -> Event {
+    fn apply_mut(&mut self, evt: &mut Event) {
         if self.should_mutate() {
-            let mut new_event = evt.clone();
-
-            set_activity_label(
-                &mut new_event,
-                AttributeValue::String(self.activity.clone()),
-            );
-
-            new_event
-        } else {
-            evt.clone()
+            set_activity_label(evt, AttributeValue::String(self.activity.clone()));
         }
     }
 }
@@ -69,7 +62,7 @@ mod tests {
     use crate::{
         mutation::TraceMutator,
         test_fixtures::{abcd_trace, get_control_flow},
-        utils::get_activity_label,
+        utils::attributes::get_activity_label,
     };
     use process_mining::event_log::Trace;
     use rstest::rstest;

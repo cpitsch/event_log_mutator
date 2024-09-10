@@ -1,4 +1,5 @@
 use crate::{mutation::EventMutator, parsing::dir_name_trait::DirName};
+use process_mining::event_log::Event;
 
 /// A Mutation to remove an attribute key from all events.
 #[derive(DirName)]
@@ -15,13 +16,8 @@ impl AttributeRemover {
 }
 
 impl EventMutator for AttributeRemover {
-    fn apply(
-        &mut self,
-        evt: &process_mining::event_log::Event,
-    ) -> process_mining::event_log::Event {
-        let mut new_event = evt.clone();
-        new_event.attributes.retain(|attr| attr.key != self.key);
-        new_event
+    fn apply_mut(&mut self, evt: &mut Event) {
+        evt.attributes.retain(|attr| attr.key != self.key);
     }
 }
 

@@ -7,30 +7,46 @@ use crate::parsing::dir_name_trait::DirName;
 
 pub trait EventMutator {
     /// Apply the mutation to a given event.
-    fn apply(&mut self, evt: &Event) -> Event;
+    fn apply_mut(&mut self, evt: &mut Event);
+
+    fn apply(&mut self, evt: &Event) -> Event {
+        let mut new_event = evt.clone();
+        self.apply_mut(&mut new_event);
+        new_event
+    }
 }
 
 pub trait TraceMutator {
     /// Apply the mutation to a given trace.
-    fn apply(&mut self, trace: &Trace) -> Trace;
+    fn apply_mut(&mut self, trace: &mut Trace);
+
+    fn apply(&mut self, trace: &Trace) -> Trace {
+        let mut new_trace = trace.clone();
+        self.apply_mut(&mut new_trace);
+        new_trace
+    }
 }
 
 pub trait LogMutator {
     /// Apply the mutation to an entire Event Log.
-    fn apply(&mut self, log: &EventLog) -> EventLog;
+    fn apply_mut(&mut self, log: &mut EventLog);
+
+    fn apply(&mut self, log: &EventLog) -> EventLog {
+        let mut new_log = log.clone();
+        self.apply_mut(&mut new_log);
+        new_log
+    }
 }
 
 impl<T> TraceMutator for T
 where
     T: EventMutator,
 {
-    fn apply(&mut self, trace: &Trace) -> Trace {
-        let mut new_trace = trace.clone();
-        new_trace
+    fn apply_mut(&mut self, trace: &mut Trace) {
+        trace
             .events
             .iter_mut()
-            .for_each(|event| *event = self.apply(event));
-        new_trace
+            .for_each(|event| self.apply_mut(event));
     }
 }
 
@@ -38,12 +54,10 @@ impl<T> LogMutator for T
 where
     T: TraceMutator,
 {
-    fn apply(&mut self, log: &EventLog) -> EventLog {
-        let mut new_log = log.clone();
-        new_log.traces.iter_mut().for_each(|trace| {
-            *trace = self.apply(trace);
-        });
-        new_log
+    fn apply_mut(&mut self, log: &mut EventLog) {
+        log.traces
+            .iter_mut()
+            .for_each(|trace| self.apply_mut(trace));
     }
 }
 
@@ -69,12 +83,9 @@ impl MutationChain {
 }
 
 impl LogMutator for MutationChain {
-    fn apply(&mut self, log: &EventLog) -> EventLog {
-        let mut new_log = log.clone();
+    fn apply_mut(&mut self, log: &mut EventLog) {
         self.mutations.iter_mut().for_each(|mutation| {
-            new_log = mutation.apply(&new_log);
+            mutation.apply_mut(log);
         });
-
-        new_log
     }
 }

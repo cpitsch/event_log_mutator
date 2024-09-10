@@ -6,7 +6,9 @@ use crate::{
     constants::{NO_ACTIVITY_LABEL_MSG, NO_START_TIMESTAMP_MSG},
     mutation::TraceMutator,
     parsing::dir_name_trait::DirName,
-    utils::{change_event_duration, get_activity_label, get_service_time, get_start_timestamp},
+    utils::attributes::{
+        change_event_duration, get_activity_label, get_service_time, get_start_timestamp,
+    },
 };
 
 /// Mutation to increase the service time by a factor.
@@ -89,23 +91,20 @@ fn multiply_timedelta_by_float(timedelta: TimeDelta, factor: &f32) -> TimeDelta 
 }
 
 impl TraceMutator for ServiceTimeMultiplier {
-    fn apply(&mut self, trace: &Trace) -> Trace {
-        let mut new_trace = trace.clone();
-        for i in 0..new_trace.events.len() {
-            let event = new_trace.events.get_mut(i).unwrap();
+    fn apply_mut(&mut self, trace: &mut Trace) {
+        for i in 0..trace.events.len() {
+            let event = trace.events.get_mut(i).unwrap();
             if self.should_mutate(event) {
                 let start_timestamp = get_start_timestamp(event).expect(NO_START_TIMESTAMP_MSG);
                 let service_time = get_service_time(event).expect(NO_START_TIMESTAMP_MSG);
                 let new_service_time = multiply_timedelta_by_float(service_time, &self.factor);
                 change_event_duration(
-                    &mut new_trace,
+                    trace,
                     i,
                     (start_timestamp + new_service_time).round_subsecs(6),
                 );
             }
         }
-
-        new_trace
     }
 }
 

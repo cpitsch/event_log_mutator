@@ -5,7 +5,7 @@ use crate::{
     constants::NO_ACTIVITY_LABEL_MSG,
     mutation::TraceMutator,
     parsing::dir_name_trait::DirName,
-    utils::{get_activity_label, set_activity_label},
+    utils::attributes::{get_activity_label, set_activity_label},
 };
 
 #[derive(DirName)]
@@ -56,14 +56,12 @@ impl ActivityRenamer {
 }
 
 impl TraceMutator for ActivityRenamer {
-    fn apply(&mut self, trace: &Trace) -> Trace {
-        let mut new_trace = trace.clone();
-        new_trace.events.iter_mut().for_each(|evt| {
+    fn apply_mut(&mut self, trace: &mut Trace) {
+        trace.events.iter_mut().for_each(|evt| {
             if self.should_mutate(evt) {
                 set_activity_label(evt, AttributeValue::String(self.new_label.clone()));
             }
         });
-        new_trace
     }
 }
 

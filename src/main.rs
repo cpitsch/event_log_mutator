@@ -22,7 +22,7 @@ use crate::{
     mutation::{LogMutator, MutationChain},
     mutators::ServiceTimeStdShifter,
     parsing::{parametrized_pipeline::get_parametrized_pipeline_output_root, parse_toml},
-    utils::get_traceid,
+    utils::attributes::get_traceid,
 };
 
 pub mod cli;

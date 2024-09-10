@@ -3,7 +3,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
     constants::NO_ACTIVITY_LABEL_MSG, mutation::TraceMutator, parsing::dir_name_trait::DirName,
-    utils::get_activity_label,
+    utils::attributes::get_activity_label,
 };
 
 /// Mutator to remove events that have the given activity label.
@@ -51,10 +51,8 @@ impl ActivityRemover {
 }
 
 impl TraceMutator for ActivityRemover {
-    fn apply(&mut self, trace: &Trace) -> Trace {
-        let mut new_trace = trace.clone();
-        new_trace.events.retain(|evt| !self.should_remove(evt));
-        new_trace
+    fn apply_mut(&mut self, trace: &mut Trace) {
+        trace.events.retain(|evt| !self.should_remove(evt));
     }
 }
 
