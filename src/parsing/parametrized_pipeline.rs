@@ -260,7 +260,7 @@ pub fn flat_mutation_config_to_log_mutator(
                 mutator = mutator.save_discarded(p.inner_value());
             } else {
                 let mut save_path = dir_so_far.clone();
-                save_path.push_str(&format!("{}/log_1.xes", mutator.to_dir_name()).to_string());
+                save_path.push_str(&format!("{}/log.xes", mutator.to_dir_name()).to_string());
                 if save_compressed
                     .clone()
                     .unwrap_or(MutationValue::Value(false))
