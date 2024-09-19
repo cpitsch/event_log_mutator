@@ -1,12 +1,50 @@
+use std::fmt::Display;
+
 use process_mining::{event_log::Trace, EventLog};
+use serde::Deserialize;
 
 use crate::{
     constants::NO_COMPLETE_TIMESTAMP_MSG, mutation::LogMutator, parsing::dir_name_trait::DirName,
     utils::attributes::get_complete_timestamp,
 };
 
+#[derive(Deserialize, Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
+pub enum ComparisonSense {
+    #[serde(alias = "less", alias = "<")]
+    Less,
+    #[serde(alias = "leq", alias = "<=")]
+    LEQ,
+    #[serde(alias = "geq", alias = ">=")]
+    GEQ,
+    #[serde(alias = "greater", alias = ">")]
+    Greater,
+}
+
+impl Default for ComparisonSense {
+    fn default() -> Self {
+        Self::LEQ
+    }
+}
+
+impl Display for ComparisonSense {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Less => "less",
+                Self::LEQ => "leq",
+                Self::GEQ => "geq",
+                Self::Greater => "greater",
+            }
+        )
+    }
+}
+
 #[derive(DirName)]
 pub struct CaseDurationFilter {
+    sense: ComparisonSense,
     years: f32,
     days: f32,
     hours: f32,
@@ -28,7 +66,23 @@ impl CaseDurationFilter {
             hours: hours.unwrap_or(0.0),
             minutes: minutes.unwrap_or(0.0),
             seconds: seconds.unwrap_or(0.0),
+            sense: ComparisonSense::default(),
         }
+    }
+
+    pub fn leq(mut self) -> Self {
+        self.sense = ComparisonSense::LEQ;
+        self
+    }
+
+    pub fn geq(mut self) -> Self {
+        self.sense = ComparisonSense::GEQ;
+        self
+    }
+
+    pub fn with_sense(mut self, sense: ComparisonSense) -> Self {
+        self.sense = sense;
+        self
     }
 
     fn keep_trace(&self, trace: &Trace, max_duration: &chrono::TimeDelta) -> bool {
@@ -49,7 +103,12 @@ impl CaseDurationFilter {
 
         let duration = latest_timestamp - earliest_timestamp;
 
-        duration <= *max_duration
+        match self.sense {
+            ComparisonSense::Less => duration < *max_duration,
+            ComparisonSense::LEQ => duration <= *max_duration,
+            ComparisonSense::GEQ => duration >= *max_duration,
+            ComparisonSense::Greater => duration > *max_duration,
+        }
     }
 
     fn get_total_seconds(&self) -> i64 {

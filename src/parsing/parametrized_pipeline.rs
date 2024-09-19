@@ -5,7 +5,10 @@ use itertools::Itertools;
 use crate::{
     mutation::{LogMutatorWithAsDirName, MutationChain},
     mutators::{
-        filters::{CaseDurationFilter, EndpointFilter, VariantSupportFilter},
+        filters::{
+            case_duration_filter::ComparisonSense, CaseDurationFilter, EndpointFilter,
+            VariantSupportFilter,
+        },
         ActivityRemover, ActivityRenamer, AttributeRemover, ConstantActivityMutator, EventSwapper,
         LogBootstrapper, LogSplitter, PartialOrderCreator, ServiceTimeMultiplier,
         ServiceTimeStdShifter,
@@ -37,6 +40,15 @@ impl<T> MutationValue<T> {
             Self::Value(v) => v,
             Self::Vec(_) => panic!("Called inner_value on non-flat MutationValue"),
         }
+    }
+}
+
+impl<T> Default for MutationValue<T>
+where
+    T: Default,
+{
+    fn default() -> Self {
+        Self::Value(T::default())
     }
 }
 
@@ -86,6 +98,8 @@ pub enum ParametrizedMutationConfig {
         end_activities: Option<MutationValue<Vec<String>>>,
     },
     CaseDurationFilter {
+        #[serde(default)]
+        sense: MutationValue<ComparisonSense>,
         #[serde(default = "zero_f32_mutation_value")]
         years: MutationValue<f32>,
         #[serde(default = "zero_f32_mutation_value")]
@@ -184,18 +198,22 @@ pub fn flat_mutation_config_to_log_mutator(
             end_activities.map(MutationValue::inner_value),
         )),
         ParametrizedMutationConfig::CaseDurationFilter {
+            sense,
             years,
             days,
             hours,
             minutes,
             seconds,
-        } => Box::new(CaseDurationFilter::new(
-            Some(years.inner_value()),
-            Some(days.inner_value()),
-            Some(hours.inner_value()),
-            Some(minutes.inner_value()),
-            Some(seconds.inner_value()),
-        )),
+        } => Box::new(
+            CaseDurationFilter::new(
+                Some(years.inner_value()),
+                Some(days.inner_value()),
+                Some(hours.inner_value()),
+                Some(minutes.inner_value()),
+                Some(seconds.inner_value()),
+            )
+            .with_sense(sense.inner_value()),
+        ),
         ParametrizedMutationConfig::ActivityRemover {
             activity,
             probability,
