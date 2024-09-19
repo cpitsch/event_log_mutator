@@ -9,6 +9,9 @@ use crate::{
 
 /// Mutation to add service time information to an event log by assuming the timespan
 /// between two events completing to be the service time of the second event
+///
+/// This means that the complete timestamp of an event is used as the start timestamp
+/// of the following event
 #[derive(Default, DirName)]
 pub struct PartialOrderCreator;
 
