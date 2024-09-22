@@ -3,7 +3,7 @@ use process_mining::{
     EventLog,
 };
 
-use crate::parsing::dir_name_trait::DirName;
+use crate::parsing::traits::DirName;
 
 pub trait EventMutator {
     /// Apply the mutation to a given event.

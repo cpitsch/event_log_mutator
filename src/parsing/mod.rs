@@ -1,8 +1,9 @@
 use std::{fs::read_to_string, path::PathBuf};
 
-pub mod dir_name_trait;
-pub mod flatten_mutation_value_trait;
+pub mod mutation_value;
+pub mod parametrized_mutation_config;
 pub mod parametrized_pipeline;
+pub mod traits;
 
 use serde::Deserialize;
 use toml::from_str;
@@ -28,6 +29,26 @@ pub struct MutationChainConfig {
     pub seed: Option<u64>,
 }
 
+impl MutationChainConfig {
+    pub fn get_output_root(&self) -> Result<String, CliError> {
+        let mut base_path = if let Some(out) = self.output.as_ref() {
+            if out.is_file() {
+                return Err(CliError::new(
+                    clap::error::ErrorKind::ValueValidation,
+                    "Parametrized pipeline cannot take file as output path",
+                ));
+            }
+            out.as_os_str().to_string_lossy().to_string()
+        } else {
+            "./".to_string()
+        };
+        if !base_path.ends_with('/') {
+            base_path.push('/');
+        }
+        Ok(base_path)
+    }
+}
+
 pub fn parse_toml(path: &PathBuf) -> Result<MutationChainConfig, CliError> {
     let contents = read_to_string(path).unwrap();
     let res = parse_toml_string(&contents);
@@ -43,11 +64,11 @@ mod tests {
     use std::str::FromStr;
 
     use rstest::rstest;
-    use tests::parametrized_pipeline::ParametrizedMutationConfig;
+    use tests::parametrized_mutation_config::ParametrizedMutationConfig;
 
     use crate::test_fixtures::mininmal_toml_example;
 
-    use super::parametrized_pipeline::MutationValue;
+    use super::mutation_value::MutationValue;
     use super::*;
 
     const TOML_CONTENT: &str = "
@@ -84,22 +105,20 @@ probability = 0.5
 
         assert_eq!(
             res.pipeline,
-            ParametrizedPipelineConfig {
-                mutations: vec![
-                    ParametrizedMutationConfig::ServiceTimeStdShifter {
-                        activity: Some(MutationValue::Value("a".to_string())),
-                        standard_deviations: MutationValue::Value(1.0),
-                        probability: MutationValue::Value(0.5),
-                        seed: Some(MutationValue::Value(42))
-                    },
-                    ParametrizedMutationConfig::ActivityRenamer {
-                        activity: MutationValue::Value("Send Fine".to_string()),
-                        new_label: MutationValue::Value("New Activity".to_string()),
-                        probability: MutationValue::Value(0.5),
-                        seed: None
-                    }
-                ]
-            }
+            ParametrizedPipelineConfig::new(vec![
+                ParametrizedMutationConfig::ServiceTimeStdShifter {
+                    activity: Some(MutationValue::Value("a".to_string())),
+                    standard_deviations: MutationValue::Value(1.0),
+                    probability: MutationValue::Value(0.5),
+                    seed: Some(MutationValue::Value(42))
+                },
+                ParametrizedMutationConfig::ActivityRenamer {
+                    activity: MutationValue::Value("Send Fine".to_string()),
+                    new_label: MutationValue::Value("New Activity".to_string()),
+                    probability: MutationValue::Value(0.5),
+                    seed: None
+                }
+            ])
         )
     }
 

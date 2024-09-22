@@ -3,7 +3,7 @@ use process_mining::event_log::{AttributeValue, Trace};
 use crate::{
     constants::NO_COMPLETE_TIMESTAMP_MSG,
     mutation::TraceMutator,
-    parsing::dir_name_trait::DirName,
+    parsing::traits::DirName,
     utils::attributes::{get_complete_timestamp, set_start_timestamp},
 };
 

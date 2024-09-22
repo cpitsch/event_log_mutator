@@ -4,7 +4,7 @@ use rand::{rngs::StdRng, SeedableRng};
 use crate::{
     constants::NO_TRACEID_MSG,
     mutation::LogMutator,
-    parsing::dir_name_trait::DirName,
+    parsing::traits::DirName,
     utils::{
         attributes::{get_traceid, get_traceids},
         sampling::sample_log_without_replacement,

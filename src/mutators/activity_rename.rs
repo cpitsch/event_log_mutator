@@ -4,7 +4,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 use crate::{
     constants::NO_ACTIVITY_LABEL_MSG,
     mutation::TraceMutator,
-    parsing::dir_name_trait::DirName,
+    parsing::traits::DirName,
     utils::attributes::{get_activity_label, set_activity_label},
 };
 

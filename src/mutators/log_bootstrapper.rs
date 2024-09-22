@@ -3,7 +3,7 @@ use rand::{rngs::StdRng, SeedableRng};
 
 use crate::{
     mutation::LogMutator,
-    parsing::dir_name_trait::DirName,
+    parsing::traits::DirName,
     utils::sampling::{sample_log_with_replacement_mut, sample_log_without_replacement_mut},
 };
 

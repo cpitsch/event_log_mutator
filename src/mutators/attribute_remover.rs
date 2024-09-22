@@ -1,4 +1,4 @@
-use crate::{mutation::EventMutator, parsing::dir_name_trait::DirName};
+use crate::{mutation::EventMutator, parsing::traits::DirName};
 use process_mining::event_log::Event;
 
 /// A Mutation to remove an attribute key from all events.

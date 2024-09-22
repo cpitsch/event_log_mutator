@@ -2,7 +2,7 @@ use process_mining::event_log::{AttributeValue, Event};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
-    mutation::EventMutator, parsing::dir_name_trait::DirName, utils::attributes::set_activity_label,
+    mutation::EventMutator, parsing::traits::DirName, utils::attributes::set_activity_label,
 };
 
 /// Replace the activity label of all events with a constant one.
