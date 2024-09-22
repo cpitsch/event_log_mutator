@@ -11,7 +11,7 @@ where
 mod tests {
     use super::*;
 
-    use crate::parsing::parametrized_pipeline::MutationValue;
+    use crate::parsing::mutation_value::MutationValue;
 
     #[derive(Debug, FlattenMutationValue, PartialEq)]
     struct MyStruct {

@@ -4,7 +4,7 @@ use process_mining::{event_log::Trace, EventLog};
 use serde::Deserialize;
 
 use crate::{
-    constants::NO_COMPLETE_TIMESTAMP_MSG, mutation::LogMutator, parsing::dir_name_trait::DirName,
+    constants::NO_COMPLETE_TIMESTAMP_MSG, mutation::LogMutator, parsing::traits::DirName,
     utils::attributes::get_complete_timestamp,
 };
 

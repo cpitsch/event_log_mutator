@@ -2,7 +2,7 @@ use process_mining::event_log::{Event, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
-    constants::NO_ACTIVITY_LABEL_MSG, mutation::TraceMutator, parsing::dir_name_trait::DirName,
+    constants::NO_ACTIVITY_LABEL_MSG, mutation::TraceMutator, parsing::traits::DirName,
     utils::attributes::get_activity_label,
 };
 

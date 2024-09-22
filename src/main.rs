@@ -8,10 +8,6 @@ use crate::cli::{Args, CliError};
 use clap::{error::ErrorKind, CommandFactory, Parser};
 use itertools::Itertools;
 use mutators::{LogBootstrapper, ServiceTimeMultiplier};
-use parsing::{
-    parametrized_pipeline::parametrized_mutation_config_vec_to_mutation_chain_vec,
-    MutationChainConfig,
-};
 use process_mining::{
     event_log::export_xes::export_xes_event_log_to_file, import_xes_file, EventLog,
     XESImportOptions,
@@ -21,7 +17,7 @@ use rand::seq::SliceRandom;
 use crate::{
     mutation::{LogMutator, MutationChain},
     mutators::ServiceTimeStdShifter,
-    parsing::{parametrized_pipeline::get_parametrized_pipeline_output_root, parse_toml},
+    parsing::{parse_toml, MutationChainConfig},
     utils::attributes::get_traceid,
 };
 
@@ -85,11 +81,10 @@ fn execute_parametrized_pipeline(
     parsed_toml: MutationChainConfig,
     log: &EventLog,
 ) -> Result<(), CliError> {
-    let mut mutation_chains = parametrized_mutation_config_vec_to_mutation_chain_vec(
-        parsed_toml.pipeline.mutations.clone(),
-        parsed_toml.seed,
-        get_parametrized_pipeline_output_root(&parsed_toml)?,
-    );
+    let mut mutation_chains = parsed_toml
+        .pipeline
+        .clone()
+        .to_mutation_chains(parsed_toml.seed, parsed_toml.get_output_root()?);
 
     // If effectively only one mutation config, you should be able to provide a specific
     // output file instead of an output root path
@@ -109,7 +104,7 @@ fn execute_parametrized_pipeline(
     } else {
         for mut mutation_chain in mutation_chains {
             // Path creation
-            let mut path = get_parametrized_pipeline_output_root(&parsed_toml)?;
+            let mut path = parsed_toml.get_output_root()?;
             path.push_str(
                 mutation_chain
                     .mutations

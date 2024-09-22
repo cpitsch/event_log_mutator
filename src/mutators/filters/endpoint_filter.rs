@@ -5,7 +5,7 @@ use process_mining::{event_log::Trace, EventLog};
 
 use crate::{
     mutation::LogMutator,
-    parsing::dir_name_trait::DirName,
+    parsing::traits::DirName,
     utils::attributes::{get_activities, get_end_activities, get_start_activities},
 };
 
