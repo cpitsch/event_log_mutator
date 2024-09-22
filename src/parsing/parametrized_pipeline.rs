@@ -1,3 +1,5 @@
+use std::path::{Path, PathBuf};
+
 use serde::Deserialize;
 
 use itertools::Itertools;
@@ -57,12 +59,12 @@ impl ParametrizedPipelineConfig<NotFlat> {
     pub fn to_mutation_chains(
         self,
         root_seed: Option<u64>,
-        output_root: String,
+        output_root: &Path,
     ) -> Vec<MutationChain> {
         self.flatten()
             .into_iter()
             .map(|flat_pipeline_config| {
-                flat_pipeline_config.into_mutation_chain(root_seed, output_root.clone())
+                flat_pipeline_config.into_mutation_chain(root_seed, output_root.to_path_buf())
             })
             .collect()
     }
@@ -72,7 +74,7 @@ impl ParametrizedPipelineConfig<Flat> {
     pub fn into_mutation_chain(
         self,
         root_seed: Option<u64>,
-        mut output_root: String,
+        mut output_root: PathBuf,
     ) -> MutationChain {
         let mut mutations: Vec<Box<dyn LogMutatorWithAsDirName>> =
             Vec::with_capacity(self.mutations.len());
@@ -80,9 +82,9 @@ impl ParametrizedPipelineConfig<Flat> {
             let mutator = Self::flat_mutation_config_to_log_mutator(
                 flat_config,
                 root_seed,
-                output_root.to_string(),
+                output_root.clone(),
             );
-            output_root.push_str(format!("/{}", mutator.to_dir_name()).as_str());
+            output_root.push(mutator.to_dir_name());
             mutations.push(mutator);
         });
         MutationChain { mutations }
@@ -91,7 +93,7 @@ impl ParametrizedPipelineConfig<Flat> {
     fn flat_mutation_config_to_log_mutator(
         flat_config: ParametrizedMutationConfig,
         root_seed: Option<u64>,
-        dir_so_far: String,
+        path_so_far: PathBuf,
     ) -> Box<dyn LogMutatorWithAsDirName> {
         match flat_config {
             ParametrizedMutationConfig::ServiceTimeStdShifter {
@@ -204,20 +206,19 @@ impl ParametrizedPipelineConfig<Flat> {
                 if let Some(p) = save_path {
                     mutator = mutator.save_discarded(p.inner_value());
                 } else {
-                    let mut save_path = dir_so_far.clone();
-                    if !save_path.is_empty() {
-                        save_path.push('/')
-                    }
-                    save_path.push_str(&format!("{}/log.xes", mutator.to_dir_name()).to_string());
+                    let mut save_path = path_so_far.clone();
+                    save_path.push(mutator.to_dir_name());
+                    save_path.push("log_1.xes");
                     if save_compressed
                         .clone()
-                        .unwrap_or(MutationValue::Value(false))
-                        .inner_value()
+                        .map_or(false, MutationValue::inner_value)
                     {
-                        save_path.push_str(".gz");
+                        save_path.set_extension("xes.gz");
                     }
 
-                    mutator = mutator.save_discarded(save_path);
+                    // TODO: Change the mutator to take PathBuf or impl AsRef<Path> or something
+                    // along those lines (impl Into<PathBuf>)
+                    mutator = mutator.save_discarded(save_path.to_string_lossy().to_string());
                 }
                 if let Some(c) = save_compressed {
                     mutator = mutator.save_compressed(c.inner_value());

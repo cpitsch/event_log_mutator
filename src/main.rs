@@ -1,24 +1,19 @@
 use std::{
-    collections::HashSet,
     fs::{create_dir_all, File},
     path::{Path, PathBuf},
 };
 
 use crate::cli::{Args, CliError};
 use clap::{error::ErrorKind, CommandFactory, Parser};
-use itertools::Itertools;
 use mutators::{LogBootstrapper, ServiceTimeMultiplier};
 use process_mining::{
     event_log::export_xes::export_xes_event_log_to_file, import_xes_file, EventLog,
     XESImportOptions,
 };
-use rand::seq::SliceRandom;
 
 use crate::{
     mutation::{LogMutator, MutationChain},
-    mutators::ServiceTimeStdShifter,
     parsing::{parse_toml, MutationChainConfig},
-    utils::attributes::get_traceid,
 };
 
 pub mod cli;
@@ -37,23 +32,14 @@ pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     if !path_to_pipeline.exists() {
         return Err(CliError::new(
             ErrorKind::Io,
-            "The specified pipeline configuration file does not exist".to_string(),
+            "The specified pipeline configuration file does not exist",
         ));
     }
     // Get the configuration from the pipeline
     let mut parsed_toml = parse_toml(&path_to_pipeline)?;
     parsed_toml = overwrite_pipeline_config_with_cli_args(args, parsed_toml);
 
-    // Read the event log
-    let log = import_xes_file(
-        &parsed_toml.clone().input.to_string_lossy(),
-        XESImportOptions::default(),
-    )
-    .unwrap();
-
-    println!("Finished reading log.");
-
-    execute_parametrized_pipeline(parsed_toml, &log)
+    parsed_toml.execute()
 }
 
 pub fn overwrite_pipeline_config_with_cli_args(
@@ -65,8 +51,8 @@ pub fn overwrite_pipeline_config_with_cli_args(
         config.input.clone_from(input);
     }
     // If an output dir is explicitly specified, override pipeline config with that
-    if args.output.is_some() {
-        config.output = args.output.clone();
+    if let Some(o) = args.output.clone() {
+        config.output = o;
     }
 
     // If a seed is explicitly specified, override pipeline config with that
@@ -77,121 +63,68 @@ pub fn overwrite_pipeline_config_with_cli_args(
     config
 }
 
-fn execute_parametrized_pipeline(
-    parsed_toml: MutationChainConfig,
-    log: &EventLog,
-) -> Result<(), CliError> {
-    let mut mutation_chains = parsed_toml
-        .pipeline
-        .clone()
-        .to_mutation_chains(parsed_toml.seed, parsed_toml.get_output_root()?);
-
-    // If effectively only one mutation config, you should be able to provide a specific
-    // output file instead of an output root path
-    if mutation_chains.len() == 1 {
-        let output_path = parsed_toml
-            .output
-            .clone()
-            .unwrap_or_else(|| get_output_path(&parsed_toml.input));
-        let mut mutation_chain = mutation_chains.pop().unwrap();
-        let mutated_log = mutation_chain.apply(log);
-
-        write_xes(
-            &mutated_log,
-            output_path.to_string_lossy().to_string(),
-            parsed_toml.compress_output,
-        )?;
-    } else {
-        for mut mutation_chain in mutation_chains {
-            // Path creation
-            let mut path = parsed_toml.get_output_root()?;
-            path.push_str(
-                mutation_chain
-                    .mutations
-                    .iter()
-                    .map(|mutation| mutation.to_dir_name())
-                    .join("/")
-                    .as_str(),
-            );
-            path.push_str("/log.xes");
-            if parsed_toml.compress_output {
-                path.push_str(".gz");
-            }
-
-            // Apply mutations
-            let mutated_log = mutation_chain.apply(log);
-
-            // Write event log file
-            write_xes(&mutated_log, path.clone(), parsed_toml.compress_output)?;
-            println!("Wrote event log: {}", path);
-        }
-    }
-
-    Ok(())
-}
-
-#[allow(dead_code)]
-fn create_road_traffic_time_logs() {
-    const PROBABILITIES: [f32; 14] = [
-        0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-    ];
-    // const STANDARD_DEVIATIONS: [f64; 11] = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-    const STANDARD_DEVIATIONS: [f64; 14] = [
-        0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-    ];
-
-    let log = import_xes_file("./road_traffic.xes.gz", XESImportOptions::default()).unwrap();
-    let case_ids: Vec<String> = log
-        .traces
-        .iter()
-        .map(|trace| get_traceid(trace).unwrap())
-        .collect();
-
-    let rng = &mut rand::thread_rng();
-    for prob in PROBABILITIES {
-        for std in STANDARD_DEVIATIONS {
-            println!(
-                "Creating Event Log for probability {} and std shift {}",
-                prob, std
-            );
-            let output_path = format!("./road_traffic_newlogs/probability_{}/std_{}", prob, std);
-
-            if Path::new(format!("{output_path}/log_1.xes.gz").as_str()).exists() {
-                println!("\talready exists... skip");
-                continue;
-            }
-
-            let mut mutated_log = ServiceTimeStdShifter::new(std)
-                .with_probability(prob)
-                .for_activity("Send Fine")
-                .apply(&log);
-
-            // Get random sample of half the caseids
-            let sample: HashSet<String> = case_ids
-                .choose_multiple(rng, case_ids.len() / 2)
-                .cloned()
-                .collect();
-
-            mutated_log
-                .traces
-                .retain(|trace| sample.contains(&get_traceid(trace).unwrap()));
-
-            let mut non_mutated_log = log.clone();
-            non_mutated_log
-                .traces
-                .retain(|trace| !sample.contains(&get_traceid(trace).unwrap()));
-
-            // Save the files
-            write_xes(
-                &non_mutated_log,
-                format!("{}/log_1.xes.gz", output_path),
-                true,
-            )
-            .unwrap();
-            write_xes(&mutated_log, format!("{}/log_2.xes.gz", output_path), true).unwrap();
-        }
-    }
-}
+// #[allow(dead_code)]
+// fn create_road_traffic_time_logs() {
+//     const PROBABILITIES: [f32; 14] = [
+//         0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+//     ];
+//     // const STANDARD_DEVIATIONS: [f64; 11] = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
+//     const STANDARD_DEVIATIONS: [f64; 14] = [
+//         0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
+//     ];
+//
+//     let log = import_xes_file("./road_traffic.xes.gz", XESImportOptions::default()).unwrap();
+//     let case_ids: Vec<String> = log
+//         .traces
+//         .iter()
+//         .map(|trace| get_traceid(trace).unwrap())
+//         .collect();
+//
+//     let rng = &mut rand::thread_rng();
+//     for prob in PROBABILITIES {
+//         for std in STANDARD_DEVIATIONS {
+//             println!(
+//                 "Creating Event Log for probability {} and std shift {}",
+//                 prob, std
+//             );
+//             let output_path = format!("./road_traffic_newlogs/probability_{}/std_{}", prob, std);
+//
+//             if Path::new(format!("{output_path}/log_1.xes.gz").as_str()).exists() {
+//                 println!("\talready exists... skip");
+//                 continue;
+//             }
+//
+//             let mut mutated_log = ServiceTimeStdShifter::new(std)
+//                 .with_probability(prob)
+//                 .for_activity("Send Fine")
+//                 .apply(&log);
+//
+//             // Get random sample of half the caseids
+//             let sample: HashSet<String> = case_ids
+//                 .choose_multiple(rng, case_ids.len() / 2)
+//                 .cloned()
+//                 .collect();
+//
+//             mutated_log
+//                 .traces
+//                 .retain(|trace| sample.contains(&get_traceid(trace).unwrap()));
+//
+//             let mut non_mutated_log = log.clone();
+//             non_mutated_log
+//                 .traces
+//                 .retain(|trace| !sample.contains(&get_traceid(trace).unwrap()));
+//
+//             // Save the files
+//             write_xes(
+//                 &non_mutated_log,
+//                 format!("{}/log_1.xes.gz", output_path),
+//                 true,
+//             )
+//             .unwrap();
+//             write_xes(&mutated_log, format!("{}/log_2.xes.gz", output_path), true).unwrap();
+//         }
+//     }
+// }
 
 fn main() {
     let args = Args::parse();
@@ -266,15 +199,15 @@ fn run_cli(mut args: Args) -> Result<(), CliError> {
     Ok(())
 }
 
-fn write_xes(log: &EventLog, path: String, compress: bool) -> Result<(), CliError> {
-    let p: &Path = Path::new(&path);
+fn write_xes(log: &EventLog, path: impl AsRef<Path>, compress: bool) -> Result<(), CliError> {
+    let p: &Path = path.as_ref();
     let dir_creation_res = p.parent().map(create_dir_all);
     if dir_creation_res.is_none() || dir_creation_res.unwrap().is_err() {
         return Err(CliError::new(
             ErrorKind::Io,
             format!(
                 "Something went wrong creating the directories on the path {}",
-                path
+                p.to_string_lossy()
             ),
         ));
     }
@@ -289,7 +222,6 @@ fn write_xes(log: &EventLog, path: String, compress: bool) -> Result<(), CliErro
     Ok(())
 }
 
-#[allow(dead_code)]
 fn get_output_path(input_path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     if let Some(parent) = input_path.parent() {
