@@ -14,7 +14,7 @@ use crate::{mutation::LogMutator, write_xes, CliError};
 use self::parametrized_pipeline::ParametrizedPipelineConfig;
 
 fn default_output_pathbuf() -> PathBuf {
-    PathBuf::from_str("./").unwrap()
+    PathBuf::from_str(".").unwrap()
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -74,18 +74,17 @@ impl MutationChainConfig {
 
             write_xes(&log, output_path, self.compress_output)?;
         } else {
-            for mut mutation_chain in mutation_chains {
-                if self.output.is_file() {
-                    return Err(CliError::new(
-                        clap::error::ErrorKind::InvalidValue,
-                        "For a parametrized pipeline, the output path may not be a file.",
-                    ));
-                }
+            if self.output.is_file() {
+                return Err(CliError::new(
+                    clap::error::ErrorKind::InvalidValue,
+                    "For a parametrized pipeline, the output path may not be a file.",
+                ));
+            }
 
-                // Read the event log
-                let log =
-                    import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())
-                        .unwrap();
+            // Read the event log
+            let log = import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())
+                .unwrap();
+            for mut mutation_chain in mutation_chains {
                 // Path creation
                 let mut path = self.output.clone();
                 mutation_chain
