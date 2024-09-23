@@ -30,7 +30,6 @@ fn main() {
     let args = Args::parse();
     let res = run_cli(args);
     if let Err(e) = res {
-        println!("There was an error...");
         Args::command().error(e.kind, e.message).exit();
     }
 }
