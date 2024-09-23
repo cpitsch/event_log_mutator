@@ -62,69 +62,6 @@ pub fn overwrite_pipeline_config_with_cli_args(
     config
 }
 
-// #[allow(dead_code)]
-// fn create_road_traffic_time_logs() {
-//     const PROBABILITIES: [f32; 14] = [
-//         0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-//     ];
-//     // const STANDARD_DEVIATIONS: [f64; 11] = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-//     const STANDARD_DEVIATIONS: [f64; 14] = [
-//         0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0,
-//     ];
-//
-//     let log = import_xes_file("./road_traffic.xes.gz", XESImportOptions::default()).unwrap();
-//     let case_ids: Vec<String> = log
-//         .traces
-//         .iter()
-//         .map(|trace| get_traceid(trace).unwrap())
-//         .collect();
-//
-//     let rng = &mut rand::thread_rng();
-//     for prob in PROBABILITIES {
-//         for std in STANDARD_DEVIATIONS {
-//             println!(
-//                 "Creating Event Log for probability {} and std shift {}",
-//                 prob, std
-//             );
-//             let output_path = format!("./road_traffic_newlogs/probability_{}/std_{}", prob, std);
-//
-//             if Path::new(format!("{output_path}/log_1.xes.gz").as_str()).exists() {
-//                 println!("\talready exists... skip");
-//                 continue;
-//             }
-//
-//             let mut mutated_log = ServiceTimeStdShifter::new(std)
-//                 .with_probability(prob)
-//                 .for_activity("Send Fine")
-//                 .apply(&log);
-//
-//             // Get random sample of half the caseids
-//             let sample: HashSet<String> = case_ids
-//                 .choose_multiple(rng, case_ids.len() / 2)
-//                 .cloned()
-//                 .collect();
-//
-//             mutated_log
-//                 .traces
-//                 .retain(|trace| sample.contains(&get_traceid(trace).unwrap()));
-//
-//             let mut non_mutated_log = log.clone();
-//             non_mutated_log
-//                 .traces
-//                 .retain(|trace| !sample.contains(&get_traceid(trace).unwrap()));
-//
-//             // Save the files
-//             write_xes(
-//                 &non_mutated_log,
-//                 format!("{}/log_1.xes.gz", output_path),
-//                 true,
-//             )
-//             .unwrap();
-//             write_xes(&mutated_log, format!("{}/log_2.xes.gz", output_path), true).unwrap();
-//         }
-//     }
-// }
-
 fn main() {
     let args = Args::parse();
     let res = run_cli(args);
