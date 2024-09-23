@@ -10,10 +10,7 @@ use process_mining::{
     XESImportOptions,
 };
 
-use crate::{
-    mutation::LogMutator,
-    parsing::{parse_toml, MutationChainConfig},
-};
+use crate::{mutation::LogMutator, parsing::MutationChainConfig};
 
 pub mod cli;
 pub mod constants;
@@ -56,7 +53,7 @@ pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
         ));
     }
     // Get the configuration from the pipeline
-    let mut parsed_toml = parse_toml(&path_to_pipeline)?;
+    let mut parsed_toml = MutationChainConfig::parse_file(&path_to_pipeline)?;
     parsed_toml = overwrite_pipeline_config_with_cli_args(args, parsed_toml);
 
     parsed_toml.execute()

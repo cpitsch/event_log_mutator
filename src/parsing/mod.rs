@@ -36,6 +36,17 @@ pub struct MutationChainConfig {
 }
 
 impl MutationChainConfig {
+    /// Parse a pipeline configuration from a TOML file
+    pub fn parse_file(path: &PathBuf) -> Result<Self, CliError> {
+        let contents = read_to_string(path).unwrap();
+        let res = Self::parse_toml_str(&contents);
+        Ok(res)
+    }
+
+    pub fn parse_toml_str(content: &str) -> Self {
+        from_str(content).expect("Invalid TOML format")
+    }
+
     pub fn execute(&self) -> Result<(), CliError> {
         let mut mutation_chains = self
             .pipeline
@@ -45,14 +56,18 @@ impl MutationChainConfig {
         // If effectively only one mutation config, you should be able to provide a specific
         // output file instead of an output root path
         if mutation_chains.len() == 1 {
-            // Read the event log
+            // Read the event log. Since there is only one mutation chain, we can
+            // mutate the event log directly
             let mut log =
                 import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())
                     .unwrap();
 
             let mut output_path = self.output.clone();
             if !output_path.ends_with(".xes") && !output_path.ends_with(".xes.gz") {
-                output_path.push("mutated_log.xes");
+                output_path.push(format!(
+                    "mutated_{}",
+                    self.input.file_name().unwrap().to_str().unwrap()
+                ));
             }
             let mut mutation_chain = mutation_chains.pop().unwrap();
             mutation_chain.apply_mut(&mut log);
@@ -71,7 +86,6 @@ impl MutationChainConfig {
                 let log =
                     import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())
                         .unwrap();
-
                 // Path creation
                 let mut path = self.output.clone();
                 mutation_chain
@@ -94,16 +108,6 @@ impl MutationChainConfig {
 
         Ok(())
     }
-}
-
-pub fn parse_toml(path: &PathBuf) -> Result<MutationChainConfig, CliError> {
-    let contents = read_to_string(path).unwrap();
-    let res = parse_toml_string(&contents);
-    Ok(res)
-}
-
-pub fn parse_toml_string(content: &str) -> MutationChainConfig {
-    from_str(content).expect("Invalid TOML format")
 }
 
 #[cfg(test)]
@@ -139,7 +143,7 @@ probability = 0.5
 
     #[test]
     fn config_params_parsed_correctly() {
-        let res = parse_toml_string(TOML_CONTENT);
+        let res = MutationChainConfig::parse_toml_str(TOML_CONTENT);
 
         assert_eq!(res.input, PathBuf::from_str("input_log.xes.gz").unwrap());
         assert_eq!(res.output, PathBuf::from_str("output.xes.gz").unwrap());
@@ -168,6 +172,6 @@ probability = 0.5
 
     #[rstest]
     fn minimal_example_parses(mininmal_toml_example: &str) {
-        let _ = parse_toml_string(mininmal_toml_example);
+        let _ = MutationChainConfig::parse_toml_str(mininmal_toml_example);
     }
 }
