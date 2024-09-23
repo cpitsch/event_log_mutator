@@ -5,7 +5,7 @@ pub mod parametrized_mutation_config;
 pub mod parametrized_pipeline;
 pub mod traits;
 
-use process_mining::{import_xes_file, EventLog, XESImportOptions};
+use process_mining::{import_xes_file, XESImportOptions};
 use serde::Deserialize;
 use toml::from_str;
 
