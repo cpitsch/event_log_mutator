@@ -26,6 +26,28 @@ pub mod utils;
 #[cfg(test)]
 mod test_fixtures;
 
+fn main() {
+    let args = Args::parse();
+    let res = run_cli(args);
+    if let Err(e) = res {
+        println!("There was an error...");
+        Args::command().error(e.kind, e.message).exit();
+    }
+}
+
+fn run_cli(args: Args) -> Result<(), CliError> {
+    if args.pipeline.is_some() {
+        parse_and_execute_pipeline_file(&args)
+    } else if args.input.is_none() {
+        Err(CliError::new(
+            ErrorKind::MissingRequiredArgument,
+            "Either an input file (--input) or a pipeline file (--pipeline) must be provided!",
+        ))
+    } else {
+        run_presets(args)
+    }
+}
+
 pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     let path_to_pipeline = args.pipeline.clone().unwrap();
     if !path_to_pipeline.exists() {
@@ -62,25 +84,7 @@ pub fn overwrite_pipeline_config_with_cli_args(
     config
 }
 
-fn main() {
-    let args = Args::parse();
-    let res = run_cli(args);
-    if let Err(e) = res {
-        println!("There was an error...");
-        Args::command().error(e.kind, e.message).exit();
-    }
-}
-
-fn run_cli(mut args: Args) -> Result<(), CliError> {
-    if args.pipeline.is_some() {
-        return parse_and_execute_pipeline_file(&args);
-    } else if args.input.is_none() {
-        return Err(CliError::new(
-            ErrorKind::MissingRequiredArgument,
-            "Either an input file (--input) or a pipeline file (--pipeline) must be provided!",
-        ));
-    }
-
+fn run_presets(mut args: Args) -> Result<(), CliError> {
     let input = args.input.as_ref().unwrap();
     if args.output.is_none() {
         args.output = Some(get_output_path(input));
@@ -114,14 +118,13 @@ fn run_cli(mut args: Args) -> Result<(), CliError> {
             .extension()
             .map_or(false, |ext| ext == "gz");
 
-        write_xes(&new_log, args.output.unwrap(), should_compress)?
+        write_xes(&new_log, args.output.unwrap(), should_compress)
     } else {
-        return Err(CliError::new(
+        Err(CliError::new(
             ErrorKind::Io,
             "The input file does not exist, or is not a file.",
-        ));
+        ))
     }
-    Ok(())
 }
 
 fn write_xes(log: &EventLog, path: impl AsRef<Path>, compress: bool) -> Result<(), CliError> {
