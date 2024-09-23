@@ -61,13 +61,21 @@ impl ParametrizedPipelineConfig<NotFlat> {
         root_seed: Option<u64>,
         output_root: &Path,
     ) -> Vec<MutationChain> {
-        self.flatten()
-            .into_iter()
-            .map(|flat_pipeline_config| {
-                flat_pipeline_config.into_mutation_chain(root_seed, output_root.to_path_buf())
-            })
-            .collect()
+        flattened_pipeline_configs_to_mutation_chains(self.flatten(), root_seed, output_root)
     }
+}
+
+pub fn flattened_pipeline_configs_to_mutation_chains(
+    pipelines: Vec<ParametrizedPipelineConfig<Flat>>,
+    root_seed: Option<u64>,
+    output_root: &Path,
+) -> Vec<MutationChain> {
+    pipelines
+        .into_iter()
+        .map(|flat_pipeline_config| {
+            flat_pipeline_config.into_mutation_chain(root_seed, output_root.to_path_buf())
+        })
+        .collect()
 }
 
 impl ParametrizedPipelineConfig<Flat> {

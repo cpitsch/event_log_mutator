@@ -68,8 +68,8 @@ pub fn overwrite_pipeline_config_with_cli_args(
         config.input.clone_from(input);
     }
     // If an output dir is explicitly specified, override pipeline config with that
-    if let Some(o) = args.output.clone() {
-        config.output = o;
+    if args.output.is_some() {
+        config.output = args.output.clone();
     }
 
     // If a seed is explicitly specified, override pipeline config with that
