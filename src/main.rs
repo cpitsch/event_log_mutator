@@ -5,14 +5,13 @@ use std::{
 
 use crate::cli::{Args, CliError};
 use clap::{error::ErrorKind, CommandFactory, Parser};
-use mutators::{LogBootstrapper, ServiceTimeMultiplier};
 use process_mining::{
     event_log::export_xes::export_xes_event_log_to_file, import_xes_file, EventLog,
     XESImportOptions,
 };
 
 use crate::{
-    mutation::{LogMutator, MutationChain},
+    mutation::LogMutator,
     parsing::{parse_toml, MutationChainConfig},
 };
 
@@ -145,9 +144,9 @@ fn run_cli(mut args: Args) -> Result<(), CliError> {
         ));
     }
 
-    let input = args.clone().input.unwrap();
+    let input = args.input.as_ref().unwrap();
     if args.output.is_none() {
-        args.output = Some(get_output_path(&input));
+        args.output = Some(get_output_path(input));
     }
 
     if args.no_overwrite && args.output.clone().unwrap().exists() {
@@ -160,36 +159,25 @@ fn run_cli(mut args: Args) -> Result<(), CliError> {
     if input.exists() && input.is_file() {
         let log = import_xes_file(input.to_str().unwrap(), XESImportOptions::default()).unwrap();
 
-        let mut mutation_chain = if let Some(preset) = args.preset {
-            println!("Using preset {:?}", preset);
-            preset.into_mutation_chain(&log, args.clone())
-        } else {
-            let mut chain =
-                MutationChain::new().with_mutation(LogBootstrapper::new(log.traces.len()));
-            if args.mutate {
-                println!("Applying mutations...");
-                chain = chain.with_mutation(
-                    ServiceTimeMultiplier::new(2.0)
-                        .for_activity("W_Completeren aanvraag")
-                        .with_probability(1.0),
-                )
-            }
-            chain
-        };
+        if args.preset.is_none() {
+            return Err(CliError::new(
+                ErrorKind::MissingRequiredArgument,
+                "Either a pipeline (--pipeline) or a preset (--preset) must be provided!",
+            ));
+        }
 
-        let l = mutation_chain.apply(&log);
+        let mut mutation_chain = args.preset.unwrap().into_mutation_chain(&log, args.clone());
+
+        let new_log = mutation_chain.apply(&log);
+
         let should_compress = args
             .output
-            .clone()
+            .as_ref()
             .unwrap()
             .extension()
             .map_or(false, |ext| ext == "gz");
 
-        write_xes(
-            &l,
-            args.output.unwrap().to_string_lossy().to_string(),
-            should_compress,
-        )?
+        write_xes(&new_log, args.output.unwrap(), should_compress)?
     } else {
         return Err(CliError::new(
             ErrorKind::Io,
