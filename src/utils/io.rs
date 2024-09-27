@@ -1,6 +1,6 @@
 use std::{
     fs::{create_dir_all, File},
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use clap::error::ErrorKind;
@@ -29,4 +29,15 @@ pub fn write_xes(log: &EventLog, path: impl AsRef<Path>, compress: bool) -> Resu
         ));
     }
     Ok(())
+}
+
+pub fn build_file_path(base_path: PathBuf, filename: impl Into<String>, compress: bool) -> PathBuf {
+    let mut log_path = base_path;
+    log_path.push(filename.into());
+    if compress {
+        log_path.set_extension("xes.gz");
+    } else {
+        log_path.set_extension("xes");
+    }
+    log_path
 }
