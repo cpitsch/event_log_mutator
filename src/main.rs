@@ -1,16 +1,14 @@
-use std::{
-    fs::{create_dir_all, File},
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
-use crate::cli::{Args, CliError};
 use clap::{error::ErrorKind, CommandFactory, Parser};
-use process_mining::{
-    event_log::export_xes::export_xes_event_log_to_file, import_xes_file, EventLog,
-    XESImportOptions,
-};
+use process_mining::{import_xes_file, XESImportOptions};
+use utils::io::write_xes;
 
-use crate::{mutation::LogMutator, parsing::MutationChainConfig};
+use crate::{
+    cli::{Args, CliError},
+    mutation::LogMutator,
+    parsing::MutationChainConfig,
+};
 
 pub mod cli;
 pub mod constants;
@@ -121,29 +119,6 @@ fn run_presets(mut args: Args) -> Result<(), CliError> {
             "The input file does not exist, or is not a file.",
         ))
     }
-}
-
-fn write_xes(log: &EventLog, path: impl AsRef<Path>, compress: bool) -> Result<(), CliError> {
-    let p: &Path = path.as_ref();
-    let dir_creation_res = p.parent().map(create_dir_all);
-    if dir_creation_res.is_none() || dir_creation_res.unwrap().is_err() {
-        return Err(CliError::new(
-            ErrorKind::Io,
-            format!(
-                "Something went wrong creating the directories on the path {}",
-                p.to_string_lossy()
-            ),
-        ));
-    }
-
-    let save_res = File::create(p).map(|file| export_xes_event_log_to_file(log, file, compress));
-    if save_res.is_err() || save_res.unwrap().is_err() {
-        return Err(CliError::new(
-            ErrorKind::Io,
-            "Something went wrong while saving the file.",
-        ));
-    }
-    Ok(())
 }
 
 fn get_output_path(input_path: &Path) -> PathBuf {
