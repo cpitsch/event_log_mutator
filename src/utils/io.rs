@@ -34,10 +34,17 @@ pub fn write_xes(log: &EventLog, path: impl AsRef<Path>, compress: bool) -> Resu
 pub fn build_file_path(base_path: PathBuf, filename: impl Into<String>, compress: bool) -> PathBuf {
     let mut log_path = base_path;
     log_path.push(filename.into());
-    if compress {
-        log_path.set_extension("xes.gz");
-    } else {
-        log_path.set_extension("xes");
-    }
+    log_path = ensure_correct_file_extension(log_path, compress);
     log_path
+}
+
+pub fn ensure_correct_file_extension(mut path_to_log: PathBuf, compress: bool) -> PathBuf {
+    let extension = if compress { "xes.gz" } else { "xes" };
+    if !path_to_log.to_string_lossy().ends_with(extension) {
+        while path_to_log.extension().is_some() {
+            path_to_log.set_extension("");
+        }
+        path_to_log.set_extension(extension);
+    }
+    path_to_log
 }

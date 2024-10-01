@@ -259,9 +259,7 @@ impl ParametrizedPipelineConfig<Flat> {
                     );
                     *log_saver_index += 1;
 
-                    // TODO: Change the mutator to take PathBuf or impl AsRef<Path> or something
-                    // along those lines (impl Into<PathBuf>)
-                    mutator = mutator.save_discarded(save_path.to_string_lossy().to_string());
+                    mutator = mutator.save_discarded(save_path);
                 }
                 if let Some(c) = save_compressed {
                     mutator = mutator.save_compressed(c.inner_value());

@@ -9,7 +9,7 @@ use process_mining::{import_xes_file, XESImportOptions};
 use serde::Deserialize;
 use toml::from_str;
 
-use crate::{mutation::LogMutator, write_xes, CliError};
+use crate::{mutation::LogMutator, utils::io::ensure_correct_file_extension, write_xes, CliError};
 
 use self::parametrized_pipeline::{
     flattened_pipeline_configs_to_mutation_chains, ParametrizedPipelineConfig,
@@ -78,10 +78,8 @@ impl MutationChainConfig {
                     "mutated_{}",
                     self.input.file_name().unwrap().to_str().unwrap()
                 ));
-            } else if output_path.extension().unwrap() == "xes" && self.compress_output {
-                // Should compress, but no "gz" in extension --> add this
-                output_path.set_extension("xes.gz");
             }
+            output_path = ensure_correct_file_extension(output_path, self.compress_output);
 
             let mut mutation_chain = pipelines.pop().unwrap().into_mutation_chain(
                 self.seed,

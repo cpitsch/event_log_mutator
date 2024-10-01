@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use process_mining::EventLog;
 use rand::{rngs::StdRng, SeedableRng};
 
@@ -7,6 +9,7 @@ use crate::{
     parsing::traits::DirName,
     utils::{
         attributes::{get_traceid, get_traceids},
+        io::ensure_correct_file_extension,
         sampling::sample_log_without_replacement,
     },
     write_xes,
@@ -16,7 +19,7 @@ use crate::{
 pub struct LogSplitter {
     frac: f64,
     #[dirname(ignore)]
-    save_path: Option<String>,
+    save_path: Option<PathBuf>,
     #[dirname(ignore)]
     save_compressed: bool,
     seed: Option<u64>,
@@ -45,8 +48,8 @@ impl LogSplitter {
         self
     }
 
-    pub fn save_discarded(mut self, path: String) -> Self {
-        self.save_path = Some(path);
+    pub fn save_discarded(mut self, path: impl Into<PathBuf>) -> Self {
+        self.save_path = Some(path.into());
         self
     }
 
@@ -67,7 +70,12 @@ impl LogMutator for LogSplitter {
         });
 
         if let Some(path) = self.save_path.clone() {
-            write_xes(&discarded_log, path, self.save_compressed).unwrap();
+            write_xes(
+                &discarded_log,
+                ensure_correct_file_extension(path, self.save_compressed),
+                self.save_compressed,
+            )
+            .unwrap();
         }
     }
 }
