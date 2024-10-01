@@ -10,6 +10,7 @@ pub mod service_time_adder;
 pub mod service_time_multiplier;
 pub mod service_time_std_shifter;
 
+pub mod aux_mutators;
 pub mod filters;
 
 pub use activity_remover::ActivityRemover;

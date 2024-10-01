@@ -9,7 +9,7 @@ use process_mining::{import_xes_file, XESImportOptions};
 use serde::Deserialize;
 use toml::from_str;
 
-use crate::{mutation::LogMutator, write_xes, CliError};
+use crate::{mutation::LogMutator, utils::io::ensure_correct_file_extension, write_xes, CliError};
 
 use self::parametrized_pipeline::{
     flattened_pipeline_configs_to_mutation_chains, ParametrizedPipelineConfig,
@@ -78,15 +78,15 @@ impl MutationChainConfig {
                     "mutated_{}",
                     self.input.file_name().unwrap().to_str().unwrap()
                 ));
-            } else if output_path.extension().unwrap() == "xes" && self.compress_output {
-                // Should compress, but no "gz" in extension --> add this
-                output_path.set_extension("xes.gz");
             }
+            output_path = ensure_correct_file_extension(output_path, self.compress_output);
 
-            let mut mutation_chain = pipelines
-                .pop()
-                .unwrap()
-                .into_mutation_chain(self.seed, output_path.clone());
+            let mut mutation_chain = pipelines.pop().unwrap().into_mutation_chain(
+                self.seed,
+                output_path.clone(),
+                // Don't save the output implicitly through the MutationChain; Do it here explicitly
+                None,
+            );
             mutation_chain.apply_mut(&mut log);
 
             write_xes(&log, output_path.clone(), self.compress_output)?;
@@ -107,31 +107,16 @@ impl MutationChainConfig {
             let log = import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())
                 .unwrap();
 
-            for mut mutation_chain in
-                flattened_pipeline_configs_to_mutation_chains(pipelines, self.seed, &output_path)
-            {
-                // Path creation
-                let mut local_output_path = output_path.clone();
-                mutation_chain
-                    .mutations
-                    .iter()
-                    .for_each(|mutation| local_output_path.push(mutation.to_dir_name()));
-                local_output_path.push("log.xes");
-                if self.compress_output {
-                    local_output_path.set_extension("xes.gz");
-                }
-
-                // Apply mutations
-                let mutated_log = mutation_chain.apply(&log);
-
-                // Write event log file
-                write_xes(
-                    &mutated_log,
-                    local_output_path.clone(),
-                    self.compress_output,
-                )?;
-                println!("Wrote event log: {}", local_output_path.to_string_lossy());
-            }
+            flattened_pipeline_configs_to_mutation_chains(
+                pipelines,
+                self.seed,
+                &output_path,
+                Some(self.compress_output),
+            )
+            .into_iter()
+            .for_each(|mut mutation_chain| {
+                mutation_chain.apply(&log);
+            });
         }
 
         Ok(())
