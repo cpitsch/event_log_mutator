@@ -43,9 +43,9 @@ impl LogBootstrapper {
 impl LogMutator for LogBootstrapper {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         if self.replacement {
-            sample_log_with_replacement_mut(&mut self.rng, log, self.size);
+            sample_log_with_replacement_mut(&mut self.rng, log, self.size)?;
         } else {
-            sample_log_without_replacement_mut(&mut self.rng, log, self.size);
+            sample_log_without_replacement_mut(&mut self.rng, log, self.size)?;
         }
         Ok(())
     }

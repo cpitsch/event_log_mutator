@@ -16,6 +16,8 @@ pub enum MutationError {
     MissingAttributeError(&'static str, MissingAttributeError),
     #[error(transparent)]
     IoError(#[from] IoError),
+    #[error("Invalid Value: {0}")]
+    InvalidValue(&'static str),
 }
 
 pub type MutationResult<T> = Result<T, MutationError>;

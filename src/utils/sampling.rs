@@ -4,33 +4,49 @@ use process_mining::{event_log::AttributeValue, EventLog};
 use rand::{rngs::StdRng, seq::SliceRandom};
 
 use crate::{
-    constants::NO_TRACEID_MSG,
+    mutation::{MutationError, MutationResult},
     utils::attributes::{get_traceid, set_traceid},
 };
 
-pub fn sample_log_without_replacement(rng: &mut StdRng, log: &EventLog, size: usize) -> EventLog {
+use super::attributes::AttributeResult;
+
+pub fn sample_log_without_replacement(
+    rng: &mut StdRng,
+    log: &EventLog,
+    size: usize,
+) -> MutationResult<EventLog> {
     if size > log.traces.len() {
-        panic!("Cannot sample without replacement with a size larger than the event log");
+        return Err(MutationError::InvalidValue(
+            "Cannot sample without replacement with a size larger than the event log",
+        ));
     }
 
     let mut new_log = log.clone();
 
     new_log.traces = log.traces.choose_multiple(rng, size).cloned().collect();
-    new_log
+    Ok(new_log)
 }
 
-pub fn sample_log_without_replacement_mut(rng: &mut StdRng, log: &mut EventLog, size: usize) {
+pub fn sample_log_without_replacement_mut(
+    rng: &mut StdRng,
+    log: &mut EventLog,
+    size: usize,
+) -> MutationResult<()> {
     if size > log.traces.len() {
-        panic!("Cannot sample without replacement with a size larger than the event log");
+        return Err(MutationError::InvalidValue(
+            "Cannot sample without replacement with a size larger than the event log",
+        ));
     }
 
     let retain_traceids: HashSet<String> = log
         .traces
         .choose_multiple(rng, size)
-        .map(|trace| get_traceid(trace).expect(NO_TRACEID_MSG))
-        .collect();
+        .map(get_traceid)
+        .collect::<AttributeResult<_>>()
+        .map_err(|e| MutationError::MissingAttributeError("SampleWithoutReplacement", e))?;
     log.traces
-        .retain(|trace| retain_traceids.contains(&get_traceid(trace).expect(NO_TRACEID_MSG)));
+        .retain(|trace| retain_traceids.contains(&get_traceid(trace).unwrap()));
+    Ok(())
 }
 
 pub fn sample_log_with_replacement(rng: &mut StdRng, log: &EventLog, size: usize) -> EventLog {
@@ -53,16 +69,23 @@ pub fn sample_log_with_replacement(rng: &mut StdRng, log: &EventLog, size: usize
     new_log
 }
 
-pub fn sample_log_with_replacement_mut(rng: &mut StdRng, log: &mut EventLog, size: usize) {
+pub fn sample_log_with_replacement_mut(
+    rng: &mut StdRng,
+    log: &mut EventLog,
+    size: usize,
+) -> MutationResult<()> {
+    if log.traces.is_empty() {
+        return Err(MutationError::InvalidValue(
+            "Cannot sample from an empty event log",
+        ));
+    }
     log.traces = (0..size)
         .map(|traceid| {
-            let mut trace = log
-                .traces
-                .choose(rng)
-                .expect("Cannot sample from an empty event log")
-                .clone();
+            let mut trace = log.traces.choose(rng).unwrap().clone();
             set_traceid(&mut trace, AttributeValue::String(traceid.to_string()));
             trace
         })
         .collect();
+
+    Ok(())
 }
