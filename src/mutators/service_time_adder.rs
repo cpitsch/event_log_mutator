@@ -3,8 +3,7 @@ use process_mining::event_log::{Event, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
-    constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG},
-    mutation::TraceMutator,
+    mutation::{MutationError, MutationResult, TraceMutator},
     parsing::traits::DirName,
     utils::attributes::{change_event_duration, get_activity_label, get_complete_timestamp},
 };
@@ -42,16 +41,17 @@ impl ServiceTimeAdder {
         }
     }
 
-    fn should_mutate(&mut self, event: &Event) -> bool {
-        (
+    fn should_mutate(&mut self, event: &Event) -> MutationResult<bool> {
+        let activity = get_activity_label(event)
+            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeAdder", e))?;
+        let should_mutate = (
             // Check that the event matches the requirements
-            self.activity.clone().map_or(true, |act| {
-                get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG) == act
-            })
+            self.activity.clone().map_or(true, |act| activity == act)
         ) && (
             // Check mutation probability
             self.rng.gen::<f32>() < self.probability
-        )
+        );
+        Ok(should_mutate)
     }
 
     pub fn for_activity(mut self, activity: impl Into<String>) -> Self {
@@ -72,17 +72,18 @@ impl ServiceTimeAdder {
 }
 
 impl TraceMutator for ServiceTimeAdder {
-    fn apply_mut(&mut self, trace: &mut Trace) {
+    fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
         for i in 0..trace.events.len() {
             let event = trace.events.get_mut(i).unwrap();
-            if self.should_mutate(event) {
+            if self.should_mutate(event)? {
                 let new_complete_timestamp = get_complete_timestamp(event)
-                    .expect(NO_COMPLETE_TIMESTAMP_MSG)
+                    .map_err(|e| MutationError::MissingAttributeError("ServiceTimeAdder", e))?
                     + self.timedelta;
 
-                change_event_duration(trace, i, new_complete_timestamp);
+                change_event_duration(trace, i, new_complete_timestamp).unwrap();
             }
         }
+        Ok(())
     }
 }
 
@@ -102,14 +103,17 @@ mod tests {
     fn does_not_affect_control_flow(abcd_trace: Trace) {
         let new_trace = ServiceTimeAdder::new(TimeDelta::days(1))
             .for_activity("a")
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert_eq!(get_control_flow(&abcd_trace), get_control_flow(&new_trace));
     }
 
     #[rstest]
     fn default_affects_all_activities(abcd_trace: Trace) {
-        let new_trace = ServiceTimeAdder::new(TimeDelta::days(1)).apply(&abcd_trace);
+        let new_trace = ServiceTimeAdder::new(TimeDelta::days(1))
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert!(abcd_trace
             .events
@@ -122,7 +126,8 @@ mod tests {
     fn only_affects_for_activity(abcd_trace: Trace) {
         let new_trace = ServiceTimeAdder::new(TimeDelta::days(1))
             .for_activity("a")
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert!(abcd_trace
             .events
@@ -145,7 +150,8 @@ mod tests {
     fn zero_probability_does_nothing(abcd_trace: Trace) {
         let new_trace = ServiceTimeAdder::new(TimeDelta::days(1))
             .with_probability(0.0)
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert!(abcd_trace
             .events
@@ -170,6 +176,7 @@ mod tests {
             .for_activity("a")
             .with_probability(1.0)
             .apply(&abcd_trace)
+            .unwrap()
             .events
             .iter()
             .map(|event| get_service_time(event).unwrap())
@@ -195,13 +202,15 @@ mod tests {
             .for_activity("a")
             .with_probability(0.5)
             .with_seed(42)
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         let new_trace_2 = ServiceTimeAdder::new(increment)
             .for_activity("a")
             .with_probability(0.5)
             .with_seed(42)
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         let trace_1_service_times: Vec<_> = new_trace_1
             .events

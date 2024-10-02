@@ -2,7 +2,11 @@ use std::path::PathBuf;
 
 use process_mining::EventLog;
 
-use crate::{mutation::LogMutator, parsing::traits::DirName, utils::io::write_xes};
+use crate::{
+    mutation::{LogMutator, MutationResult},
+    parsing::traits::DirName,
+    utils::io::write_xes,
+};
 
 #[derive(DirName)]
 pub struct LogSaver {
@@ -18,7 +22,8 @@ impl LogSaver {
 }
 
 impl LogMutator for LogSaver {
-    fn apply_mut(&mut self, log: &mut EventLog) {
-        write_xes(log, self.path.as_path(), self.compress).unwrap()
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
+        write_xes(log, self.path.as_path(), self.compress)?;
+        Ok(())
     }
 }

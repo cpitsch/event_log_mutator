@@ -2,8 +2,9 @@ use process_mining::event_log::{Event, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
-    constants::NO_ACTIVITY_LABEL_MSG, mutation::TraceMutator, parsing::traits::DirName,
-    utils::attributes::get_activity_label,
+    mutation::{MutationError, MutationResult, TraceMutator},
+    parsing::traits::DirName,
+    utils::{attributes::get_activity_label, errors::retain_err},
 };
 
 /// Mutator to remove events that have the given activity label.
@@ -33,9 +34,10 @@ impl ActivityRemover {
         }
     }
 
-    fn should_remove(&mut self, event: &Event) -> bool {
-        get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG) == self.activity
-            && self.rng.gen::<f32>() < self.probability
+    fn should_remove(&mut self, event: &Event) -> MutationResult<bool> {
+        let activity = get_activity_label(event)
+            .map_err(|e| MutationError::MissingAttributeError("ActivityRemover", e))?;
+        Ok(activity == self.activity && self.rng.gen::<f32>() < self.probability)
     }
 
     pub fn with_probability(mut self, probability: f32) -> Self {
@@ -51,8 +53,11 @@ impl ActivityRemover {
 }
 
 impl TraceMutator for ActivityRemover {
-    fn apply_mut(&mut self, trace: &mut Trace) {
-        trace.events.retain(|evt| !self.should_remove(evt));
+    fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
+        retain_err(&mut trace.events, |event| {
+            self.should_remove(event).map(|x| !x)
+        })?;
+        Ok(())
     }
 }
 
@@ -68,7 +73,9 @@ mod tests {
     #[case::remove_c("c")]
     #[case::remove_d("d")]
     fn activity_removes_rest_remains(abcd_trace: Trace, #[case] activity: String) {
-        let new_trace = ActivityRemover::new(activity.clone()).apply(&abcd_trace);
+        let new_trace = ActivityRemover::new(activity.clone())
+            .apply(&abcd_trace)
+            .unwrap();
 
         let all_activities: Vec<_> = new_trace
             .events
@@ -95,11 +102,13 @@ mod tests {
             let new_trace_1 = ActivityRemover::new("b")
                 .with_probability(0.5)
                 .with_seed(42)
-                .apply(&abcd_trace);
+                .apply(&abcd_trace)
+                .unwrap();
             let new_trace_2 = ActivityRemover::new("b")
                 .with_probability(0.5)
                 .with_seed(42)
-                .apply(&abcd_trace);
+                .apply(&abcd_trace)
+                .unwrap();
 
             assert_eq!(
                 get_control_flow(&new_trace_1),

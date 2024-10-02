@@ -2,7 +2,7 @@ use process_mining::EventLog;
 use rand::{rngs::StdRng, SeedableRng};
 
 use crate::{
-    mutation::LogMutator,
+    mutation::{LogMutator, MutationResult},
     parsing::traits::DirName,
     utils::sampling::{sample_log_with_replacement_mut, sample_log_without_replacement_mut},
 };
@@ -41,12 +41,13 @@ impl LogBootstrapper {
 }
 
 impl LogMutator for LogBootstrapper {
-    fn apply_mut(&mut self, log: &mut EventLog) {
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         if self.replacement {
             sample_log_with_replacement_mut(&mut self.rng, log, self.size);
         } else {
             sample_log_without_replacement_mut(&mut self.rng, log, self.size);
         }
+        Ok(())
     }
 }
 
@@ -80,19 +81,21 @@ mod tests {
     fn sample_without_replacement_fails_with_large_size(abcd_log: EventLog) {
         LogBootstrapper::new(5)
             .with_replacement(false)
-            .apply(&abcd_log);
+            .apply(&abcd_log)
+            .unwrap();
     }
 
     #[rstest]
     fn sample_without_replacement_has_no_duplicates(abcd_log: EventLog) {
-        let trace_ids = get_traceids(&abcd_log);
+        let trace_ids = get_traceids(&abcd_log).unwrap();
         //
         // Do it a couple of times to make (more) sure that we aren't getting lucky
         for _ in 1..10 {
             let mutated_log = LogBootstrapper::new(4)
                 .with_replacement(false)
-                .apply(&abcd_log);
-            let new_traceids = get_traceids(&mutated_log);
+                .apply(&abcd_log)
+                .unwrap();
+            let new_traceids = get_traceids(&mutated_log).unwrap();
 
             assert_eq!(trace_ids, new_traceids);
         }
@@ -106,9 +109,10 @@ mod tests {
         for _ in 1..10 {
             let mutated_log = LogBootstrapper::new(1)
                 .with_replacement(false)
-                .apply(&abcd_log);
+                .apply(&abcd_log)
+                .unwrap();
             seen_trace_ids = seen_trace_ids
-                .union(&get_traceids(&mutated_log))
+                .union(&get_traceids(&mutated_log).unwrap())
                 .cloned()
                 .collect();
         }
@@ -130,7 +134,8 @@ mod tests {
         // Don't explicitly specify the
         let mutated_log = LogBootstrapper::new(1000)
             .with_replacement(true)
-            .apply(&abcd_log);
+            .apply(&abcd_log)
+            .unwrap();
 
         let mut traceids: Vec<String> = mutated_log
             .traces
@@ -164,11 +169,13 @@ mod tests {
         let new_log_1 = LogBootstrapper::new(1000)
             .with_replacement(true)
             .with_seed(42)
-            .apply(&abcd_log);
+            .apply(&abcd_log)
+            .unwrap();
         let new_log_2 = LogBootstrapper::new(1000)
             .with_replacement(true)
             .with_seed(42)
-            .apply(&abcd_log);
+            .apply(&abcd_log)
+            .unwrap();
 
         let log_1_caseids: Vec<_> = new_log_1
             .traces

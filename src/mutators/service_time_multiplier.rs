@@ -3,8 +3,7 @@ use process_mining::event_log::{Event, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
-    constants::{NO_ACTIVITY_LABEL_MSG, NO_START_TIMESTAMP_MSG},
-    mutation::TraceMutator,
+    mutation::{MutationError, MutationResult, TraceMutator},
     parsing::traits::DirName,
     utils::attributes::{
         change_event_duration, get_activity_label, get_service_time, get_start_timestamp,
@@ -43,16 +42,17 @@ impl ServiceTimeMultiplier {
         }
     }
 
-    fn should_mutate(&mut self, event: &Event) -> bool {
-        (
+    fn should_mutate(&mut self, event: &Event) -> MutationResult<bool> {
+        let activity = get_activity_label(event)
+            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeMultiplier", e))?;
+        let should_mutate = (
             // Check that the event matches the requirements
-            self.activity.clone().map_or(true, |act| {
-                get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG) == act
-            })
+            self.activity.clone().map_or(true, |act| activity == act)
         ) && (
             // Check mutation probability
             self.rng.gen::<f32>() < self.probability
-        )
+        );
+        Ok(should_mutate)
     }
 
     pub fn for_activity(mut self, activity: impl Into<String>) -> Self {
@@ -91,20 +91,26 @@ fn multiply_timedelta_by_float(timedelta: TimeDelta, factor: &f32) -> TimeDelta 
 }
 
 impl TraceMutator for ServiceTimeMultiplier {
-    fn apply_mut(&mut self, trace: &mut Trace) {
+    fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
         for i in 0..trace.events.len() {
             let event = trace.events.get_mut(i).unwrap();
-            if self.should_mutate(event) {
-                let start_timestamp = get_start_timestamp(event).expect(NO_START_TIMESTAMP_MSG);
-                let service_time = get_service_time(event).expect(NO_START_TIMESTAMP_MSG);
+            if self.should_mutate(event)? {
+                let start_timestamp = get_start_timestamp(event).map_err(|e| {
+                    MutationError::MissingAttributeError("ServiceTimeMultiplier", e)
+                })?;
+                let service_time = get_service_time(event).map_err(|e| {
+                    MutationError::MissingAttributeError("ServiceTimeMultiplier", e)
+                })?;
                 let new_service_time = multiply_timedelta_by_float(service_time, &self.factor);
                 change_event_duration(
                     trace,
                     i,
                     (start_timestamp + new_service_time).round_subsecs(6),
-                );
+                )
+                .unwrap();
             }
         }
+        Ok(())
     }
 }
 
@@ -140,14 +146,17 @@ mod tests {
     fn does_not_affect_control_flow(abcd_trace: Trace) {
         let new_trace = ServiceTimeMultiplier::new(100.0)
             .for_activity("a")
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert_eq!(get_control_flow(&abcd_trace), get_control_flow(&new_trace));
     }
 
     #[rstest]
     fn default_affects_all_activities(abcd_trace: Trace) {
-        let new_trace = ServiceTimeMultiplier::new(100.0).apply(&abcd_trace);
+        let new_trace = ServiceTimeMultiplier::new(100.0)
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert!(abcd_trace
             .events
@@ -160,7 +169,8 @@ mod tests {
     fn only_affects_for_activity(abcd_trace: Trace) {
         let new_trace = ServiceTimeMultiplier::new(100.0)
             .for_activity("a")
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert!(abcd_trace
             .events
@@ -183,7 +193,8 @@ mod tests {
     fn zero_probability_does_nothing(abcd_trace: Trace) {
         let new_trace = ServiceTimeMultiplier::new(100.0)
             .with_probability(0.0)
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert!(abcd_trace
             .events
@@ -213,6 +224,7 @@ mod tests {
             .for_activity("a")
             .with_probability(1.0)
             .apply(&abcd_trace)
+            .unwrap()
             .events
             .iter()
             .map(|event| get_service_time(event).unwrap())
@@ -247,13 +259,15 @@ mod tests {
             .for_activity("a")
             .with_probability(0.5)
             .with_seed(42)
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         let new_trace_2 = ServiceTimeMultiplier::new(2.0)
             .for_activity("a")
             .with_probability(0.5)
             .with_seed(42)
-            .apply(&abcd_trace);
+            .apply(&abcd_trace)
+            .unwrap();
 
         let trace_1_service_times: Vec<_> = new_trace_1
             .events

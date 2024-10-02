@@ -2,39 +2,54 @@ use process_mining::{
     event_log::{Event, Trace},
     EventLog,
 };
+use thiserror::Error;
 
-use crate::parsing::traits::DirName;
+use crate::{
+    parsing::traits::DirName,
+    utils::{attributes::MissingAttributeError, io::IoError},
+};
+
+#[derive(Error, Debug)]
+pub enum MutationError {
+    // #[error("The {}-level attribute {} isn't present. Required by mutator {}", .1.level, .1.key, .0)]
+    #[error("[{0}] Missing the {}-level attribute \"{}\".", .1.level, .1.key)]
+    MissingAttributeError(&'static str, MissingAttributeError),
+    #[error(transparent)]
+    IoError(#[from] IoError),
+}
+
+pub type MutationResult<T> = Result<T, MutationError>;
 
 pub trait EventMutator {
     /// Apply the mutation to a given event.
-    fn apply_mut(&mut self, evt: &mut Event);
+    fn apply_mut(&mut self, evt: &mut Event) -> MutationResult<()>;
 
-    fn apply(&mut self, evt: &Event) -> Event {
+    fn apply(&mut self, evt: &Event) -> MutationResult<Event> {
         let mut new_event = evt.clone();
-        self.apply_mut(&mut new_event);
-        new_event
+        self.apply_mut(&mut new_event)?;
+        Ok(new_event)
     }
 }
 
 pub trait TraceMutator {
     /// Apply the mutation to a given trace.
-    fn apply_mut(&mut self, trace: &mut Trace);
+    fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()>;
 
-    fn apply(&mut self, trace: &Trace) -> Trace {
+    fn apply(&mut self, trace: &Trace) -> MutationResult<Trace> {
         let mut new_trace = trace.clone();
-        self.apply_mut(&mut new_trace);
-        new_trace
+        self.apply_mut(&mut new_trace)?;
+        Ok(new_trace)
     }
 }
 
 pub trait LogMutator {
     /// Apply the mutation to an entire Event Log.
-    fn apply_mut(&mut self, log: &mut EventLog);
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()>;
 
-    fn apply(&mut self, log: &EventLog) -> EventLog {
+    fn apply(&mut self, log: &EventLog) -> MutationResult<EventLog> {
         let mut new_log = log.clone();
-        self.apply_mut(&mut new_log);
-        new_log
+        self.apply_mut(&mut new_log)?;
+        Ok(new_log)
     }
 }
 
@@ -42,11 +57,11 @@ impl<T> TraceMutator for T
 where
     T: EventMutator,
 {
-    fn apply_mut(&mut self, trace: &mut Trace) {
-        trace
-            .events
-            .iter_mut()
-            .for_each(|event| self.apply_mut(event));
+    fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
+        for event in trace.events.iter_mut() {
+            self.apply_mut(event)?;
+        }
+        Ok(())
     }
 }
 
@@ -54,10 +69,11 @@ impl<T> LogMutator for T
 where
     T: TraceMutator,
 {
-    fn apply_mut(&mut self, log: &mut EventLog) {
-        log.traces
-            .iter_mut()
-            .for_each(|trace| self.apply_mut(trace));
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
+        for trace in log.traces.iter_mut() {
+            self.apply_mut(trace)?;
+        }
+        Ok(())
     }
 }
 
@@ -83,9 +99,10 @@ impl MutationChain {
 }
 
 impl LogMutator for MutationChain {
-    fn apply_mut(&mut self, log: &mut EventLog) {
-        self.mutations.iter_mut().for_each(|mutation| {
-            mutation.apply_mut(log);
-        });
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
+        for mutation in self.mutations.iter_mut() {
+            mutation.apply_mut(log)?;
+        }
+        Ok(())
     }
 }

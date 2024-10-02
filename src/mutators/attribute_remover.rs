@@ -1,4 +1,7 @@
-use crate::{mutation::EventMutator, parsing::traits::DirName};
+use crate::{
+    mutation::{EventMutator, MutationResult},
+    parsing::traits::DirName,
+};
 use process_mining::event_log::Event;
 
 /// A Mutation to remove an attribute key from all events.
@@ -16,8 +19,9 @@ impl AttributeRemover {
 }
 
 impl EventMutator for AttributeRemover {
-    fn apply_mut(&mut self, evt: &mut Event) {
+    fn apply_mut(&mut self, evt: &mut Event) -> MutationResult<()> {
         evt.attributes.retain(|attr| attr.key != self.key);
+        Ok(())
     }
 }
 
@@ -43,7 +47,7 @@ mod tests {
         ]);
         remaining_keys.retain(|k| k != &key);
 
-        let new_trace = AttributeRemover::new(key).apply(&abcd_trace);
+        let new_trace = AttributeRemover::new(key).apply(&abcd_trace).unwrap();
 
         // All events have the appropriate key removed
         new_trace.events.iter().for_each(|evt| {

@@ -3,12 +3,11 @@ use process_mining::event_log::{AttributeValue, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
-    constants::NO_START_TIMESTAMP_MSG,
-    mutation::TraceMutator,
+    mutation::{MutationError, MutationResult, TraceMutator},
     parsing::traits::DirName,
     utils::attributes::{
         get_activity_label, get_service_time, get_start_timestamp, set_complete_timestamp,
-        set_start_timestamp,
+        set_start_timestamp, AttributeResult,
     },
 };
 
@@ -62,59 +61,62 @@ impl EventSwapper {
 }
 
 impl TraceMutator for EventSwapper {
-    fn apply_mut(&mut self, trace: &mut Trace) {
+    fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
         // Get all indices of activity 1 and 2
-        let act_1_indices = trace
+        let activities: Vec<String> = trace
             .events
             .iter()
-            .positions(|evt| get_activity_label(evt) == Some(self.activity_1.clone()))
-            .collect_vec();
-        let act_2_indices = trace
-            .events
+            .map(get_activity_label)
+            .collect::<AttributeResult<Vec<_>>>()
+            .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
+        let act_1_indices = activities
             .iter()
-            .positions(|evt| get_activity_label(evt) == Some(self.activity_2.clone()))
+            .positions(|act| *act == self.activity_1)
             .collect_vec();
 
-        act_1_indices
-            .iter()
-            .zip(act_2_indices.iter())
-            .for_each(|(idx_1, idx_2)| {
-                if self.should_mutate() {
-                    // Swap their start_timestamp, and update their complete timestamp
-                    // based on their service time
-                    let event_1_start = get_start_timestamp(trace.events.get(*idx_1).unwrap())
-                        .expect(NO_START_TIMESTAMP_MSG);
-                    let event_2_start = get_start_timestamp(trace.events.get(*idx_2).unwrap())
-                        .expect(NO_START_TIMESTAMP_MSG);
+        let act_2_indices = activities
+            .into_iter()
+            .positions(|act| act == self.activity_2)
+            .collect_vec();
 
-                    let evt_1_service_time =
-                        get_service_time(trace.events.get(*idx_1).unwrap()).unwrap();
-                    let evt_2_service_time =
-                        get_service_time(trace.events.get(*idx_2).unwrap()).unwrap();
+        for (idx_1, idx_2) in act_1_indices.iter().zip(act_2_indices.iter()) {
+            if self.should_mutate() {
+                // Swap their start_timestamp, and update their complete timestamp
+                // based on their service time
+                let event_1_start = get_start_timestamp(trace.events.get(*idx_1).unwrap())
+                    .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
+                let event_2_start = get_start_timestamp(trace.events.get(*idx_2).unwrap())
+                    .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
 
-                    // Swap start timestamps
-                    set_start_timestamp(
-                        trace.events.get_mut(*idx_1).unwrap(),
-                        AttributeValue::Date(event_2_start),
-                    );
-                    set_start_timestamp(
-                        trace.events.get_mut(*idx_2).unwrap(),
-                        AttributeValue::Date(event_1_start),
-                    );
-                    // Update complete timestamps to match old service time
-                    set_complete_timestamp(
-                        trace.events.get_mut(*idx_1).unwrap(),
-                        AttributeValue::Date(event_2_start + evt_1_service_time),
-                    );
-                    set_complete_timestamp(
-                        trace.events.get_mut(*idx_2).unwrap(),
-                        AttributeValue::Date(event_1_start + evt_2_service_time),
-                    );
+                let evt_1_service_time = get_service_time(trace.events.get(*idx_1).unwrap())
+                    .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
+                let evt_2_service_time = get_service_time(trace.events.get(*idx_2).unwrap())
+                    .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
 
-                    // Swap them in the trace events vec
-                    trace.events.swap(*idx_1, *idx_2);
-                }
-            });
+                // Swap start timestamps
+                set_start_timestamp(
+                    trace.events.get_mut(*idx_1).unwrap(),
+                    AttributeValue::Date(event_2_start),
+                );
+                set_start_timestamp(
+                    trace.events.get_mut(*idx_2).unwrap(),
+                    AttributeValue::Date(event_1_start),
+                );
+                // Update complete timestamps to match old service time
+                set_complete_timestamp(
+                    trace.events.get_mut(*idx_1).unwrap(),
+                    AttributeValue::Date(event_2_start + evt_1_service_time),
+                );
+                set_complete_timestamp(
+                    trace.events.get_mut(*idx_2).unwrap(),
+                    AttributeValue::Date(event_1_start + evt_2_service_time),
+                );
+
+                // Swap them in the trace events vec
+                trace.events.swap(*idx_1, *idx_2);
+            }
+        }
+        Ok(())
     }
 }
 
@@ -139,7 +141,9 @@ mod tests {
         #[case] activity_2: String,
         #[case] expected: String,
     ) {
-        let new_trace = EventSwapper::new(activity_1, activity_2).apply(&abcd_trace);
+        let new_trace = EventSwapper::new(activity_1, activity_2)
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert_eq!(
             expected,
@@ -168,11 +172,13 @@ mod tests {
             let new_trace_1 = EventSwapper::new("b", "c")
                 .with_probability(0.5)
                 .with_seed(42)
-                .apply(&abcd_trace);
+                .apply(&abcd_trace)
+                .unwrap();
             let new_trace_2 = EventSwapper::new("b", "c")
                 .with_probability(0.5)
                 .with_seed(42)
-                .apply(&abcd_trace);
+                .apply(&abcd_trace)
+                .unwrap();
 
             assert_eq!(
                 get_control_flow(&new_trace_1),

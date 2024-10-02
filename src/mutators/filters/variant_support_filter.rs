@@ -2,7 +2,9 @@ use itertools::Itertools;
 use process_mining::{event_log::Trace, EventLog};
 
 use crate::{
-    mutation::LogMutator, parsing::traits::DirName, utils::attributes::get_activity_label,
+    mutation::{LogMutator, MutationError, MutationResult},
+    parsing::traits::DirName,
+    utils::attributes::{get_activity_label, AttributeResult},
 };
 
 /// Mutation to retain only the cases whose variant (projection on the executed
@@ -24,21 +26,29 @@ impl VariantSupportFilter {
 }
 
 impl LogMutator for VariantSupportFilter {
-    fn apply_mut(&mut self, log: &mut EventLog) {
-        let variant_counts = log.traces.iter().map(get_variant).counts();
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
+        let variants = log
+            .traces
+            .iter()
+            .map(get_variant)
+            .collect::<MutationResult<Vec<_>>>()?;
+        let variant_counts = variants.iter().counts();
 
-        log.traces.retain(|trace| {
-            let variant = get_variant(trace);
-            let count = variant_counts.get(&variant).unwrap_or(&0);
-            *count >= self.num_supporting_cases
+        let mut keep_trace = variants.iter().map(|trace_variant| {
+            *variant_counts.get(trace_variant).unwrap_or(&0) >= self.num_supporting_cases
         });
+
+        log.traces.retain(|_| keep_trace.next().unwrap());
+
+        Ok(())
     }
 }
 
-fn get_variant(trace: &Trace) -> Vec<String> {
+fn get_variant(trace: &Trace) -> MutationResult<Vec<String>> {
     trace
         .events
         .iter()
-        .map(|evt| get_activity_label(evt).unwrap())
-        .collect()
+        .map(get_activity_label)
+        .collect::<AttributeResult<Vec<_>>>()
+        .map_err(|e| MutationError::MissingAttributeError("VariantSupportFilter", e))
 }

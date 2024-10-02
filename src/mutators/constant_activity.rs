@@ -2,7 +2,9 @@ use process_mining::event_log::{AttributeValue, Event};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
-    mutation::EventMutator, parsing::traits::DirName, utils::attributes::set_activity_label,
+    mutation::{EventMutator, MutationResult},
+    parsing::traits::DirName,
+    utils::attributes::set_activity_label,
 };
 
 /// Replace the activity label of all events with a constant one.
@@ -49,10 +51,11 @@ impl ConstantActivityMutator {
 }
 
 impl EventMutator for ConstantActivityMutator {
-    fn apply_mut(&mut self, evt: &mut Event) {
+    fn apply_mut(&mut self, evt: &mut Event) -> MutationResult<()> {
         if self.should_mutate() {
             set_activity_label(evt, AttributeValue::String(self.activity.clone()));
         }
+        Ok(())
     }
 }
 
@@ -69,7 +72,9 @@ mod tests {
 
     #[rstest]
     fn all_events_rename(abcd_trace: Trace) {
-        let new_trace = ConstantActivityMutator::new("NEW_ACTIVITY".to_string()).apply(&abcd_trace);
+        let new_trace = ConstantActivityMutator::new("NEW_ACTIVITY".to_string())
+            .apply(&abcd_trace)
+            .unwrap();
 
         assert!(new_trace
             .events
@@ -83,11 +88,13 @@ mod tests {
             let new_trace_1 = ConstantActivityMutator::new("New Activity")
                 .with_probability(0.5)
                 .with_seed(42)
-                .apply(&abcd_trace);
+                .apply(&abcd_trace)
+                .unwrap();
             let new_trace_2 = ConstantActivityMutator::new("New Activity")
                 .with_probability(0.5)
                 .with_seed(42)
-                .apply(&abcd_trace);
+                .apply(&abcd_trace)
+                .unwrap();
 
             assert_eq!(
                 get_control_flow(&new_trace_1),

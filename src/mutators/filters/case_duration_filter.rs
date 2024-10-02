@@ -4,8 +4,12 @@ use process_mining::{event_log::Trace, EventLog};
 use serde::Deserialize;
 
 use crate::{
-    constants::NO_COMPLETE_TIMESTAMP_MSG, mutation::LogMutator, parsing::traits::DirName,
-    utils::attributes::get_complete_timestamp,
+    mutation::{LogMutator, MutationError, MutationResult},
+    parsing::traits::DirName,
+    utils::{
+        attributes::{get_complete_timestamp, AttributeResult},
+        errors::retain_err,
+    },
 };
 
 #[derive(Deserialize, Debug, Clone)]
@@ -85,30 +89,26 @@ impl CaseDurationFilter {
         self
     }
 
-    fn keep_trace(&self, trace: &Trace, max_duration: &chrono::TimeDelta) -> bool {
+    fn keep_trace(&self, trace: &Trace, max_duration: &chrono::TimeDelta) -> AttributeResult<bool> {
         // Could theoretically use first() and last(), but I don't know for
         // _certain_ that the trace is ordered correctly
-        let earliest_timestamp = trace
+        let complete_timestamps = trace
             .events
             .iter()
-            .map(|event| get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG))
-            .min()
-            .unwrap();
-        let latest_timestamp = trace
-            .events
-            .iter()
-            .map(|event| get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG))
-            .max()
-            .unwrap();
+            .map(get_complete_timestamp)
+            .collect::<AttributeResult<Vec<_>>>()?;
+
+        let earliest_timestamp = *complete_timestamps.iter().min().unwrap();
+        let latest_timestamp = complete_timestamps.into_iter().max().unwrap();
 
         let duration = latest_timestamp - earliest_timestamp;
 
-        match self.sense {
+        Ok(match self.sense {
             ComparisonSense::Less => duration < *max_duration,
             ComparisonSense::LEQ => duration <= *max_duration,
             ComparisonSense::GEQ => duration >= *max_duration,
             ComparisonSense::Greater => duration > *max_duration,
-        }
+        })
     }
 
     fn get_total_seconds(&self) -> i64 {
@@ -122,9 +122,13 @@ impl CaseDurationFilter {
 }
 
 impl LogMutator for CaseDurationFilter {
-    fn apply_mut(&mut self, log: &mut EventLog) {
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         let max_duration = chrono::TimeDelta::seconds(self.get_total_seconds());
-        log.traces
-            .retain(|trace| self.keep_trace(trace, &max_duration));
+
+        retain_err(&mut log.traces, |trace| {
+            self.keep_trace(trace, &max_duration)
+        })
+        .map_err(|e| MutationError::MissingAttributeError("CaseDurationFilter", e))?;
+        Ok(())
     }
 }

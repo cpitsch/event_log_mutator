@@ -3,30 +3,31 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::error::ErrorKind;
 use process_mining::{event_log::export_xes::export_xes_event_log_to_file, EventLog};
+use thiserror::Error;
 
-use crate::cli::CliError;
+#[derive(Error, Debug)]
+pub enum IoError {
+    #[error("File {0:?} not found")]
+    FileNotFound(PathBuf),
+    #[error("The file {0:?} already exists")]
+    FileExists(PathBuf),
+    #[error("Something went wrong saving the event log {0:?}")]
+    XesWriteError(PathBuf),
+    #[error("Something went wrong creating the directories on the path {0:?}")]
+    DirCreateError(PathBuf),
+}
 
-pub fn write_xes(log: &EventLog, path: impl AsRef<Path>, compress: bool) -> Result<(), CliError> {
+pub fn write_xes(log: &EventLog, path: impl AsRef<Path>, compress: bool) -> Result<(), IoError> {
     let p: &Path = path.as_ref();
     let dir_creation_res = p.parent().map(create_dir_all);
     if dir_creation_res.is_none() || dir_creation_res.unwrap().is_err() {
-        return Err(CliError::new(
-            ErrorKind::Io,
-            format!(
-                "Something went wrong creating the directories on the path {}",
-                p.to_string_lossy()
-            ),
-        ));
+        return Err(IoError::DirCreateError(p.into()));
     }
 
     let save_res = File::create(p).map(|file| export_xes_event_log_to_file(log, file, compress));
     if save_res.is_err() || save_res.unwrap().is_err() {
-        return Err(CliError::new(
-            ErrorKind::Io,
-            "Something went wrong while saving the file.",
-        ));
+        return Err(IoError::XesWriteError(p.into()));
     }
     Ok(())
 }

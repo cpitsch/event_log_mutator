@@ -4,9 +4,12 @@ use itertools::Itertools;
 use process_mining::{event_log::Trace, EventLog};
 
 use crate::{
-    mutation::LogMutator,
+    mutation::{LogMutator, MutationError, MutationResult},
     parsing::traits::DirName,
-    utils::attributes::{get_activities, get_end_activities, get_start_activities},
+    utils::{
+        attributes::{get_activities, get_end_activities, get_start_activities, AttributeResult},
+        errors::retain_err,
+    },
 };
 
 /// Mutation to retain only the cases which start or end with certain activities
@@ -42,25 +45,28 @@ impl EndpointFilter {
         trace: &Trace,
         start_activities: &[String],
         end_activities: &[String],
-    ) -> bool {
+    ) -> AttributeResult<bool> {
         // Searches for all activities with the start timestamp so that even if an
         // event occurs second, but at the same time as the first event, it counts
         // for the filter
-        let trace_start_acts = get_start_activities(trace);
-        let trace_end_acts = get_end_activities(trace);
+        let trace_start_acts = get_start_activities(trace)?;
+        let trace_end_acts = get_end_activities(trace)?;
 
-        start_activities
+        Ok(start_activities
             .iter()
             .any(|item| trace_start_acts.contains(item))
             && end_activities
                 .iter()
-                .any(|item| trace_end_acts.contains(item))
+                .any(|item| trace_end_acts.contains(item)))
     }
 }
 
 impl LogMutator for EndpointFilter {
-    fn apply_mut(&mut self, log: &mut EventLog) {
-        let all_activities: Vec<String> = get_activities(log).into_iter().collect();
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
+        let all_activities: Vec<String> = get_activities(log)
+            .map_err(|e| MutationError::MissingAttributeError("EndpointFilter", e))?
+            .into_iter()
+            .collect();
 
         let start_acts = self
             .start_activities
@@ -73,7 +79,10 @@ impl LogMutator for EndpointFilter {
             .map(|v| v.0)
             .unwrap_or(all_activities);
 
-        log.traces
-            .retain(|trace| self.keep_trace(trace, &start_acts, &end_acts));
+        retain_err(&mut log.traces, |trace| {
+            self.keep_trace(trace, &start_acts, &end_acts)
+        })
+        .map_err(|e| MutationError::MissingAttributeError("EndpointFilter", e))?;
+        Ok(())
     }
 }

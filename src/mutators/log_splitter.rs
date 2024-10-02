@@ -4,11 +4,11 @@ use process_mining::EventLog;
 use rand::{rngs::StdRng, SeedableRng};
 
 use crate::{
-    constants::NO_TRACEID_MSG,
-    mutation::LogMutator,
+    mutation::{LogMutator, MutationError, MutationResult},
     parsing::traits::DirName,
     utils::{
-        attributes::{get_traceid, get_traceids},
+        attributes::{get_traceid, get_traceids, AttributeResult},
+        errors::retain_err,
         io::ensure_correct_file_extension,
         sampling::sample_log_without_replacement,
     },
@@ -60,22 +60,25 @@ impl LogSplitter {
 }
 
 impl LogMutator for LogSplitter {
-    fn apply_mut(&mut self, log: &mut EventLog) {
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         let size = ((log.traces.len() as f64) * self.frac).round() as usize;
         let discarded_log = sample_log_without_replacement(&mut self.rng, log, size);
-        let discarded_traceids = get_traceids(&discarded_log);
+        let discarded_traceids = get_traceids(&discarded_log)
+            .map_err(|e| MutationError::MissingAttributeError("LogSplitter", e))?;
 
-        log.traces.retain(|trace| {
-            !discarded_traceids.contains(&get_traceid(trace).expect(NO_TRACEID_MSG))
-        });
+        retain_err(&mut log.traces, |trace| -> AttributeResult<bool> {
+            let traceid = get_traceid(trace)?;
+            Ok(!discarded_traceids.contains(&traceid))
+        })
+        .map_err(|e| MutationError::MissingAttributeError("LogSplitter", e))?;
 
         if let Some(path) = self.save_path.clone() {
             write_xes(
                 &discarded_log,
                 ensure_correct_file_extension(path, self.save_compressed),
                 self.save_compressed,
-            )
-            .unwrap();
+            )?;
         }
+        Ok(())
     }
 }

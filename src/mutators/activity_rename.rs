@@ -2,8 +2,7 @@ use process_mining::event_log::{AttributeValue, Event, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
-    constants::NO_ACTIVITY_LABEL_MSG,
-    mutation::TraceMutator,
+    mutation::{MutationError, MutationResult, TraceMutator},
     parsing::traits::DirName,
     utils::attributes::{get_activity_label, set_activity_label},
 };
@@ -38,9 +37,10 @@ impl ActivityRenamer {
         }
     }
 
-    fn should_mutate(&mut self, event: &Event) -> bool {
-        get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG) == self.activity
-            && self.rng.gen::<f32>() < self.probability
+    fn should_mutate(&mut self, event: &Event) -> MutationResult<bool> {
+        let activity = get_activity_label(event)
+            .map_err(|e| MutationError::MissingAttributeError("ActivityRenamer", e))?;
+        Ok(activity == self.activity && self.rng.gen::<f32>() < self.probability)
     }
 
     pub fn with_probability(mut self, probability: f32) -> Self {
@@ -56,12 +56,13 @@ impl ActivityRenamer {
 }
 
 impl TraceMutator for ActivityRenamer {
-    fn apply_mut(&mut self, trace: &mut Trace) {
-        trace.events.iter_mut().for_each(|evt| {
-            if self.should_mutate(evt) {
-                set_activity_label(evt, AttributeValue::String(self.new_label.clone()));
+    fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
+        for event in trace.events.iter_mut() {
+            if self.should_mutate(event)? {
+                set_activity_label(event, AttributeValue::String(self.new_label.clone()));
             }
-        });
+        }
+        Ok(())
     }
 }
 
@@ -77,7 +78,9 @@ mod tests {
     #[case::remove_c("c")]
     #[case::remove_d("d")]
     fn activity_renames_correctly(abcd_trace: Trace, #[case] activity: String) {
-        let new_trace = ActivityRenamer::new(activity.clone(), "NEW_ACTIVITY").apply(&abcd_trace);
+        let new_trace = ActivityRenamer::new(activity.clone(), "NEW_ACTIVITY")
+            .apply(&abcd_trace)
+            .unwrap();
 
         let all_activities: Vec<_> = new_trace
             .events
@@ -108,11 +111,13 @@ mod tests {
             let new_trace_1 = ActivityRenamer::new("b", "NEW_B")
                 .with_probability(0.5)
                 .with_seed(42)
-                .apply(&abcd_trace);
+                .apply(&abcd_trace)
+                .unwrap();
             let new_trace_2 = ActivityRenamer::new("b", "NEW_B")
                 .with_probability(0.5)
                 .with_seed(42)
-                .apply(&abcd_trace);
+                .apply(&abcd_trace)
+                .unwrap();
 
             assert_eq!(
                 get_control_flow(&new_trace_1),
