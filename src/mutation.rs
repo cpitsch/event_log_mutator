@@ -17,7 +17,7 @@ pub enum MutationError {
     #[error(transparent)]
     IoError(#[from] IoError),
     #[error("Invalid Value: {0}")]
-    InvalidValue(&'static str),
+    InvalidValue(String),
 }
 
 pub type MutationResult<T> = Result<T, MutationError>;

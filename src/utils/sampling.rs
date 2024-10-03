@@ -16,9 +16,11 @@ pub fn sample_log_without_replacement(
     size: usize,
 ) -> MutationResult<EventLog> {
     if size > log.traces.len() {
-        return Err(MutationError::InvalidValue(
-            "Cannot sample without replacement with a size larger than the event log",
-        ));
+        return Err(MutationError::InvalidValue(format!(
+            "Cannot sample without replacement with a size larger than the event log ({}>{})",
+            size,
+            log.traces.len()
+        )));
     }
 
     let mut new_log = log.clone();
@@ -33,9 +35,11 @@ pub fn sample_log_without_replacement_mut(
     size: usize,
 ) -> MutationResult<()> {
     if size > log.traces.len() {
-        return Err(MutationError::InvalidValue(
-            "Cannot sample without replacement with a size larger than the event log",
-        ));
+        return Err(MutationError::InvalidValue(format!(
+            "Cannot sample without replacement with a size larger than the event log ({}>{})",
+            size,
+            log.traces.len()
+        )));
     }
 
     let retain_traceids: HashSet<String> = log
@@ -76,7 +80,7 @@ pub fn sample_log_with_replacement_mut(
 ) -> MutationResult<()> {
     if log.traces.is_empty() {
         return Err(MutationError::InvalidValue(
-            "Cannot sample from an empty event log",
+            "Cannot sample from an empty event log".to_string(),
         ));
     }
     log.traces = (0..size)
