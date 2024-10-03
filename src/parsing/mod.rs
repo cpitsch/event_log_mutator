@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, path::PathBuf};
+use std::{ffi::OsString, fs::read_to_string, path::PathBuf};
 
 pub mod mutation_value;
 pub mod parametrized_mutation_config;
@@ -11,7 +11,9 @@ use thiserror::Error;
 use toml::from_str;
 
 use crate::{
-    cli::CliError, mutation::LogMutator, utils::io::ensure_correct_file_extension, write_xes,
+    cli::CliError,
+    mutation::{LogMutator, MutationError},
+    utils::io::{ensure_correct_file_extension, write_xes},
 };
 
 use self::parametrized_pipeline::{
@@ -84,15 +86,18 @@ impl MutationChainConfig {
             // Read the event log. Since there is only one mutation chain, we can
             // mutate the event log directly
             let mut log =
-                import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())
-                    .unwrap();
+                import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())?;
 
             if output_path.extension().is_none() {
                 // No extension -> interpret as only directories in the path; Add file name
-                output_path.push(format!(
-                    "mutated_{}",
-                    self.input.file_name().unwrap().to_str().unwrap()
-                ));
+                // Technically don't need this error, as if the event log imported successfully,
+                // then it is a file..
+                let name_string = self.input.file_name().ok_or_else(|| {
+                    MutationError::InvalidValue("The input path should end in a file name".into())
+                })?;
+                let mut filename = OsString::from("mutated_");
+                filename.push(name_string);
+                output_path.push(filename)
             }
             output_path = ensure_correct_file_extension(output_path, self.compress_output);
 
@@ -119,8 +124,7 @@ impl MutationChainConfig {
             // }
 
             // Read the event log
-            let log = import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())
-                .unwrap();
+            let log = import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())?;
 
             for mut mutation_chain in flattened_pipeline_configs_to_mutation_chains(
                 pipelines,

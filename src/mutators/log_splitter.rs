@@ -9,10 +9,9 @@ use crate::{
     utils::{
         attributes::{get_traceid, get_traceids, AttributeResult},
         errors::retain_err,
-        io::ensure_correct_file_extension,
+        io::{ensure_correct_file_extension, write_xes},
         sampling::sample_log_without_replacement,
     },
-    write_xes,
 };
 
 #[derive(DirName)]

@@ -4,6 +4,7 @@ use crate::preset::Preset;
 use crate::utils::io::IoError;
 use clap;
 use clap::Parser;
+use process_mining::event_log::import_xes::XESParseError;
 use std::path::PathBuf;
 use thiserror::Error;
 
@@ -62,4 +63,8 @@ pub enum CliError {
     ParsingError(#[from] ParsingError),
     #[error("{0}")]
     MissingRequiredArgument(&'static str),
+    #[error(transparent)]
+    XESParseError(#[from] XESParseError),
 }
+
+pub type CliResult<T> = Result<T, CliError>;

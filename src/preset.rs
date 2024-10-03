@@ -1,13 +1,19 @@
+use std::{
+    ffi::OsString,
+    path::{Path, PathBuf},
+};
+
 use clap::ValueEnum;
-use process_mining::EventLog;
+use process_mining::{import_xes_file, EventLog, XESImportOptions};
 
 use crate::{
-    cli::Args,
-    mutation::MutationChain,
+    cli::{Args, CliError, CliResult},
+    mutation::{LogMutator, MutationChain, MutationError},
     mutators::{
         filters::VariantSupportFilter, ActivityRemover, EventSwapper, LogBootstrapper,
         PartialOrderCreator, ServiceTimeMultiplier,
     },
+    utils::io::{ensure_correct_file_extension, write_xes, IoError},
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
@@ -73,5 +79,59 @@ impl Preset {
                     )))
             }
         }
+    }
+
+    pub fn execute(args: Args) -> CliResult<()> {
+        let input = args
+            .input
+            .as_ref()
+            .ok_or(CliError::MissingRequiredArgument(
+                "If no pipeline file (--pipeline) is provided, an input file must be specified (--input)",
+            ))?;
+
+        let mut output = args
+            .output
+            .clone()
+            .map_or_else(|| Self::get_output_path(input), Ok)?;
+
+        if args.no_overwrite && output.exists() {
+            Err(IoError::FileExists(output.clone()))?
+        }
+
+        if input.is_file() {
+            let mut log = import_xes_file(&input.to_string_lossy(), XESImportOptions::default())?;
+            if let Some(preset) = args.preset {
+                preset
+                    .into_mutation_chain(&log, args.clone())
+                    .apply_mut(&mut log)?;
+
+                let should_compress = output.extension().map_or(false, |ext| ext == "gz");
+                output = ensure_correct_file_extension(output, should_compress);
+                Ok(write_xes(&log, output, should_compress)?)
+            } else {
+                Err(CliError::MissingRequiredArgument(
+                    "Either a pipeline file (--pipeline) or a preset (--preset) must be provided!",
+                ))
+            }
+        } else {
+            Err(IoError::FileNotFound(input.clone()))?
+        }
+    }
+
+    fn get_output_path(input_path: &Path) -> CliResult<PathBuf> {
+        let mut out = PathBuf::new();
+        if let Some(parent) = input_path.parent() {
+            out.push(parent);
+        }
+
+        let name_string = input_path.file_name().ok_or_else(|| {
+            MutationError::InvalidValue("The input path should end in a file name".into())
+        })?;
+        // Prepend 'mutated_' and call it a day
+        let mut filename = OsString::from("mutated_");
+        filename.push(name_string);
+
+        out.push(filename);
+        Ok(out)
     }
 }
