@@ -107,7 +107,7 @@ impl TraceMutator for ServiceTimeMultiplier {
                     i,
                     (start_timestamp + new_service_time).round_subsecs(6),
                 )
-                .unwrap();
+                .map_err(|e| MutationError::MissingAttributeError("ServiceTimeMultiplier", e))?;
             }
         }
         Ok(())

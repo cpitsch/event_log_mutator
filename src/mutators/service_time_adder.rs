@@ -80,7 +80,8 @@ impl TraceMutator for ServiceTimeAdder {
                     .map_err(|e| MutationError::MissingAttributeError("ServiceTimeAdder", e))?
                     + self.timedelta;
 
-                change_event_duration(trace, i, new_complete_timestamp).unwrap();
+                change_event_duration(trace, i, new_complete_timestamp)
+                    .map_err(|e| MutationError::MissingAttributeError("ServiceTimeAdder", e))?;
             }
         }
         Ok(())
