@@ -11,7 +11,6 @@ use crate::{
 
 #[derive(Error, Debug)]
 pub enum MutationError {
-    // #[error("The {}-level attribute {} isn't present. Required by mutator {}", .1.level, .1.key, .0)]
     #[error("[{0}] Missing the {}-level attribute \"{}\".", .1.level, .1.key)]
     MissingAttributeError(&'static str, MissingAttributeError),
     #[error(transparent)]
