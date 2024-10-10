@@ -1,14 +1,9 @@
-use std::path::{Path, PathBuf};
+use clap::Parser;
+use cli::CliError;
+use colored::Colorize;
+use preset::Preset;
 
-use clap::{error::ErrorKind, CommandFactory, Parser};
-use process_mining::{import_xes_file, XESImportOptions};
-use utils::io::write_xes;
-
-use crate::{
-    cli::{Args, CliError},
-    mutation::LogMutator,
-    parsing::MutationChainConfig,
-};
+use crate::{cli::Args, parsing::MutationChainConfig};
 
 pub mod cli;
 pub mod constants;
@@ -21,35 +16,30 @@ pub mod utils;
 #[cfg(test)]
 mod test_fixtures;
 
-fn main() {
+fn main() -> ! {
     let args = Args::parse();
     let res = run_cli(args);
     if let Err(e) = res {
-        Args::command().error(e.kind, e.message).exit();
+        eprintln!("{}: {e}", "error".red().bold());
+        std::process::exit(2);
     }
+    std::process::exit(0);
 }
 
 fn run_cli(args: Args) -> Result<(), CliError> {
     if args.pipeline.is_some() {
         parse_and_execute_pipeline_file(&args)
     } else if args.input.is_none() {
-        Err(CliError::new(
-            ErrorKind::MissingRequiredArgument,
+        Err(CliError::MissingRequiredArgument(
             "Either an input file (--input) or a pipeline file (--pipeline) must be provided!",
         ))
     } else {
-        run_presets(args)
+        Preset::execute(args)
     }
 }
 
 pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     let path_to_pipeline = args.pipeline.clone().unwrap();
-    if !path_to_pipeline.exists() {
-        return Err(CliError::new(
-            ErrorKind::Io,
-            "The specified pipeline configuration file does not exist",
-        ));
-    }
     // Get the configuration from the pipeline
     let mut parsed_toml = MutationChainConfig::parse_file(&path_to_pipeline)?;
     parsed_toml = overwrite_pipeline_config_with_cli_args(args, parsed_toml);
@@ -76,62 +66,4 @@ pub fn overwrite_pipeline_config_with_cli_args(
     }
 
     config
-}
-
-fn run_presets(mut args: Args) -> Result<(), CliError> {
-    let input = args.input.as_ref().unwrap();
-    if args.output.is_none() {
-        args.output = Some(get_output_path(input));
-    }
-
-    if args.no_overwrite && args.output.clone().unwrap().exists() {
-        Err(CliError::new(
-            ErrorKind::Io,
-            "The output path already exists and `--no-overwrite` specified. Aborting.",
-        ))?
-    }
-
-    if input.exists() && input.is_file() {
-        let log = import_xes_file(input.to_str().unwrap(), XESImportOptions::default()).unwrap();
-
-        if args.preset.is_none() {
-            return Err(CliError::new(
-                ErrorKind::MissingRequiredArgument,
-                "Either a pipeline (--pipeline) or a preset (--preset) must be provided!",
-            ));
-        }
-
-        let mut mutation_chain = args.preset.unwrap().into_mutation_chain(&log, args.clone());
-
-        let new_log = mutation_chain.apply(&log);
-
-        let should_compress = args
-            .output
-            .as_ref()
-            .unwrap()
-            .extension()
-            .map_or(false, |ext| ext == "gz");
-
-        write_xes(&new_log, args.output.unwrap(), should_compress)
-    } else {
-        Err(CliError::new(
-            ErrorKind::Io,
-            "The input file does not exist, or is not a file.",
-        ))
-    }
-}
-
-fn get_output_path(input_path: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    if let Some(parent) = input_path.parent() {
-        out.push(parent);
-    }
-
-    // Prepend 'mutated_' and call it a day
-    let name_string = input_path
-        .file_name()
-        .expect("The path should be a file.")
-        .to_string_lossy();
-    out.push(format!("mutated_{}", name_string));
-    out
 }

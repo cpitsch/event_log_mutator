@@ -8,8 +8,7 @@ use process_mining::{
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
-    constants::{NO_ACTIVITY_LABEL_MSG, NO_COMPLETE_TIMESTAMP_MSG, NO_START_TIMESTAMP_MSG},
-    mutation::LogMutator,
+    mutation::{LogMutator, MutationError, MutationResult},
     parsing::traits::DirName,
     utils::attributes::{
         get_activity_label, get_complete_timestamp, get_service_time, get_start_timestamp,
@@ -50,16 +49,17 @@ impl ServiceTimeStdShifter {
         }
     }
 
-    fn should_mutate(&mut self, event: &Event) -> bool {
-        (
+    fn should_mutate(&mut self, event: &Event) -> MutationResult<bool> {
+        let activity = get_activity_label(event)
+            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+        let should_mutate = (
             // Check that the event matches the requirements
-            self.activity.as_ref().map_or(true, |act| {
-                get_activity_label(event).expect(NO_ACTIVITY_LABEL_MSG) == *act
-            })
+            self.activity.as_ref().map_or(true, |act| activity == *act)
         ) && (
             // Check mutation probability
             self.rng.gen::<f32>() < self.probability
-        )
+        );
+        Ok(should_mutate)
     }
 
     pub fn for_activity(mut self, activity: impl Into<String>) -> Self {
@@ -80,10 +80,17 @@ impl ServiceTimeStdShifter {
 
     /// Apply the service time mutation to an event. Note: this does _not_ check
     /// `self.should_mutate(evt)`, as this is done by [`apply_trace`].
-    fn mutate_event(&self, evt: &mut Event, shift_amounts: &HashMap<String, chrono::TimeDelta>) {
-        let activity = get_activity_label(evt).expect(NO_ACTIVITY_LABEL_MSG);
-        let start_timestamp = get_start_timestamp(evt).expect(NO_START_TIMESTAMP_MSG);
-        let service_time = get_service_time(evt).expect(NO_COMPLETE_TIMESTAMP_MSG);
+    fn mutate_event(
+        &self,
+        evt: &mut Event,
+        shift_amounts: &HashMap<String, chrono::TimeDelta>,
+    ) -> MutationResult<()> {
+        let activity = get_activity_label(evt)
+            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+        let start_timestamp = get_start_timestamp(evt)
+            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+        let service_time = get_service_time(evt)
+            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
         let increment = shift_amounts
             .get(&activity)
             .cloned()
@@ -95,6 +102,7 @@ impl ServiceTimeStdShifter {
             // Round duration seconds to 6 decimal places so pm4py imports it correctly
             AttributeValue::Date((start_timestamp + new_serivce_time).round_subsecs(6)),
         );
+        Ok(())
     }
 
     /// Apply the service time mutation to an event. Checks `self.should_mutate(evt)`.
@@ -103,13 +111,14 @@ impl ServiceTimeStdShifter {
         &mut self,
         trace: &mut Trace,
         shift_amounts: &HashMap<String, chrono::TimeDelta>,
-    ) {
+    ) -> MutationResult<()> {
         let mut shift_amount = TimeDelta::zero();
 
-        trace.events.iter_mut().for_each(|event| {
-            let start_timestamp = get_start_timestamp(event).expect(NO_START_TIMESTAMP_MSG);
-            let complete_timestamp =
-                get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG);
+        for event in trace.events.iter_mut() {
+            let start_timestamp = get_start_timestamp(event)
+                .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+            let complete_timestamp = get_complete_timestamp(event)
+                .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
 
             if !shift_amount.is_zero() {
                 set_start_timestamp(event, AttributeValue::Date(start_timestamp + shift_amount));
@@ -119,17 +128,20 @@ impl ServiceTimeStdShifter {
                 );
             }
 
-            if self.should_mutate(event) {
-                self.mutate_event(event, shift_amounts);
-                let shifted_by = get_complete_timestamp(event).expect(NO_COMPLETE_TIMESTAMP_MSG)
-                    - complete_timestamp;
+            if self.should_mutate(event)? {
+                self.mutate_event(event, shift_amounts)?;
+                let new_complete_timestamp = get_complete_timestamp(event).map_err(|e| {
+                    MutationError::MissingAttributeError("ServiceTimeStdShifter", e)
+                })?;
+                let shifted_by = new_complete_timestamp - complete_timestamp;
 
                 // Need to move all following events if changed service time
                 // Otherwise, we induce control-flow changes that are unwanted
                 // side-effects from this mutation
                 shift_amount += shifted_by;
             }
-        });
+        }
+        Ok(())
     }
 }
 
@@ -189,36 +201,38 @@ fn multiply_timedelta_by_float(timedelta: TimeDelta, factor: &f64) -> TimeDelta 
 
 /// Compute a hashmap mapping each activity in the event log to a vec of all its
 /// durations.
-fn get_activity_durations(log: &EventLog) -> HashMap<String, Vec<TimeDelta>> {
+fn get_activity_durations(log: &EventLog) -> MutationResult<HashMap<String, Vec<TimeDelta>>> {
     let mut res: HashMap<String, Vec<TimeDelta>> = HashMap::new();
 
-    log.traces
-        .iter()
-        .flat_map(|trace| trace.events.iter())
-        .for_each(|evt| {
-            let activity = get_activity_label(evt).expect(NO_ACTIVITY_LABEL_MSG);
-            let service_time = get_service_time(evt).expect(NO_START_TIMESTAMP_MSG);
+    for evt in log.traces.iter().flat_map(|trace| trace.events.iter()) {
+        // .for_each(|evt| {
+        let activity = get_activity_label(evt)
+            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+        let service_time = get_service_time(evt)
+            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
 
-            res.entry(activity).or_default().push(service_time);
-        });
-    res
+        res.entry(activity).or_default().push(service_time);
+    } //);
+    Ok(res)
 }
 
 // Compute a hashmap mapping each activity in the event log to the standard deviation
 // of its duration
-fn get_activity_duration_stds(log: &EventLog) -> HashMap<String, chrono::TimeDelta> {
-    let durations = get_activity_durations(log);
+fn get_activity_duration_stds(
+    log: &EventLog,
+) -> MutationResult<HashMap<String, chrono::TimeDelta>> {
+    let durations = get_activity_durations(log)?;
     let res: HashMap<_, _> = durations
         .into_iter()
         .map(|(act, durs)| (act, timedelta_standard_deviation(durs)))
         .collect();
-    res
+    Ok(res)
 }
 
 impl LogMutator for ServiceTimeStdShifter {
-    fn apply_mut(&mut self, log: &mut EventLog) {
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         // First collect the duration for each activity
-        let stds = get_activity_duration_stds(log);
+        let stds = get_activity_duration_stds(log)?;
         let shift_amounts: HashMap<String, chrono::TimeDelta> = stds
             .into_iter()
             .map(|(act, std)| {
@@ -229,9 +243,10 @@ impl LogMutator for ServiceTimeStdShifter {
             })
             .collect();
 
-        log.traces
-            .iter_mut()
-            .for_each(|trace| self.mutate_trace(trace, &shift_amounts));
+        for trace in log.traces.iter_mut() {
+            self.mutate_trace(trace, &shift_amounts)?;
+        }
+        Ok(())
     }
 }
 
@@ -280,7 +295,7 @@ mod tests {
 
     #[rstest]
     fn correct_duration_extraction(test_log: EventLog) {
-        let durations = get_activity_durations(&test_log);
+        let durations = get_activity_durations(&test_log).unwrap();
 
         assert_eq!(
             vec![TimeDelta::hours(1)],
@@ -299,7 +314,7 @@ mod tests {
 
     #[rstest]
     fn correct_std_computation(test_log: EventLog) {
-        let stds = get_activity_duration_stds(&test_log);
+        let stds = get_activity_duration_stds(&test_log).unwrap();
 
         assert_eq!(TimeDelta::nanoseconds(0), stds.get("a").unwrap().clone());
 
@@ -310,9 +325,9 @@ mod tests {
 
     #[rstest]
     fn applies_correctly(test_log: EventLog) {
-        let new_log = ServiceTimeStdShifter::new(2.5).apply(&test_log);
+        let new_log = ServiceTimeStdShifter::new(2.5).apply(&test_log).unwrap();
 
-        let new_durations = get_activity_durations(&new_log);
+        let new_durations = get_activity_durations(&new_log).unwrap();
         assert_eq!(
             vec![TimeDelta::hours(1)], // "a" had a standard deviation of 0h, so unchanged
             new_durations.get("a").unwrap().clone()
@@ -335,13 +350,15 @@ mod tests {
             .for_activity("a")
             .with_probability(0.5)
             .with_seed(42)
-            .apply(&test_log);
+            .apply(&test_log)
+            .unwrap();
 
         let new_log_2 = ServiceTimeStdShifter::new(2.0)
             .for_activity("a")
             .with_probability(0.5)
             .with_seed(42)
-            .apply(&test_log);
+            .apply(&test_log)
+            .unwrap();
 
         let log_1_service_times: Vec<Vec<_>> = new_log_1
             .traces

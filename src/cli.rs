@@ -1,8 +1,12 @@
+use crate::mutation::MutationError;
+use crate::parsing::ParsingError;
 use crate::preset::Preset;
+use crate::utils::io::IoError;
 use clap;
-use clap::error::ErrorKind;
 use clap::Parser;
+use process_mining::event_log::import_xes::XESParseError;
 use std::path::PathBuf;
+use thiserror::Error;
 
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
@@ -49,17 +53,18 @@ pub struct Args {
     pub seed: Option<u64>,
 }
 
-#[derive(Debug)]
-pub struct CliError {
-    pub kind: ErrorKind,
-    pub message: String,
+#[derive(Error, Debug)]
+pub enum CliError {
+    #[error(transparent)]
+    IoError(#[from] IoError),
+    #[error(transparent)]
+    MutationError(#[from] MutationError),
+    #[error(transparent)]
+    ParsingError(#[from] ParsingError),
+    #[error("{0}")]
+    MissingRequiredArgument(&'static str),
+    #[error(transparent)]
+    XESParseError(#[from] XESParseError),
 }
 
-impl CliError {
-    pub fn new(kind: ErrorKind, message: impl Into<String>) -> Self {
-        Self {
-            kind,
-            message: message.into(),
-        }
-    }
-}
+pub type CliResult<T> = Result<T, CliError>;

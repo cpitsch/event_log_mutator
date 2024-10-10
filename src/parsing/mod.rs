@@ -1,4 +1,4 @@
-use std::{fs::read_to_string, path::PathBuf};
+use std::{ffi::OsString, fs::read_to_string, path::PathBuf};
 
 pub mod mutation_value;
 pub mod parametrized_mutation_config;
@@ -7,9 +7,14 @@ pub mod traits;
 
 use process_mining::{import_xes_file, XESImportOptions};
 use serde::Deserialize;
+use thiserror::Error;
 use toml::from_str;
 
-use crate::{mutation::LogMutator, utils::io::ensure_correct_file_extension, write_xes, CliError};
+use crate::{
+    cli::CliError,
+    mutation::{LogMutator, MutationError},
+    utils::io::{ensure_correct_file_extension, write_xes},
+};
 
 use self::parametrized_pipeline::{
     flattened_pipeline_configs_to_mutation_chains, ParametrizedPipelineConfig,
@@ -32,6 +37,16 @@ pub struct MutationChainConfig {
     pub seed: Option<u64>,
 }
 
+#[derive(Error, Debug)]
+pub enum ParsingError {
+    #[error("Invalid value in TOML file: {0}")]
+    InvalidValue(&'static str),
+    #[error(transparent)]
+    TomlDeserializationError(#[from] toml::de::Error),
+    #[error("The TOML file {0:?} does not exist")]
+    FileNotFoundError(PathBuf),
+}
+
 impl MutationChainConfig {
     pub fn default_output_path(&self, is_parametrized: bool) -> PathBuf {
         if is_parametrized {
@@ -45,14 +60,16 @@ impl MutationChainConfig {
     }
 
     /// Parse a pipeline configuration from a TOML file
-    pub fn parse_file(path: &PathBuf) -> Result<Self, CliError> {
+    pub fn parse_file(path: &PathBuf) -> Result<Self, ParsingError> {
+        if !path.is_file() {
+            return Err(ParsingError::FileNotFoundError(path.clone()));
+        }
         let contents = read_to_string(path).unwrap();
-        let res = Self::parse_toml_str(&contents);
-        Ok(res)
+        Self::parse_toml_str(&contents)
     }
 
-    pub fn parse_toml_str(content: &str) -> Self {
-        from_str(content).expect("Invalid TOML format")
+    pub fn parse_toml_str(content: &str) -> Result<Self, ParsingError> {
+        Ok(from_str::<Self>(content)?)
     }
 
     pub fn execute(&self) -> Result<(), CliError> {
@@ -69,15 +86,18 @@ impl MutationChainConfig {
             // Read the event log. Since there is only one mutation chain, we can
             // mutate the event log directly
             let mut log =
-                import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())
-                    .unwrap();
+                import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())?;
 
             if output_path.extension().is_none() {
                 // No extension -> interpret as only directories in the path; Add file name
-                output_path.push(format!(
-                    "mutated_{}",
-                    self.input.file_name().unwrap().to_str().unwrap()
-                ));
+                // Technically don't need this error, as if the event log imported successfully,
+                // then it is a file..
+                let name_string = self.input.file_name().ok_or_else(|| {
+                    MutationError::InvalidValue("The input path should end in a file name".into())
+                })?;
+                let mut filename = OsString::from("mutated_");
+                filename.push(name_string);
+                output_path.push(filename)
             }
             output_path = ensure_correct_file_extension(output_path, self.compress_output);
 
@@ -87,7 +107,7 @@ impl MutationChainConfig {
                 // Don't save the output implicitly through the MutationChain; Do it here explicitly
                 None,
             );
-            mutation_chain.apply_mut(&mut log);
+            mutation_chain.apply_mut(&mut log)?;
 
             write_xes(&log, output_path.clone(), self.compress_output)?;
             println!("Wrote event log: {}", output_path.to_string_lossy());
@@ -96,27 +116,26 @@ impl MutationChainConfig {
                 .output
                 .clone()
                 .unwrap_or_else(|| self.default_output_path(true));
-            if output_path.is_file() {
-                return Err(CliError::new(
-                    clap::error::ErrorKind::InvalidValue,
-                    "For a parametrized pipeline, the output path may not be a file.",
-                ));
-            }
+            // if output_path.is_file() {
+            //     return Err(CliError::new(
+            //         clap::error::ErrorKind::InvalidValue,
+            //         "For a parametrized pipeline, the output path may not be a file.",
+            //     ));
+            // }
 
             // Read the event log
-            let log = import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())
-                .unwrap();
+            let log = import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())?;
 
-            flattened_pipeline_configs_to_mutation_chains(
+            for mut mutation_chain in flattened_pipeline_configs_to_mutation_chains(
                 pipelines,
                 self.seed,
                 &output_path,
                 Some(self.compress_output),
             )
             .into_iter()
-            .for_each(|mut mutation_chain| {
-                mutation_chain.apply(&log);
-            });
+            {
+                mutation_chain.apply(&log)?;
+            }
         }
 
         Ok(())
@@ -154,7 +173,7 @@ probability = 0.5
 
     #[test]
     fn config_params_parsed_correctly() {
-        let res = MutationChainConfig::parse_toml_str(TOML_CONTENT);
+        let res = MutationChainConfig::parse_toml_str(TOML_CONTENT).unwrap();
 
         assert_eq!(res.input, PathBuf::from("input_log.xes.gz"));
         assert_eq!(res.output, Some(PathBuf::from("output.xes.gz")));
