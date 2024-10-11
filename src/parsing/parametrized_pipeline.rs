@@ -9,9 +9,9 @@ use crate::{
     mutators::{
         aux_mutators::LogSaver,
         filters::{CaseDurationFilter, EndpointFilter, VariantSupportFilter},
-        ActivityRemover, ActivityRenamer, AttributeRemover, ConstantActivityMutator, EventSwapper,
-        LogBootstrapper, LogSplitter, PartialOrderCreator, ServiceTimeMultiplier,
-        ServiceTimeStdShifter,
+        ActivityRemover, ActivityRenamer, AttributeRemover, AttributeRetainer,
+        ConstantActivityMutator, EventSwapper, LogBootstrapper, LogSplitter, PartialOrderCreator,
+        ServiceTimeMultiplier, ServiceTimeStdShifter,
     },
     parsing::{
         mutation_value::MutationValue,
@@ -193,6 +193,9 @@ impl ParametrizedPipelineConfig<Flat> {
                     mutator = mutator.with_seed(s);
                 }
                 Box::new(mutator)
+            }
+            ParametrizedMutationConfig::AttributeRetainer { attributes } => {
+                Box::new(AttributeRetainer::new(attributes.inner_value()))
             }
             ParametrizedMutationConfig::ActivityRenamer {
                 activity,

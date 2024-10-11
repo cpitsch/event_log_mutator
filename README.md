@@ -6,20 +6,21 @@
 ## Available Mutators
 To see the parameters a mutator takes, follow its respective link
 
-- [ActivityRemover](./src/mutators/activity_remover.rs#L9-L24)
-- [ActivityRenamer](./src/mutators/activity_rename.rs#L11-L28)
-- [AttributeRemover](./src/mutators/attribute_remover.rs#L4-L10)
-- [ConstantActivity](./src/mutators/constant_activity.rs#L8-L23)
-- [EventSwapper](./src/mutators/event_swapper.rs#L15-L36)
-- [LogBootstrapper](./src/mutators/log_bootstrapper.rs#L10-L15)
-- [PartialOrderCreator](./src/mutators/partial_order_creator.rs#L10-L19)
-- [ServiceTimeMultiplier](./src/mutators/service_time_multiplier.rs#L14-L33)
-- [ServiceTimeStdShifter](./src/mutators/service_time_std_shifter.rs#L20-L40)
+- [ActivityRemover](./src/mutators/activity_remover.rs#L10-L25)
+- [ActivityRenamer](./src/mutators/activity_rename.rs#L10-L27)
+- [AttributeRemover](./src/mutators/attribute_remover.rs#L7-L13)
+- [AttributeRetainer](./src/mutators/attribute_retainer.rs#L9-L14)
+- [ConstantActivity](./src/mutators/constant_activity.rs#L10-L25)
+- [EventSwapper](./src/mutators/event_swapper.rs#L14-L35)
+- [LogBootstrapper](./src/mutators/log_bootstrapper.rs#L10-L24)
+- [PartialOrderCreator](./src/mutators/partial_order_creator.rs#L9-L15)
+- [ServiceTimeMultiplier](./src/mutators/service_time_multiplier.rs#L13-L32)
+- [ServiceTimeStdShifter](./src/mutators/service_time_std_shifter.rs#L19-L39)
 
 ### Filters 
-- [CaseDurationFilter](./src/mutators/filters/endpoint_filter.rs#L8-L15)
-- [EndpointFilter](./src/mutators/filters/endpoint_filter.rs#L12-L21)
-- [VariantSupportFilter](./src/mutators/filters/variant_support_filter.rs#L8-L16)
+- [CaseDurationFilter](./src/mutators/filters/endpoint_filter.rs#L49-L57)
+- [EndpointFilter](./src/mutators/filters/endpoint_filter.rs#L13-L22)
+- [VariantSupportFilter](./src/mutators/filters/variant_support_filter.rs#L10-L18)
 
 ## Pipeline Configuration
 A mutation pipeline can be defined in a TOML configuration file, and supplied to the 

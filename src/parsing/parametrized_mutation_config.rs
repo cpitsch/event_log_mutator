@@ -66,6 +66,9 @@ pub enum ParametrizedMutationConfig {
         probability: MutationValue<f32>,
         seed: Option<MutationValue<u64>>,
     },
+    AttributeRetainer {
+        attributes: MutationValue<Vec<String>>,
+    },
     ConstantActivity {
         activity: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]

@@ -1,10 +1,8 @@
-use std::fmt::Display;
-
-use itertools::Itertools;
 use process_mining::{event_log::Trace, EventLog};
 
 use crate::{
     mutation::{LogMutator, MutationError, MutationResult},
+    mutators::DisplayVec,
     parsing::traits::DirName,
     utils::{
         attributes::{get_activities, get_end_activities, get_start_activities, AttributeResult},
@@ -23,20 +21,14 @@ pub struct EndpointFilter {
     end_activities: Option<DisplayVec<String>>,
 }
 
-#[derive(Clone)]
-struct DisplayVec<T: Display>(Vec<T>);
-
-impl<T: Display> Display for DisplayVec<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0.iter().join("+"))
-    }
-}
-
 impl EndpointFilter {
-    pub fn new(start_activities: Option<Vec<String>>, end_activities: Option<Vec<String>>) -> Self {
+    pub fn new(
+        start_activities: Option<impl Into<DisplayVec<String>>>,
+        end_activities: Option<impl Into<DisplayVec<String>>>,
+    ) -> Self {
         EndpointFilter {
-            start_activities: start_activities.map(DisplayVec),
-            end_activities: end_activities.map(DisplayVec),
+            start_activities: start_activities.map(|acts| acts.into()),
+            end_activities: end_activities.map(|acts| acts.into()),
         }
     }
 
