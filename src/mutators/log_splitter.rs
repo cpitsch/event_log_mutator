@@ -17,13 +17,11 @@ use crate::{
 #[derive(DirName)]
 pub struct LogSplitter {
     frac: f64,
-    #[dirname(ignore)]
-    save_path: Option<PathBuf>,
-    #[dirname(ignore)]
-    save_compressed: bool,
     seed: Option<u64>,
     #[dirname(ignore)]
     rng: StdRng,
+    #[dirname(ignore)]
+    handle_discarded_log: Option<Box<dyn Fn(EventLog) -> MutationResult<()>>>,
 }
 
 impl LogSplitter {
@@ -34,10 +32,9 @@ impl LogSplitter {
 
         Self {
             frac,
-            save_path: None,
-            save_compressed: false,
             seed: None,
             rng: StdRng::from_entropy(),
+            handle_discarded_log: None,
         }
     }
 
@@ -47,14 +44,16 @@ impl LogSplitter {
         self
     }
 
-    pub fn save_discarded(mut self, path: impl Into<PathBuf>) -> Self {
-        self.save_path = Some(path.into());
+    pub fn with_discard_handler(mut self, f: Box<dyn Fn(EventLog) -> MutationResult<()>>) -> Self {
+        self.handle_discarded_log = Some(Box::new(f));
         self
     }
 
-    pub fn save_compressed(mut self, compressed: bool) -> Self {
-        self.save_compressed = compressed;
-        self
+    pub fn with_save_discarded_log(self, save_path: PathBuf, compress: bool) -> Self {
+        self.with_discard_handler(Box::new(move |log| {
+            let path = ensure_correct_file_extension(save_path.clone(), compress);
+            Ok(write_xes(&log, path, compress)?)
+        }))
     }
 }
 
@@ -71,13 +70,10 @@ impl LogMutator for LogSplitter {
         })
         .map_err(|e| MutationError::MissingAttributeError("LogSplitter", e))?;
 
-        if let Some(path) = self.save_path.clone() {
-            write_xes(
-                &discarded_log,
-                ensure_correct_file_extension(path, self.save_compressed),
-                self.save_compressed,
-            )?;
+        if let Some(f) = self.handle_discarded_log.as_ref() {
+            f(discarded_log)?;
         }
+
         Ok(())
     }
 }

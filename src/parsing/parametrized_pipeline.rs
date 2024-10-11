@@ -18,7 +18,7 @@ use crate::{
         parametrized_mutation_config::ParametrizedMutationConfig,
         traits::{DirName, FlattenMutationValue},
     },
-    utils::io::build_file_path,
+    utils::io::{build_file_path, ensure_correct_file_extension},
 };
 
 #[derive(Debug, Clone)]
@@ -248,24 +248,25 @@ impl ParametrizedPipelineConfig<Flat> {
                     mutator = mutator.with_seed(s);
                 }
                 if let Some(p) = save_path {
-                    mutator = mutator.save_discarded(p.inner_value());
+                    let p = p.inner_value();
+                    let save_compressed = save_compressed.map_or_else(
+                        || p.extension().is_some_and(|ext| ext == "gz"),
+                        MutationValue::inner_value,
+                    );
+                    let path = ensure_correct_file_extension(p, save_compressed);
+
+                    mutator = mutator.with_save_discarded_log(path, save_compressed);
                 } else {
                     let log_name = format!("log_{}", log_saver_index);
                     let mut path_with_mutator = path_so_far.clone();
+                    let save_compressed = save_compressed
+                        .clone()
+                        .map_or(false, MutationValue::inner_value);
                     path_with_mutator.push(mutator.to_dir_name());
-                    let save_path = build_file_path(
-                        path_with_mutator,
-                        log_name,
-                        save_compressed
-                            .clone()
-                            .map_or(false, MutationValue::inner_value),
-                    );
+                    let save_path = build_file_path(path_with_mutator, log_name, save_compressed);
                     *log_saver_index += 1;
 
-                    mutator = mutator.save_discarded(save_path);
-                }
-                if let Some(c) = save_compressed {
-                    mutator = mutator.save_compressed(c.inner_value());
+                    mutator = mutator.with_save_discarded_log(save_path, save_compressed);
                 }
                 Box::new(mutator)
             }

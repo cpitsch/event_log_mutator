@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{
     mutators::filters::case_duration_filter::ComparisonSense,
     parsing::mutation_value::MutationValue, parsing::traits::FlattenMutationValue,
@@ -84,7 +86,7 @@ pub enum ParametrizedMutationConfig {
     },
     LogSplitter {
         frac: MutationValue<f64>,
-        save_path: Option<MutationValue<String>>,
+        save_path: Option<MutationValue<PathBuf>>,
         save_compressed: Option<MutationValue<bool>>,
         seed: Option<MutationValue<u64>>,
     },
