@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Parser, Debug, Clone)]
+#[command(version)]
 pub struct Args {
     /// The path to a toml file with a mutation pipeline to apply
     #[clap(long, value_name = "PATH")]
