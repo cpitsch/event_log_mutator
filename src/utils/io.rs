@@ -3,6 +3,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use log::{info, warn};
 use process_mining::{event_log::export_xes::export_xes_event_log_to_file, EventLog};
 use thiserror::Error;
 
@@ -20,6 +21,10 @@ pub enum IoError {
 
 pub fn write_xes(log: &EventLog, path: impl AsRef<Path>, compress: bool) -> Result<(), IoError> {
     let p: &Path = path.as_ref();
+    info!("Writing event log {}", p.to_string_lossy());
+    if p.exists() {
+        warn!("Path already exists. Overwriting {}", p.to_string_lossy());
+    }
     let dir_creation_res = p.parent().map(create_dir_all);
     if dir_creation_res.is_none() || dir_creation_res.unwrap().is_err() {
         return Err(IoError::DirCreateError(p.into()));

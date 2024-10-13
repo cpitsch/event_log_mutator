@@ -52,6 +52,10 @@ pub struct Args {
     /// The seed to use for mutations involving randomness.
     #[clap(long)]
     pub seed: Option<u64>,
+
+    // Print information on the progress of the mutations
+    #[clap(short, long)]
+    pub verbose: bool,
 }
 
 #[derive(Error, Debug)]

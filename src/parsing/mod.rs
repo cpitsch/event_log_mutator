@@ -5,6 +5,7 @@ pub mod parametrized_mutation_config;
 pub mod parametrized_pipeline;
 pub mod traits;
 
+use log::info;
 use process_mining::{import_xes_file, XESImportOptions};
 use serde::Deserialize;
 use thiserror::Error;
@@ -87,6 +88,7 @@ impl MutationChainConfig {
             // mutate the event log directly
             let mut log =
                 import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())?;
+            info!("Read event log {}", self.input.to_string_lossy());
 
             if output_path.extension().is_none() {
                 // No extension -> interpret as only directories in the path; Add file name
@@ -110,7 +112,6 @@ impl MutationChainConfig {
             mutation_chain.apply_mut(&mut log)?;
 
             write_xes(&log, output_path.clone(), self.compress_output)?;
-            println!("Wrote event log: {}", output_path.to_string_lossy());
         } else {
             let output_path = self
                 .output
@@ -125,6 +126,7 @@ impl MutationChainConfig {
 
             // Read the event log
             let log = import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())?;
+            info!("Read event log {}", self.input.to_string_lossy());
 
             for mut mutation_chain in flattened_pipeline_configs_to_mutation_chains(
                 pipelines,
