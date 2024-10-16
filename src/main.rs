@@ -18,7 +18,7 @@ mod test_fixtures;
 
 fn main() -> ! {
     let args = Args::parse();
-    init_logger(args.verbose);
+    init_logger(args.verbose, args.quiet);
     let res = run_cli(args);
     if let Err(e) = res {
         eprintln!("{}: {e}", "error".red().bold());

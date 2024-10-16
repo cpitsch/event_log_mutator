@@ -53,9 +53,15 @@ pub struct Args {
     #[clap(long)]
     pub seed: Option<u64>,
 
-    // Print information on the progress of the mutations
-    #[clap(short, long)]
-    pub verbose: bool,
+    /// Increase verbosity level. Defaults to showing errors. Increases following:
+    /// Error, -v = Warning, -vv = Info, -vvv = Debug, -vvvv Trace.
+    #[clap(long, short='v', action=clap::ArgAction::Count, global=true)]
+    pub verbose: u8,
+
+    /// Decrease the verbosity level. See defaults to showing errors. Increases following:
+    /// Error, -v = Warning, -vv = Info, -vvv = Debug, -vvvv Trace.
+    #[clap(long, short, action=clap::ArgAction::Count, global=true)]
+    pub quiet: u8,
 }
 
 #[derive(Error, Debug)]
