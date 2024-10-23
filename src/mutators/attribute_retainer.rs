@@ -10,6 +10,7 @@ use super::DisplayVec;
 #[derive(DirName)]
 pub struct AttributeRetainer {
     /// The keys to keep
+    #[dirname(ignore)]
     attributes: DisplayVec<String>,
 }
 
