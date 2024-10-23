@@ -1,6 +1,7 @@
 use clap::Parser;
 use cli::CliError;
 use colored::Colorize;
+use parsing::mutation_value::MutationValue;
 use preset::Preset;
 
 use crate::{cli::Args, parsing::MutationChainConfig, utils::logging::init_logger};
@@ -63,7 +64,7 @@ pub fn overwrite_pipeline_config_with_cli_args(
 
     // If a seed is explicitly specified, override pipeline config with that
     if args.seed.is_some() {
-        config.seed = args.seed;
+        config.pipeline.seed = args.seed.map(MutationValue::Value);
     }
 
     config

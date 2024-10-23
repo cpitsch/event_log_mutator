@@ -34,9 +34,6 @@ pub struct MutationChainConfig {
     pub compress_output: bool,
     /// A definition for a mutation pipeline
     pub pipeline: ParametrizedPipelineConfig,
-    /// Seed to use for mutations involving randomness.
-    /// Overwritten by seeds set on a mutation-level.
-    pub seed: Option<u64>,
 }
 
 #[derive(Error, Debug)]
@@ -105,7 +102,6 @@ impl MutationChainConfig {
             output_path = ensure_correct_file_extension(output_path, self.compress_output);
 
             let mut mutation_chain = pipelines.pop().unwrap().into_mutation_chain(
-                self.seed,
                 output_path.clone(),
                 // Don't save the output implicitly through the MutationChain; Do it here explicitly
                 None,
@@ -131,7 +127,6 @@ impl MutationChainConfig {
 
             for mut mutation_chain in flattened_pipeline_configs_to_mutation_chains(
                 pipelines,
-                self.seed,
                 &output_path,
                 Some(self.compress_output),
             )
@@ -182,7 +177,6 @@ probability = 0.5
         assert_eq!(res.output, Some(PathBuf::from("output.xes.gz")));
 
         assert!(!res.compress_output); // Not provided, default to false
-        assert_eq!(res.seed, None);
 
         assert_eq!(
             res.pipeline,
