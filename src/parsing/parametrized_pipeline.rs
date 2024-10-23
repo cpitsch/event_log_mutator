@@ -14,7 +14,7 @@ use crate::{
         ServiceTimeMultiplier, ServiceTimeStdShifter,
     },
     parsing::{
-        custom_serde::deserialize_u64_vec_or_range,
+        custom_serde::deserialize_u64_vec_or_range_option,
         mutation_value::MutationValue,
         parametrized_mutation_config::ParametrizedMutationConfig,
         traits::{DirName, FlattenMutationValue},
@@ -35,7 +35,7 @@ pub struct ParametrizedPipelineConfig<State = NotFlat> {
     pub mutations: Vec<ParametrizedMutationConfig>,
     /// Seed to use for mutations involving randomness.
     /// Overwritten by seeds set on a mutation-level.
-    #[serde(default, deserialize_with = "deserialize_u64_vec_or_range")]
+    #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
     pub seed: Option<MutationValue<u64>>,
     #[serde(skip)]
     _state: std::marker::PhantomData<State>,
