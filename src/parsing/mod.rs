@@ -1,5 +1,6 @@
 use std::{ffi::OsString, fs::read_to_string, path::PathBuf};
 
+pub mod custom_serde;
 pub mod mutation_value;
 pub mod parametrized_mutation_config;
 pub mod parametrized_pipeline;
