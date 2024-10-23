@@ -26,27 +26,32 @@ fn parse_u64_range(input: String) -> Result<Vec<u64>, String> {
 }
 
 /// Deserialization function to parse MutationValue<u64>, but allow range expressions
-pub fn deserialize_u64_vec_or_range<'de, D>(
-    deserializer: D,
-) -> Result<Option<MutationValue<u64>>, D::Error>
+pub fn deserialize_u64_vec_or_range<'de, D>(deserializer: D) -> Result<MutationValue<u64>, D::Error>
 where
     D: Deserializer<'de>,
 {
     #[derive(Deserialize)]
     #[serde(untagged)]
-    enum TheVal {
-        MutationValue(Option<MutationValue<u64>>),
+    enum TheValue {
+        MutationValue(MutationValue<u64>),
         RangeExpression(String),
     }
 
-    match TheVal::deserialize(deserializer)? {
-        TheVal::MutationValue(mutation_value) => Ok(mutation_value),
-        TheVal::RangeExpression(expr) => Ok(Some(MutationValue::Vec(
-            parse_u64_range(expr).map_err(|msg| {
-                serde::de::Error::custom(format!("Invalid format for range expression{}", msg))
-            })?,
-        ))),
+    match TheValue::deserialize(deserializer)? {
+        TheValue::MutationValue(mutation_value) => Ok(mutation_value),
+        TheValue::RangeExpression(expr) => Ok(MutationValue::Vec(parse_u64_range(expr).map_err(
+            |msg| serde::de::Error::custom(format!("Invalid format for range expression{}", msg)),
+        )?)),
     }
+}
+
+pub fn deserialize_u64_vec_or_range_option<'de, D>(
+    deserializer: D,
+) -> Result<Option<MutationValue<u64>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Some(deserialize_u64_vec_or_range(deserializer)?))
 }
 
 #[cfg(test)]
@@ -57,7 +62,7 @@ mod tests {
 
     #[derive(Deserialize)]
     pub struct TestStruct {
-        #[serde(deserialize_with = "deserialize_u64_vec_or_range")]
+        #[serde(deserialize_with = "deserialize_u64_vec_or_range_option")]
         pub my_field: Option<MutationValue<u64>>,
     }
 
