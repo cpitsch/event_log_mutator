@@ -3,7 +3,7 @@ use cli::CliError;
 use colored::Colorize;
 use preset::Preset;
 
-use crate::{cli::Args, parsing::MutationChainConfig};
+use crate::{cli::Args, parsing::MutationChainConfig, utils::logging::init_logger};
 
 pub mod cli;
 pub mod constants;
@@ -18,6 +18,7 @@ mod test_fixtures;
 
 fn main() -> ! {
     let args = Args::parse();
+    init_logger(args.verbose, args.quiet);
     let res = run_cli(args);
     if let Err(e) = res {
         eprintln!("{}: {e}", "error".red().bold());

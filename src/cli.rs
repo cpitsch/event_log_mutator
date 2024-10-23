@@ -52,6 +52,15 @@ pub struct Args {
     /// The seed to use for mutations involving randomness.
     #[clap(long)]
     pub seed: Option<u64>,
+
+    /// Increase verbosity level. Verbosity defaults to Error. Increases following:
+    /// Error, -v = Warning, -vv = Info, -vvv = Debug, -vvvv = Trace.
+    #[clap(long, short='v', action=clap::ArgAction::Count, global=true)]
+    pub verbose: u8,
+
+    /// Decrease the verbosity by one level. Verbosity defaults to Error.
+    #[clap(long, short, action=clap::ArgAction::Count, global=true)]
+    pub quiet: u8,
 }
 
 #[derive(Error, Debug)]
