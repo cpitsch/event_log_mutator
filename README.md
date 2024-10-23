@@ -47,10 +47,10 @@ input = "path/to/input_log.xes"
 output = "path/to/output.xes.gz"
 # Gzip the event logs. Defaults to false
 compress_output = true
-# Seed for reproducibility
-seed = 42
 
 [pipeline]
+# Seed for reproducibility
+seed = 42
 # The list of mutations to apply. They will be applied in exactly the order in the file
 [[pipeline.mutations]]
 type = "EventSwapper"
@@ -91,11 +91,11 @@ input = "path/to/input_log.xes"
 output = "pipeline_outputs/"
 # Gzip the event logs. Defaults to false
 compress_output = true
-# Seed for reproducibility
-seed = 42
 
 # The list of mutations to apply. They will be applied in exactly the order in the file
 [pipeline]
+# Seeds for reproducibility
+seed = "1..=10"
 [[pipeline.mutations]]
 # Retain only the variants (sequences of activities) that have a support of at least 5
 # in the event log.
