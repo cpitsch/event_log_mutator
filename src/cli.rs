@@ -53,13 +53,12 @@ pub struct Args {
     #[clap(long)]
     pub seed: Option<u64>,
 
-    /// Increase verbosity level. Defaults to showing errors. Increases following:
+    /// Increase verbosity level. Verbosity defaults to Error. Increases following:
     /// Error, -v = Warning, -vv = Info, -vvv = Debug, -vvvv = Trace.
     #[clap(long, short='v', action=clap::ArgAction::Count, global=true)]
     pub verbose: u8,
 
-    /// Decrease the verbosity level. See defaults to showing errors. Increases following:
-    /// Error, -v = Warning, -vv = Info, -vvv = Debug, -vvvv = Trace.
+    /// Decrease the verbosity by one level. Verbosity defaults to Error.
     #[clap(long, short, action=clap::ArgAction::Count, global=true)]
     pub quiet: u8,
 }
