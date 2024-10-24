@@ -51,6 +51,7 @@ compress_output = true
 [pipeline]
 # Seed for reproducibility
 seed = 42
+
 # The list of mutations to apply. They will be applied in exactly the order in the file
 [[pipeline.mutations]]
 type = "EventSwapper"
@@ -92,10 +93,11 @@ output = "pipeline_outputs/"
 # Gzip the event logs. Defaults to false
 compress_output = true
 
-# The list of mutations to apply. They will be applied in exactly the order in the file
 [pipeline]
 # Seeds for reproducibility
 seed = "1..=10"
+
+# The list of mutations to apply. They will be applied in exactly the order in the file
 [[pipeline.mutations]]
 # Retain only the variants (sequences of activities) that have a support of at least 5
 # in the event log.
