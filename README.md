@@ -94,7 +94,7 @@ output = "pipeline_outputs/"
 compress_output = true
 
 [pipeline]
-# Seeds for reproducibility
+# Seeds for reproducibility; The mutation chain will be applied for each seed
 seed = "1..=10"
 
 # The list of mutations to apply. They will be applied in exactly the order in the file
