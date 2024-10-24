@@ -108,7 +108,7 @@ num_supporting_cases = 5
 # For each event with the activity "a", increase its service time by various factors of the 
 # standard deviation of the activity "a", with various probabilities.
 # This results in 25 different mutation chains from this pipeline file.
-type="ServiceTimeStdShifter"
+type = "ServiceTimeStdShifter"
 activity = "a"
 # This mutator typically expects a single float. Providing a list instead will parametrize
 # the mutator
