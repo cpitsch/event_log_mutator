@@ -14,6 +14,7 @@ use crate::{
         ServiceTimeMultiplier, ServiceTimeStdShifter,
     },
     parsing::{
+        custom_serde::deserialize_u64_vec_or_range_option,
         mutation_value::MutationValue,
         parametrized_mutation_config::ParametrizedMutationConfig,
         traits::{DirName, FlattenMutationValue},
@@ -32,6 +33,10 @@ pub struct NotFlat;
 #[cfg_attr(test, derive(PartialEq))]
 pub struct ParametrizedPipelineConfig<State = NotFlat> {
     pub mutations: Vec<ParametrizedMutationConfig>,
+    /// Seed to use for mutations involving randomness.
+    /// Overwritten by seeds set on a mutation-level.
+    #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
+    pub seed: Option<MutationValue<u64>>,
     #[serde(skip)]
     _state: std::marker::PhantomData<State>,
 }
@@ -40,6 +45,7 @@ impl ParametrizedPipelineConfig {
     pub fn new(mutations: Vec<ParametrizedMutationConfig>) -> ParametrizedPipelineConfig<NotFlat> {
         Self {
             mutations,
+            seed: None,
             _state: std::marker::PhantomData::<NotFlat>,
         }
     }
@@ -47,26 +53,34 @@ impl ParametrizedPipelineConfig {
 
 impl ParametrizedPipelineConfig<NotFlat> {
     pub fn flatten(self) -> Vec<ParametrizedPipelineConfig<Flat>> {
-        self.mutations
+        let flattened = self
+            .mutations
             .into_iter()
             .map(ParametrizedMutationConfig::flatten)
             .multi_cartesian_product()
-            .map(|chain| ParametrizedPipelineConfig {
-                mutations: chain,
+            .map(|config| ParametrizedPipelineConfig {
+                mutations: config,
+                seed: None,
                 _state: std::marker::PhantomData::<Flat>,
-            })
-            .collect()
+            });
+
+        if let Some(seeds) = self.seed.map(MutationValue::get_as_vec) {
+            flattened
+                .cartesian_product(seeds)
+                .map(|(config, seed)| config.with_seed(seed))
+                .collect()
+        } else {
+            flattened.collect()
+        }
     }
 
     pub fn to_mutation_chains(
         self,
-        root_seed: Option<u64>,
         output_root: &Path,
         save_log_compressed: Option<bool>,
     ) -> Vec<MutationChain> {
         flattened_pipeline_configs_to_mutation_chains(
             self.flatten(),
-            root_seed,
             output_root,
             save_log_compressed,
         )
@@ -75,18 +89,13 @@ impl ParametrizedPipelineConfig<NotFlat> {
 
 pub fn flattened_pipeline_configs_to_mutation_chains(
     pipelines: Vec<ParametrizedPipelineConfig<Flat>>,
-    root_seed: Option<u64>,
     output_root: &Path,
     save_log_compressed: Option<bool>,
 ) -> Vec<MutationChain> {
     pipelines
         .into_iter()
         .map(|flat_pipeline_config| {
-            flat_pipeline_config.into_mutation_chain(
-                root_seed,
-                output_root.to_path_buf(),
-                save_log_compressed,
-            )
+            flat_pipeline_config.into_mutation_chain(output_root.to_path_buf(), save_log_compressed)
         })
         .collect()
 }
@@ -94,7 +103,6 @@ pub fn flattened_pipeline_configs_to_mutation_chains(
 impl ParametrizedPipelineConfig<Flat> {
     pub fn into_mutation_chain(
         self,
-        root_seed: Option<u64>,
         mut output_root: PathBuf,
         save_log_compressed: Option<bool>,
     ) -> MutationChain {
@@ -107,7 +115,7 @@ impl ParametrizedPipelineConfig<Flat> {
         self.mutations.into_iter().for_each(|flat_config| {
             let mutator = Self::flat_mutation_config_to_log_mutator(
                 flat_config,
-                root_seed,
+                self.seed.clone().map(MutationValue::inner_value),
                 output_root.clone(),
                 &mut log_saver_index,
             );
@@ -128,6 +136,11 @@ impl ParametrizedPipelineConfig<Flat> {
             )));
         }
         MutationChain { mutations }
+    }
+
+    pub fn with_seed(mut self, seed: u64) -> ParametrizedPipelineConfig<Flat> {
+        self.seed = Some(MutationValue::Value(seed));
+        self
     }
 
     fn flat_mutation_config_to_log_mutator(

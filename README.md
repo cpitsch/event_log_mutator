@@ -47,10 +47,11 @@ input = "path/to/input_log.xes"
 output = "path/to/output.xes.gz"
 # Gzip the event logs. Defaults to false
 compress_output = true
+
+[pipeline]
 # Seed for reproducibility
 seed = 42
 
-[pipeline]
 # The list of mutations to apply. They will be applied in exactly the order in the file
 [[pipeline.mutations]]
 type = "EventSwapper"
@@ -65,7 +66,7 @@ type = "VariantSupportFilter"
 num_supporting_cases = 5
 
 [[pipeline.mutations]]
-# For each event with the activity "a", increase its service time by the standard standard_deviation
+# For each event with the activity "a", increase its service time by the standard deviation
 # of the activity "a", with probability 0.5.
 type = "ServiceTimeStdShifter"
 activity = "a"
@@ -91,11 +92,12 @@ input = "path/to/input_log.xes"
 output = "pipeline_outputs/"
 # Gzip the event logs. Defaults to false
 compress_output = true
-# Seed for reproducibility
-seed = 42
+
+[pipeline]
+# Seeds for reproducibility; The mutation chain will be applied for each seed
+seed = "1..=10"
 
 # The list of mutations to apply. They will be applied in exactly the order in the file
-[pipeline]
 [[pipeline.mutations]]
 # Retain only the variants (sequences of activities) that have a support of at least 5
 # in the event log.
@@ -104,9 +106,9 @@ num_supporting_cases = 5
 
 [[pipeline.mutations]]
 # For each event with the activity "a", increase its service time by various factors of the 
-# standard standard_deviation of the activity "a", with various probabilities.
+# standard deviation of the activity "a", with various probabilities.
 # This results in 25 different mutation chains from this pipeline file.
-type="ServiceTimeStdShifter"
+type = "ServiceTimeStdShifter"
 activity = "a"
 # This mutator typically expects a single float. Providing a list instead will parametrize
 # the mutator
