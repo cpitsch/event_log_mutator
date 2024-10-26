@@ -15,6 +15,7 @@ use toml::from_str;
 use crate::{
     cli::CliError,
     mutation::{LogMutator, MutationError},
+    parsing::parametrized_pipeline::LogAction,
     utils::io::{ensure_correct_file_extension, write_xes},
 };
 
@@ -71,7 +72,7 @@ impl MutationChainConfig {
         Ok(from_str::<Self>(content)?)
     }
 
-    pub fn execute(&self) -> Result<(), CliError> {
+    pub fn execute(&self, validate: bool) -> Result<(), CliError> {
         let mut pipelines = self.pipeline.clone().flatten();
 
         // If effectively only one mutation config, you should be able to provide a specific
@@ -104,7 +105,7 @@ impl MutationChainConfig {
             let mut mutation_chain = pipelines.pop().unwrap().into_mutation_chain(
                 output_path.clone(),
                 // Don't save the output implicitly through the MutationChain; Do it here explicitly
-                None,
+                &LogAction::None,
             );
             mutation_chain.apply_mut(&mut log)?;
 
@@ -125,12 +126,15 @@ impl MutationChainConfig {
             let log = import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())?;
             info!("Read event log {}", self.input.to_string_lossy());
 
-            for mut mutation_chain in flattened_pipeline_configs_to_mutation_chains(
-                pipelines,
-                &output_path,
-                Some(self.compress_output),
-            )
-            .into_iter()
+            let log_action = if validate {
+                LogAction::Validate(self.compress_output)
+            } else {
+                LogAction::Save(self.compress_output)
+            };
+
+            for mut mutation_chain in
+                flattened_pipeline_configs_to_mutation_chains(pipelines, &output_path, log_action)
+                    .into_iter()
             {
                 mutation_chain.apply(&log)?;
             }

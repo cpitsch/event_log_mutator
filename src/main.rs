@@ -46,7 +46,7 @@ pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     let mut parsed_toml = MutationChainConfig::parse_file(&path_to_pipeline)?;
     parsed_toml = overwrite_pipeline_config_with_cli_args(args, parsed_toml);
 
-    parsed_toml.execute()
+    parsed_toml.execute(args.validate)
 }
 
 pub fn overwrite_pipeline_config_with_cli_args(

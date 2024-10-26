@@ -61,6 +61,11 @@ pub struct Args {
     /// Decrease the verbosity by one level. Verbosity defaults to Error.
     #[clap(long, short, action=clap::ArgAction::Count, global=true)]
     pub quiet: u8,
+
+    /// Validate the outputs of the pipeline against an existing output instead of
+    /// writing the event logs
+    #[clap(long)]
+    pub validate: bool,
 }
 
 #[derive(Error, Debug)]

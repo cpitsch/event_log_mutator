@@ -7,7 +7,7 @@ use itertools::Itertools;
 use crate::{
     mutation::{LogMutatorWithAsDirName, MutationChain},
     mutators::{
-        aux_mutators::LogSaver,
+        aux_mutators::{LogSaver, LogValidator},
         filters::{CaseDurationFilter, EndpointFilter, VariantSupportFilter},
         ActivityRemover, ActivityRenamer, AttributeRemover, AttributeRetainer,
         ConstantActivityMutator, EventSwapper, LogBootstrapper, LogSplitter, PartialOrderCreator,
@@ -39,6 +39,14 @@ pub struct ParametrizedPipelineConfig<State = NotFlat> {
     pub seed: Option<MutationValue<u64>>,
     #[serde(skip)]
     _state: std::marker::PhantomData<State>,
+}
+
+// What to do with the mutated event log?
+#[derive(Debug)]
+pub enum LogAction {
+    Save(bool),     // Save --> compressed?
+    Validate(bool), // Is the target event log compressed?
+    None,
 }
 
 impl ParametrizedPipelineConfig {
@@ -77,25 +85,21 @@ impl ParametrizedPipelineConfig<NotFlat> {
     pub fn to_mutation_chains(
         self,
         output_root: &Path,
-        save_log_compressed: Option<bool>,
+        log_action: LogAction,
     ) -> Vec<MutationChain> {
-        flattened_pipeline_configs_to_mutation_chains(
-            self.flatten(),
-            output_root,
-            save_log_compressed,
-        )
+        flattened_pipeline_configs_to_mutation_chains(self.flatten(), output_root, log_action)
     }
 }
 
 pub fn flattened_pipeline_configs_to_mutation_chains(
     pipelines: Vec<ParametrizedPipelineConfig<Flat>>,
     output_root: &Path,
-    save_log_compressed: Option<bool>,
+    log_action: LogAction,
 ) -> Vec<MutationChain> {
     pipelines
         .into_iter()
         .map(|flat_pipeline_config| {
-            flat_pipeline_config.into_mutation_chain(output_root.to_path_buf(), save_log_compressed)
+            flat_pipeline_config.into_mutation_chain(output_root.to_path_buf(), &log_action)
         })
         .collect()
 }
@@ -104,36 +108,59 @@ impl ParametrizedPipelineConfig<Flat> {
     pub fn into_mutation_chain(
         self,
         mut output_root: PathBuf,
-        save_log_compressed: Option<bool>,
+        log_action: &LogAction,
     ) -> MutationChain {
         let mut mutations: Vec<Box<dyn LogMutatorWithAsDirName>> =
             Vec::with_capacity(self.mutations.len());
         // A counter used to create the names for saved event logs.
         // Should be incremented whenever a mutator is created in the pipeline
         // which saves an event log. Used to create unique file names.
+
+        if let Some(seed) = self.seed.clone() {
+            output_root.push(format!("{}", seed.inner_value()));
+        }
+
         let mut log_saver_index: u64 = 1;
         self.mutations.into_iter().for_each(|flat_config| {
             let mutator = Self::flat_mutation_config_to_log_mutator(
                 flat_config,
                 self.seed.clone().map(MutationValue::inner_value),
                 output_root.clone(),
+                log_action,
                 &mut log_saver_index,
             );
             output_root.push(mutator.to_dir_name());
             mutations.push(mutator);
         });
-        if let Some(compress) = save_log_compressed {
-            let file_name = if log_saver_index == 1 {
-                // No log savers in the pipeline, so log.xes is a unique name
-                "log".into()
-            } else {
-                format!("log_{}", log_saver_index)
-            };
-            // Add an auxilliary mutation which saves the event log
-            mutations.push(Box::new(LogSaver::new(
-                build_file_path(output_root, file_name, compress),
-                compress,
-            )));
+        match log_action {
+            LogAction::Save(compress) => {
+                let file_name = if log_saver_index == 1 {
+                    // No log savers in the pipeline, so log.xes is a unique name
+                    "log".into()
+                } else {
+                    format!("log_{}", log_saver_index)
+                };
+                // Add an auxilliary mutation which saves the event log
+                mutations.push(Box::new(LogSaver::new(
+                    build_file_path(output_root, file_name, *compress),
+                    *compress,
+                )));
+            }
+            LogAction::Validate(compress) => {
+                let file_name = if log_saver_index == 1 {
+                    // No log savers in the pipeline, so log.xes is a unique name
+                    "log".into()
+                } else {
+                    format!("log_{}", log_saver_index)
+                };
+                // Add an auxilliary mutation which saves the event log
+                mutations.push(Box::new(LogValidator::new(build_file_path(
+                    output_root,
+                    file_name,
+                    *compress,
+                ))));
+            }
+            LogAction::None => {}
         }
         MutationChain { mutations }
     }
@@ -147,6 +174,7 @@ impl ParametrizedPipelineConfig<Flat> {
         flat_config: ParametrizedMutationConfig,
         root_seed: Option<u64>,
         path_so_far: PathBuf,
+        log_action: &LogAction,
         log_saver_index: &mut u64,
     ) -> Box<dyn LogMutatorWithAsDirName> {
         match flat_config {
@@ -260,27 +288,55 @@ impl ParametrizedPipelineConfig<Flat> {
                 if let Some(s) = seed.map(MutationValue::inner_value).or(root_seed) {
                     mutator = mutator.with_seed(s);
                 }
-                if let Some(p) = save_path {
+
+                let save_path = save_path.map(|p| {
                     let p = p.inner_value();
-                    let save_compressed = save_compressed.map_or_else(
+                    let save_compressed = save_compressed.clone().map_or_else(
                         || p.extension().is_some_and(|ext| ext == "gz"),
                         MutationValue::inner_value,
                     );
-                    let path = ensure_correct_file_extension(p, save_compressed);
+                    ensure_correct_file_extension(p, save_compressed)
+                });
 
-                    mutator = mutator.with_save_discarded_log(path, save_compressed);
-                } else {
-                    let log_name = format!("log_{}", log_saver_index);
-                    let mut path_with_mutator = path_so_far.clone();
-                    let save_compressed = save_compressed
-                        .clone()
-                        .map_or(false, MutationValue::inner_value);
-                    path_with_mutator.push(mutator.to_dir_name());
-                    let save_path = build_file_path(path_with_mutator, log_name, save_compressed);
-                    *log_saver_index += 1;
+                match log_action {
+                    LogAction::None => {}
+                    LogAction::Save(compress) => {
+                        if let Some(p) = save_path {
+                            let is_compressed = p.extension().unwrap() == "gz";
+                            mutator = mutator.with_save_discarded_log(p, is_compressed);
+                        } else {
+                            let log_name = format!("log_{}", log_saver_index);
+                            let mut path_with_mutator = path_so_far.clone();
+                            let save_compressed = save_compressed
+                                .clone()
+                                .map_or(*compress, MutationValue::inner_value);
+                            path_with_mutator.push(mutator.to_dir_name());
+                            let save_path =
+                                build_file_path(path_with_mutator, log_name, save_compressed);
+                            *log_saver_index += 1;
 
-                    mutator = mutator.with_save_discarded_log(save_path, save_compressed);
-                }
+                            mutator = mutator.with_save_discarded_log(save_path, save_compressed);
+                        }
+                    }
+                    LogAction::Validate(compress) => {
+                        if let Some(p) = save_path {
+                            mutator = mutator.with_validate_discarded_log(p);
+                        } else {
+                            let log_name = format!("log_{}", log_saver_index);
+                            let mut path_with_mutator = path_so_far.clone();
+                            let save_compressed = save_compressed
+                                .clone()
+                                .map_or(*compress, MutationValue::inner_value);
+                            path_with_mutator.push(mutator.to_dir_name());
+                            let save_path =
+                                build_file_path(path_with_mutator, log_name, save_compressed);
+                            *log_saver_index += 1;
+
+                            mutator = mutator.with_validate_discarded_log(save_path);
+                        }
+                    }
+                };
+
                 Box::new(mutator)
             }
             ParametrizedMutationConfig::LogBootstrapper {
