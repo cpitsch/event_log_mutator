@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>Event Log Mutator</h1>
+  <img src="assets/hero.png" width="65%" alt="rELMs - An Event Log Mutator, written in rust"><br>
   <a href="https://github.com/cpitsch/event_log_mutator/actions?query=workflow%3ATests"><img src="https://github.com/cpitsch/event_log_mutator/workflows/Tests/badge.svg" alt="Tests Status"></a>
 </div>
 
