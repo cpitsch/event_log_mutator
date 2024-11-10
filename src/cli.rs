@@ -63,7 +63,7 @@ pub struct Args {
     pub quiet: u8,
 
     /// Validate the outputs of the pipeline against an existing output instead of
-    /// writing the event logs
+    /// writing the event logs. Elevates default verbosity to Warnings.
     #[clap(long)]
     pub validate: bool,
 }

@@ -18,7 +18,11 @@ pub mod utils;
 mod test_fixtures;
 
 fn main() -> ! {
-    let args = Args::parse();
+    let mut args = Args::parse();
+    if args.validate {
+        // Default verbosity should be `warn` (one level higher than usual default.
+        args.verbose += 1;
+    }
     init_logger(args.verbose, args.quiet);
     let res = run_cli(args);
     if let Err(e) = res {
