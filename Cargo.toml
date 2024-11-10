@@ -1,5 +1,5 @@
 [package]
-name = "event_log_mutator"
+name = "relms"
 version = "0.3.0"
 edition = "2021"
 
