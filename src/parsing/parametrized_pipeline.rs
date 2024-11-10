@@ -153,7 +153,7 @@ impl ParametrizedPipelineConfig<Flat> {
                 } else {
                     format!("log_{}", log_saver_index)
                 };
-                // Add an auxilliary mutation which saves the event log
+                // Add an auxilliary mutation which validates the event log
                 mutations.push(Box::new(LogValidator::new(build_file_path(
                     output_root,
                     file_name,
