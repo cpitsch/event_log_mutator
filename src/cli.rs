@@ -23,29 +23,16 @@ pub struct Args {
     #[clap(short, long, value_name = "PATH")]
     pub output: Option<PathBuf>,
 
-    /// If present, and no preset is selected, apply mutations to the event log.
-    /// Otherwise, only apply bootstrapping
-    #[clap(long)]
-    pub mutate: bool,
-
     /// A preset mutation chain to apply
     #[clap(long, value_enum)]
     pub preset: Option<Preset>,
 
-    /// Minimum number of supporting cases for variant. Only relevant for
-    /// --filter-variant-support
+    /// Minimum number of supporting cases for variant. Only relevant for the
+    /// --filter-variant-support preset
     #[clap(long)]
     pub support: Option<usize>,
 
-    /// Factor to multiply service time with when using road-traffic preset.
-    #[clap(long)]
-    pub severity: Option<f32>,
-
-    /// Probability to apply mutation. Only used in road-traffic preset.
-    #[clap(long)]
-    pub probability: Option<f32>,
-
-    /// Abort if the output path already exists.
+    /// Abort if the output path already exists. Currently only works for presets.
     #[clap(long)]
     pub no_overwrite: bool,
 
