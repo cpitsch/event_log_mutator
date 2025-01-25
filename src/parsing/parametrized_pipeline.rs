@@ -91,6 +91,13 @@ impl ParametrizedPipelineConfig<NotFlat> {
     }
 }
 
+/// Convert flattened pipeline objects (ParametrizedPipelineConfig<Flat>) to a vector
+/// of MutationChains.
+///
+/// * `pipelines` - The pipelines to convert
+/// * `outpoot_root` - The root directory where to save (or find, for validation)
+///     the finished Event Logs.
+/// * `log_action` - What to do with the mutated event log.
 pub fn flattened_pipeline_configs_to_mutation_chains(
     pipelines: Vec<ParametrizedPipelineConfig<Flat>>,
     output_root: &Path,
