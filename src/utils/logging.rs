@@ -1,7 +1,7 @@
 use chrono::Local;
 use colored::{ColoredString, Colorize};
 use log::{Level, LevelFilter};
-use std::{io::Write, u8};
+use std::io::Write;
 
 const DEFAULT_LEVEL: u8 = 1;
 

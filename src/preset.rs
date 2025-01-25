@@ -105,7 +105,7 @@ impl Preset {
                     .into_mutation_chain(&log, args.clone())
                     .apply_mut(&mut log)?;
 
-                let should_compress = output.extension().map_or(false, |ext| ext == "gz");
+                let should_compress = output.extension().is_some_and(|ext| ext == "gz");
                 output = ensure_correct_file_extension(output, should_compress);
                 Ok(write_xes(&log, output, should_compress)?)
             } else {
