@@ -3,6 +3,8 @@ use colored::{ColoredString, Colorize};
 use log::{Level, LevelFilter};
 use std::{io::Write, u8};
 
+const DEFAULT_LEVEL: u8 = 1;
+
 fn color_logging_string(log_str: impl ToString, level: Level) -> ColoredString {
     match level {
         Level::Info => log_str.to_string().cyan(),
@@ -25,7 +27,7 @@ pub fn verbosity_to_level_filter(verbosity: u8) -> LevelFilter {
 }
 
 pub fn init_logger(verbose: u8, quiet: u8) {
-    let total_verbosity = verbose.saturating_sub(quiet);
+    let total_verbosity = verbose.saturating_add(DEFAULT_LEVEL).saturating_sub(quiet);
     env_logger::Builder::new()
         .filter_level(verbosity_to_level_filter(total_verbosity))
         .format(|buf, record| {

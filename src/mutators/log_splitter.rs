@@ -5,6 +5,7 @@ use rand::{rngs::StdRng, SeedableRng};
 
 use crate::{
     mutation::{LogMutator, MutationError, MutationResult},
+    mutators::aux_mutators::LogValidator,
     parsing::traits::DirName,
     utils::{
         attributes::{get_traceid, get_traceids, AttributeResult},
@@ -53,6 +54,13 @@ impl LogSplitter {
         self.with_discard_handler(Box::new(move |log| {
             let path = ensure_correct_file_extension(save_path.clone(), compress);
             Ok(write_xes(&log, path, compress)?)
+        }))
+    }
+
+    pub fn with_validate_discarded_log(self, log_path: PathBuf) -> Self {
+        self.with_discard_handler(Box::new(move |log| {
+            LogValidator::new(log_path.clone()).apply(&log)?;
+            Ok(())
         }))
     }
 }

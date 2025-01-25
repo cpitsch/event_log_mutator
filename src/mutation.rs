@@ -1,5 +1,5 @@
 use process_mining::{
-    event_log::{Event, Trace},
+    event_log::{import_xes::XESParseError, Event, Trace},
     EventLog,
 };
 use thiserror::Error;
@@ -17,6 +17,8 @@ pub enum MutationError {
     IoError(#[from] IoError),
     #[error("Invalid Value: {0}")]
     InvalidValue(String),
+    #[error(transparent)]
+    XESParseError(#[from] XESParseError),
 }
 
 pub type MutationResult<T> = Result<T, MutationError>;

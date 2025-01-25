@@ -18,7 +18,11 @@ pub mod utils;
 mod test_fixtures;
 
 fn main() -> ! {
-    let args = Args::parse();
+    let mut args = Args::parse();
+    if args.validate {
+        // Default verbosity should be `warn` (one level higher than usual default.
+        args.verbose += 1;
+    }
     init_logger(args.verbose, args.quiet);
     let res = run_cli(args);
     if let Err(e) = res {
@@ -46,7 +50,11 @@ pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
     let mut parsed_toml = MutationChainConfig::parse_file(&path_to_pipeline)?;
     parsed_toml = overwrite_pipeline_config_with_cli_args(args, parsed_toml);
 
-    parsed_toml.execute()
+    if args.validate {
+        parsed_toml.validate()
+    } else {
+        parsed_toml.execute()
+    }
 }
 
 pub fn overwrite_pipeline_config_with_cli_args(
