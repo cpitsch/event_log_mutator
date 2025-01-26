@@ -3,44 +3,60 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::ValueEnum;
+use clap::Subcommand;
 use process_mining::{import_xes_file, EventLog, XESImportOptions};
 
 use crate::{
     cli::{Args, CliError, CliResult},
     mutation::{LogMutator, MutationChain, MutationError},
-    mutators::{filters::VariantSupportFilter, LogBootstrapper, PartialOrderCreator},
-    utils::io::{ensure_correct_file_extension, write_xes, IoError},
+    mutators::{
+        aux_mutators::LogSaver, filters::VariantSupportFilter, LogBootstrapper, PartialOrderCreator,
+    },
+    utils::io::{ensure_correct_file_extension, IoError},
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Subcommand)]
 pub enum Preset {
     /// Bootstrap a "new" event log of the same size by sampling cases with replacement
-    Bootstrap,
+    Bootstrap {
+        /// Number of cases to sample. Defaults to the log length.
+        size: Option<usize>,
+        /// Sample without replacement?
+        #[clap(long)]
+        no_replacement: bool,
+    },
     /// Turn an atomic event log into a partially ordered event log by using the
     /// time since the previous event as the service time
     PartialOrder,
     /// Retain only the cases whose variant is supported by at least `n` cases total
-    FilterVariantSupport,
+    FilterVariantSupport {
+        /// Minimum number of supporting cases to keep a variant.
+        support: usize,
+    },
 }
 
 impl Preset {
-    pub fn into_mutation_chain(self, log: &EventLog, args: Args) -> MutationChain {
+    pub fn into_mutation_chain(self, log: &EventLog, seed: Option<u64>) -> MutationChain {
         match self {
-            Self::Bootstrap => {
-                MutationChain::new().with_mutation(LogBootstrapper::new(log.traces.len()))
+            Self::Bootstrap {
+                size,
+                no_replacement,
+            } => {
+                let mut bootstrapper = LogBootstrapper::new(size.unwrap_or(log.traces.len()))
+                    .with_replacement(!no_replacement);
+                if let Some(seed) = seed {
+                    bootstrapper = bootstrapper.with_seed(seed);
+                }
+                MutationChain::new().with_mutation(bootstrapper)
             }
             Self::PartialOrder => MutationChain::new().with_mutation(PartialOrderCreator::new()),
-            Self::FilterVariantSupport => {
-                MutationChain::new()
-                    .with_mutation(VariantSupportFilter::new(args.support.expect(
-                        "Variant Support Filter requires the `--support` flag to be set.",
-                    )))
+            Self::FilterVariantSupport { support } => {
+                MutationChain::new().with_mutation(VariantSupportFilter::new(support))
             }
         }
     }
 
-    pub fn execute(args: Args) -> CliResult<()> {
+    pub fn execute(self, args: Args, no_overwrite: bool) -> CliResult<()> {
         let input = args
             .input
             .as_ref()
@@ -52,26 +68,20 @@ impl Preset {
             .output
             .clone()
             .map_or_else(|| Self::get_output_path(input), Ok)?;
+        let should_compress = output.extension().is_some_and(|ext| ext == "gz");
+        output = ensure_correct_file_extension(output, should_compress);
 
-        if args.no_overwrite && output.exists() {
+        if no_overwrite && output.exists() {
             Err(IoError::FileExists(output.clone()))?
         }
 
         if input.is_file() {
             let mut log = import_xes_file(&input.to_string_lossy(), XESImportOptions::default())?;
-            if let Some(preset) = args.preset {
-                preset
-                    .into_mutation_chain(&log, args.clone())
-                    .apply_mut(&mut log)?;
+            self.into_mutation_chain(&log, args.seed)
+                .with_mutation(LogSaver::new(output, should_compress))
+                .apply_mut(&mut log)?;
 
-                let should_compress = output.extension().is_some_and(|ext| ext == "gz");
-                output = ensure_correct_file_extension(output, should_compress);
-                Ok(write_xes(&log, output, should_compress)?)
-            } else {
-                Err(CliError::MissingRequiredArgument(
-                    "Either a pipeline file (--pipeline) or a preset (--preset) must be provided!",
-                ))
-            }
+            Ok(())
         } else {
             Err(IoError::FileNotFound(input.clone()))?
         }

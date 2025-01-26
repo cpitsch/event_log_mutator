@@ -1,8 +1,9 @@
+use std::path::Path;
+
 use clap::Parser;
-use cli::CliError;
+use cli::{CliError, Mode};
 use colored::Colorize;
 use parsing::mutation_value::MutationValue;
-use preset::Preset;
 
 use crate::{cli::Args, parsing::MutationChainConfig, utils::logging::init_logger};
 
@@ -19,10 +20,9 @@ mod test_fixtures;
 
 fn main() -> ! {
     let mut args = Args::parse();
-    if args.validate {
-        // Default verbosity should be `warn` (one level higher than usual default.
-        args.verbose += 1;
-    }
+    args.verbose = args
+        .verbose
+        .saturating_add_signed(args.command.relative_logging_level());
     init_logger(args.verbose, args.quiet);
     let res = run_cli(args);
     if let Err(e) = res {
@@ -33,24 +33,35 @@ fn main() -> ! {
 }
 
 fn run_cli(args: Args) -> Result<(), CliError> {
-    if args.pipeline.is_some() {
-        parse_and_execute_pipeline_file(&args)
-    } else if args.input.is_none() {
-        Err(CliError::MissingRequiredArgument(
-            "Either an input file (--input) or a pipeline file (--pipeline) must be provided!",
-        ))
-    } else {
-        Preset::execute(args)
+    match args.command {
+        Mode::Preset {
+            no_overwrite,
+            preset,
+        } => {
+            if args.input.is_none() {
+                Err(CliError::MissingRequiredArgument(
+                    "Either an input file (--input) or a pipeline file (--pipeline) must be provided!",
+                ))
+            } else {
+                preset.execute(args, no_overwrite)
+            }
+        }
+        Mode::Pipeline { ref path, validate } => {
+            parse_and_execute_pipeline_file(&args, path, validate)
+        }
     }
 }
 
-pub fn parse_and_execute_pipeline_file(args: &Args) -> Result<(), CliError> {
-    let path_to_pipeline = args.pipeline.clone().unwrap();
+pub fn parse_and_execute_pipeline_file(
+    args: &Args,
+    pipeline_path: impl AsRef<Path>,
+    validate: bool,
+) -> Result<(), CliError> {
     // Get the configuration from the pipeline
-    let mut parsed_toml = MutationChainConfig::parse_file(&path_to_pipeline)?;
+    let mut parsed_toml = MutationChainConfig::parse_file(pipeline_path)?;
     parsed_toml = overwrite_pipeline_config_with_cli_args(args, parsed_toml);
 
-    if args.validate {
+    if validate {
         parsed_toml.validate()
     } else {
         parsed_toml.execute()
