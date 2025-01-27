@@ -24,14 +24,14 @@ To see the parameters a mutator takes, follow its respective link
 - [VariantSupportFilter](./src/mutators/filters/variant_support_filter.rs#L10-L18)
 
 ## Pipeline Configuration
-A mutation pipeline can be defined in a TOML configuration file, and supplied to the 
-CLI with the `pipeline` parameter:
+A mutation pipeline can be defined in a TOML configuration file, and executed using the 
+CLI in the `pipeline` mode.
 
 Certain attributes in the configuration file can be overridden by specifying them through
 command line arguments:
 
 ```sh
-event_log_mutator --pipeline my_pipeline_file.toml --input other_input_log.xes.gz
+event_log_mutator pipeline my_pipeline_file.toml --input other_input_log.xes.gz
 ```
 
 Like this, instead of using the input log configured in the TOML file, a different event
