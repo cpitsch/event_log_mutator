@@ -22,7 +22,7 @@ fn main() -> ! {
     let mut args = Args::parse();
     args.verbose = args
         .verbose
-        .saturating_add_signed(args.command.relative_logging_level());
+        .saturating_add_signed(args.mode.relative_logging_level());
     init_logger(args.verbose, args.quiet);
     let res = run_cli(args);
     if let Err(e) = res {
@@ -33,7 +33,7 @@ fn main() -> ! {
 }
 
 fn run_cli(args: Args) -> Result<(), CliError> {
-    match args.command {
+    match args.mode {
         Mode::Preset {
             no_overwrite,
             preset,

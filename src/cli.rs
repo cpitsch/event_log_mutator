@@ -16,7 +16,7 @@ use thiserror::Error;
 )]
 pub struct Args {
     #[command(subcommand)]
-    pub command: Mode,
+    pub mode: Mode,
 
     /// The path to the input XES file (.xes or .xes.gz)
     #[clap(short, long, value_name = "PATH", global = true)]
