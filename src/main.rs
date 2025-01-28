@@ -40,7 +40,7 @@ fn run_cli(args: Args) -> Result<(), CliError> {
         } => {
             if args.input.is_none() {
                 Err(CliError::MissingRequiredArgument(
-                    "Either an input file (--input) or a pipeline file (--pipeline) must be provided!",
+                    "Missing input file (--input) to apply the preset to!",
                 ))
             } else {
                 preset.execute(args, no_overwrite)
