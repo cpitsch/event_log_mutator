@@ -15,7 +15,7 @@ pub mod aux_mutators;
 pub mod filters;
 
 use itertools::Itertools;
-use std::fmt::Display;
+use std::{fmt::Display, ops::Deref};
 
 pub use activity_remover::ActivityRemover;
 pub use activity_rename::ActivityRenamer;
@@ -54,5 +54,16 @@ where
 {
     fn from(value: Vec<T>) -> Self {
         Self(value)
+    }
+}
+
+impl<T> Deref for DisplayVec<T>
+where
+    T: Display,
+{
+    type Target = [T];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }

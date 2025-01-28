@@ -47,7 +47,7 @@ impl ServiceTimeMultiplier {
             .map_err(|e| MutationError::MissingAttributeError("ServiceTimeMultiplier", e))?;
         let should_mutate = (
             // Check that the event matches the requirements
-            self.activity.clone().map_or(true, |act| activity == act)
+            self.activity.as_ref().map_or(true, |act| &activity == act)
         ) && (
             // Check mutation probability
             self.rng.gen::<f32>() < self.probability

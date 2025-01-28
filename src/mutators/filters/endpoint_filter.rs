@@ -62,17 +62,15 @@ impl LogMutator for EndpointFilter {
 
         let start_acts = self
             .start_activities
-            .clone()
-            .map(|v| v.0)
-            .unwrap_or(all_activities.clone());
+            .as_deref()
+            .unwrap_or(all_activities.as_slice());
         let end_acts = self
             .end_activities
-            .clone()
-            .map(|v| v.0)
-            .unwrap_or(all_activities);
+            .as_deref()
+            .unwrap_or(all_activities.as_slice());
 
         retain_err(&mut log.traces, |trace| {
-            self.keep_trace(trace, &start_acts, &end_acts)
+            self.keep_trace(trace, start_acts, end_acts)
         })
         .map_err(|e| MutationError::MissingAttributeError("EndpointFilter", e))?;
         Ok(())
