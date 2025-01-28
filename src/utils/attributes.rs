@@ -190,6 +190,7 @@ pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
         .1;
     Ok(activity_timestamp_pairs
         .into_iter()
+        // TODO: Could do take_while instead if we assume that the trace is sorted
         .filter(|(_, time)| *time <= earliest_timestamp)
         .map(|(activity, _)| activity)
         .collect())

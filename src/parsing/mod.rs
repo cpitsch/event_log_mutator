@@ -1,4 +1,8 @@
-use std::{ffi::OsString, fs::read_to_string, path::PathBuf};
+use std::{
+    ffi::OsString,
+    fs::read_to_string,
+    path::{Path, PathBuf},
+};
 
 pub mod custom_serde;
 pub mod mutation_value;
@@ -61,9 +65,10 @@ impl MutationChainConfig {
     }
 
     /// Parse a pipeline configuration from a TOML file
-    pub fn parse_file(path: &PathBuf) -> Result<Self, ParsingError> {
+    pub fn parse_file(path: impl AsRef<Path>) -> Result<Self, ParsingError> {
+        let path = path.as_ref();
         if !path.is_file() {
-            return Err(ParsingError::FileNotFoundError(path.clone()));
+            return Err(ParsingError::FileNotFoundError(path.to_path_buf()));
         }
         let contents = read_to_string(path).unwrap();
         Self::parse_toml_str(&contents)
