@@ -99,10 +99,12 @@ impl CaseDurationFilter {
             .map(get_complete_timestamp)
             .collect::<AttributeResult<Vec<_>>>()?;
 
-        let earliest_timestamp = *complete_timestamps.iter().min().unwrap();
-        let latest_timestamp = complete_timestamps.into_iter().max().unwrap();
+        let earliest_timestamp = complete_timestamps.iter().min().copied();
+        let latest_timestamp = complete_timestamps.into_iter().max();
 
-        let duration = latest_timestamp - earliest_timestamp;
+        let duration = latest_timestamp
+            .map(|dur| dur - earliest_timestamp.unwrap())
+            .unwrap_or_default();
 
         Ok(self.sense.compare(&duration, &self.threshold))
     }
