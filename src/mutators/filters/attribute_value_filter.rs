@@ -1,0 +1,187 @@
+use chrono::{DateTime, Utc};
+use regex::Regex;
+use std::fmt::Display;
+
+use process_mining::EventLog;
+
+use crate::{
+    mutation::{LogMutator, MutationResult},
+    parsing::traits::DirName,
+    utils::attributes::{
+        get_bool_by_key, get_float_by_key, get_int_by_key, get_string_by_key, get_time_by_key,
+        HasAttributes,
+    },
+};
+
+pub enum AttributeFilterMethod {
+    IntGt(i64),
+    IntGeq(i64),
+    IntLt(i64),
+    IntLeq(i64),
+    IntEq(i64),
+    IntRange(i64, i64),
+
+    FloatGt(f64),
+    FloatGeq(f64),
+    FloatLt(f64),
+    FloatLeq(f64),
+    FloatEq(f64),
+    FloatRange(f64, f64),
+
+    StringEq(String),
+    StringRegex(Regex),
+
+    BoolTrue,
+    BoolFalse,
+
+    DateBefore(DateTime<Utc>),
+    DateAfter(DateTime<Utc>),
+    DateBetween(DateTime<Utc>, DateTime<Utc>),
+}
+
+impl Display for AttributeFilterMethod {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::IntGt(x) => format!("IntGt_{x}"),
+                Self::IntGeq(x) => format!("IntGeq_{x}"),
+                Self::IntLt(x) => format!("IntLt_{x}"),
+                Self::IntLeq(x) => format!("IntLeq_{x}"),
+                Self::IntEq(x) => format!("IntEq_{x}"),
+                Self::IntRange(start, end) => format!("IntRange_{start}_{end}"),
+
+                Self::FloatGt(x) => format!("FloatGt_{x}"),
+                Self::FloatGeq(x) => format!("FloatGeq_{x}"),
+                Self::FloatLt(x) => format!("FloatLt_{x}"),
+                Self::FloatLeq(x) => format!("FloatLeq_{x}"),
+                Self::FloatEq(x) => format!("FloatEq_{x}"),
+                Self::FloatRange(start, end) => format!("FloatRange_{start},_{end}"),
+
+                Self::StringEq(s) => format!("StringEq_{s}"),
+                // Leave out the regex because it might contain special characters
+                Self::StringRegex(_) => "StringRegex".to_string(),
+                // Self::StringRegex(re) => format!("StringRegex_{re}"),
+                Self::BoolTrue => "IsTrue".to_string(),
+                Self::BoolFalse => "IsFalse".to_string(),
+
+                Self::DateBefore(d) => format!("DateBefore_{}", d),
+                Self::DateAfter(d) => format!("DateAfter_{}", d),
+                Self::DateBetween(d_start, d_end) => format!("DateBetween_{d_start}_{d_end}"),
+            }
+        )
+    }
+}
+
+impl AttributeFilterMethod {
+    fn apply(&self, item: &impl HasAttributes, key: &str) -> bool {
+        match self {
+            Self::IntGt(x) => get_int_by_key(item, key).map(|val| &val > x),
+            Self::IntGeq(x) => get_int_by_key(item, key).map(|val| &val >= x),
+            Self::IntLt(x) => get_int_by_key(item, key).map(|val| &val < x),
+            Self::IntLeq(x) => get_int_by_key(item, key).map(|val| &val <= x),
+            Self::IntEq(x) => get_int_by_key(item, key).map(|val| &val == x),
+            Self::IntRange(start, end) => {
+                get_int_by_key(item, key).map(|val| (start..end).contains(&&val))
+            }
+            Self::FloatGt(x) => get_float_by_key(item, key).map(|val| &val > x),
+            Self::FloatGeq(x) => get_float_by_key(item, key).map(|val| &val >= x),
+            Self::FloatLt(x) => get_float_by_key(item, key).map(|val| &val < x),
+            Self::FloatLeq(x) => get_float_by_key(item, key).map(|val| &val <= x),
+            Self::FloatEq(x) => get_float_by_key(item, key).map(|val| &val == x),
+            Self::FloatRange(start, end) => {
+                get_float_by_key(item, key).map(|val| (start..end).contains(&&val))
+            }
+            Self::StringEq(s) => get_string_by_key(item, key).map(|val| &val == s),
+            Self::StringRegex(re) => get_string_by_key(item, key).map(|val| re.is_match(&val)),
+
+            Self::BoolTrue => get_bool_by_key(item, key),
+            Self::BoolFalse => get_bool_by_key(item, key).map(|val| !val),
+
+            Self::DateBefore(d) => get_time_by_key(item, key).map(|val| &val < d),
+            Self::DateAfter(d) => get_time_by_key(item, key).map(|val| &val > d),
+            Self::DateBetween(d_start, d_end) => {
+                get_time_by_key(item, key).map(|val| d_start <= &val && &val <= d_end)
+            }
+        }
+        // TODO: Could map_or_else to create MissingAttributeError, and handle it in
+        // keep_trace/keep_event
+        .unwrap_or(false)
+    }
+}
+
+// TODO: Need to also have some "sense", so like Disco: Keep vs Mandatory (and Forbidden?)
+pub enum AttributeFilterTarget {
+    /// Filter on trace-level attributes
+    Trace,
+    /// Keep only the traces where at least one event matches the filter (and keep the entire trace)
+    EventRequired,
+    /// Remove all traces where at least one event matches the filter
+    EventForbidden,
+    /// Keep only the events that match the filter
+    /// TODO: Keep empty cases?
+    EventKeep,
+}
+
+impl Display for AttributeFilterTarget {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Self::Trace => "Trace",
+                // Self::Event => "Event",
+                Self::EventRequired => "EventRequired",
+                Self::EventForbidden => "EventForbidden",
+                Self::EventKeep => "EventKeep",
+            }
+        )
+    }
+}
+
+#[derive(DirName)]
+pub struct AttributeFilter {
+    target: AttributeFilterTarget,
+    key: String,
+    filter_method: AttributeFilterMethod,
+}
+
+impl AttributeFilter {
+    pub fn new(
+        target: AttributeFilterTarget,
+        key: impl Into<String>,
+        filter_method: AttributeFilterMethod,
+    ) -> Self {
+        Self {
+            target,
+            key: key.into(),
+            filter_method,
+        }
+    }
+
+    fn keep(&self, item: &impl HasAttributes) -> bool {
+        self.filter_method.apply(item, &self.key)
+    }
+}
+
+impl LogMutator for AttributeFilter {
+    fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
+        match self.target {
+            AttributeFilterTarget::Trace => log.traces.retain(|trace| self.keep(trace)),
+            AttributeFilterTarget::EventRequired => log
+                .traces
+                .retain(|trace| trace.events.iter().any(|evt| self.keep(evt))),
+            AttributeFilterTarget::EventForbidden => log
+                .traces
+                .retain(|trace| trace.events.iter().all(|evt| !self.keep(evt))),
+            AttributeFilterTarget::EventKeep => log.traces.retain_mut(|trace| {
+                // Remove non-matching events
+                trace.events.retain(|evt| self.keep(evt));
+                // Remove empty traces
+                !trace.events.is_empty()
+            }),
+        }
+        Ok(())
+    }
+}
