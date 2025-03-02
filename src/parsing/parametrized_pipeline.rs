@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use chrono::TimeDelta;
 use serde::Deserialize;
 
 use itertools::Itertools;
@@ -220,16 +221,17 @@ impl ParametrizedPipelineConfig<Flat> {
                 hours,
                 minutes,
                 seconds,
-            } => Box::new(
-                CaseDurationFilter::new(
-                    Some(years.inner_value()),
-                    Some(days.inner_value()),
-                    Some(hours.inner_value()),
-                    Some(minutes.inner_value()),
-                    Some(seconds.inner_value()),
+            } => {
+                // Convert configuration to a number of seconds
+                let days = (365.0 * years.inner_value()) + days.inner_value();
+                let hours = (24.0 * days) + hours.inner_value();
+                let minutes = (60.0 * hours) + minutes.inner_value();
+                let total_seconds = (60.0 * minutes) + seconds.inner_value();
+                Box::new(
+                    CaseDurationFilter::new(TimeDelta::seconds(total_seconds as i64))
+                        .with_sense(sense.inner_value()),
                 )
-                .with_sense(sense.inner_value()),
-            ),
+            }
             ParametrizedMutationConfig::ActivityRemover {
                 activity,
                 probability,
