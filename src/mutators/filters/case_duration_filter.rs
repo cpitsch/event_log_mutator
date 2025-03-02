@@ -32,6 +32,20 @@ impl Default for ComparisonSense {
     }
 }
 
+impl ComparisonSense {
+    pub fn compare<T>(&self, first: &T, other: &T) -> bool
+    where
+        T: PartialOrd,
+    {
+        match self {
+            Self::Less => first < other,
+            Self::LEQ => first <= other,
+            Self::Greater => first > other,
+            Self::GEQ => first >= other,
+        }
+    }
+}
+
 impl Display for ComparisonSense {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -90,12 +104,7 @@ impl CaseDurationFilter {
 
         let duration = latest_timestamp - earliest_timestamp;
 
-        Ok(match self.sense {
-            ComparisonSense::Less => duration < self.threshold,
-            ComparisonSense::LEQ => duration <= self.threshold,
-            ComparisonSense::GEQ => duration >= self.threshold,
-            ComparisonSense::Greater => duration > self.threshold,
-        })
+        Ok(self.sense.compare(&duration, &self.threshold))
     }
 }
 
