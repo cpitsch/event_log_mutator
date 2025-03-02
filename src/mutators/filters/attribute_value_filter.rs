@@ -119,8 +119,14 @@ pub enum AttributeFilterTarget {
     EventRequired,
     /// Remove all traces where at least one event matches the filter
     EventForbidden,
-    /// Keep only the events that match the filter
-    /// TODO: Keep empty cases?
+    /// Keep only traces where the filter matches on _all_ events.
+    AllEvents,
+    /// Keep only traces where the filter holds for the first event in the trace
+    FirstEvent,
+    /// Keep only traces where the filter holds for the last event in the trace
+    LastEvent,
+    /// Keep only the events that match the filter, discarding empty traces
+    // TODO: Keep empty cases?
     EventKeep,
 }
 
@@ -134,6 +140,9 @@ impl Display for AttributeFilterTarget {
                 // Self::Event => "Event",
                 Self::EventRequired => "EventRequired",
                 Self::EventForbidden => "EventForbidden",
+                Self::AllEvents => "AllEvents",
+                Self::FirstEvent => "FirstEvent",
+                Self::LastEvent => "LastEvent",
                 Self::EventKeep => "EventKeep",
             }
         )
@@ -180,6 +189,25 @@ impl LogMutator for AttributeFilter {
                 trace.events.retain(|evt| self.keep(evt));
                 // Remove empty traces
                 !trace.events.is_empty()
+            }),
+            AttributeFilterTarget::AllEvents => log
+                .traces
+                .retain(|trace| trace.events.iter().all(|evt| self.keep(evt))),
+            AttributeFilterTarget::FirstEvent => log.traces.retain(|trace| {
+                trace
+                    .events
+                    .first()
+                    .map(|evt| self.keep(evt))
+                    // If the trace is empty, the filter does _not_ hold for the first event
+                    .unwrap_or_default()
+            }),
+            AttributeFilterTarget::LastEvent => log.traces.retain(|trace| {
+                trace
+                    .events
+                    .last()
+                    .map(|evt| self.keep(evt))
+                    // If the trace is empty, the filter does _not_ hold for the last event
+                    .unwrap_or_default()
             }),
         }
         Ok(())
