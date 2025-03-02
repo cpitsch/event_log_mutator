@@ -74,6 +74,30 @@ pub fn get_time_by_key(from: &impl HasAttributes, key: &str) -> Option<DateTime<
         .cloned()
 }
 
+pub fn get_int_by_key(from: &impl HasAttributes, key: &str) -> Option<i64> {
+    from.get_attributes()
+        .get_by_key(key)?
+        .value
+        .try_as_int()
+        .cloned()
+}
+
+pub fn get_float_by_key(from: &impl HasAttributes, key: &str) -> Option<f64> {
+    from.get_attributes()
+        .get_by_key(key)?
+        .value
+        .try_as_float()
+        .cloned()
+}
+
+pub fn get_bool_by_key(from: &impl HasAttributes, key: &str) -> Option<bool> {
+    from.get_attributes()
+        .get_by_key(key)?
+        .value
+        .try_as_bool()
+        .cloned()
+}
+
 pub fn get_activity_label(event: &Event) -> AttributeResult<String> {
     get_string_by_key(event, ACTIVITY_KEY)
         .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, ACTIVITY_KEY))
