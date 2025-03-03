@@ -114,7 +114,6 @@ impl AttributeFilterMethod {
     }
 }
 
-// TODO: Need to also have some "sense", so like Disco: Keep vs Mandatory (and Forbidden?)
 pub enum AttributeFilterTarget {
     /// Filter on trace-level attributes
     Trace,
