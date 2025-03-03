@@ -19,6 +19,7 @@ pub enum AttributeFilterMethod {
     IntLt(i64),
     IntLeq(i64),
     IntEq(i64),
+    /// Int attribute must be in range: low <= x < high
     IntRange(i64, i64),
 
     FloatGt(f64),
@@ -26,6 +27,7 @@ pub enum AttributeFilterMethod {
     FloatLt(f64),
     FloatLeq(f64),
     FloatEq(f64),
+    /// Float attribute must be in range: low <= x < high
     FloatRange(f64, f64),
 
     StringEq(String),
@@ -36,6 +38,7 @@ pub enum AttributeFilterMethod {
 
     DateBefore(DateTime<Utc>),
     DateAfter(DateTime<Utc>),
+    /// Date attribute must be in range: low <= x < high
     DateBetween(DateTime<Utc>, DateTime<Utc>),
 }
 
