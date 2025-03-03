@@ -60,7 +60,7 @@ impl Display for AttributeFilterMethod {
                 Self::FloatLess(x) => format!("FloatLess_{x}"),
                 Self::FloatLeq(x) => format!("FloatLeq_{x}"),
                 Self::FloatEq(x) => format!("FloatEq_{x}"),
-                Self::FloatRange(start, end) => format!("FloatRange_{start},_{end}"),
+                Self::FloatRange(start, end) => format!("FloatRange_{start}_{end}"),
 
                 Self::StringEq(s) => format!("StringEq_{s}"),
                 // Leave out the regex because it might contain special characters
