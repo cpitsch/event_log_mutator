@@ -108,4 +108,9 @@ pub enum ParametrizedMutationConfig {
         factor: MutationValue<f32>,
         seed: Option<MutationValue<u64>>,
     },
+    FollowerFilter {
+        trigger_activities: MutationValue<Vec<String>>,
+        reaction_activities: MutationValue<Vec<String>>,
+        range: Option<MutationValue<usize>>,
+    },
 }

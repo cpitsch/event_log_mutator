@@ -9,7 +9,7 @@ use crate::{
     mutation::{LogMutatorWithAsDirName, MutationChain},
     mutators::{
         aux_mutators::{LogSaver, LogValidator},
-        filters::{CaseDurationFilter, EndpointFilter, VariantSupportFilter},
+        filters::{CaseDurationFilter, EndpointFilter, FollowerFilter, VariantSupportFilter},
         ActivityRemover, ActivityRenamer, AttributeRemover, AttributeRetainer,
         ConstantActivityMutator, EventSwapper, LogBootstrapper, LogSplitter, PartialOrderCreator,
         ServiceTimeMultiplier, ServiceTimeStdShifter,
@@ -377,6 +377,20 @@ impl ParametrizedPipelineConfig<Flat> {
                 }
                 if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
                     mutator = mutator.with_seed(s);
+                }
+                Box::new(mutator)
+            }
+            ParametrizedMutationConfig::FollowerFilter {
+                trigger_activities,
+                reaction_activities,
+                range,
+            } => {
+                let mut mutator = FollowerFilter::new(
+                    trigger_activities.inner_value(),
+                    reaction_activities.inner_value(),
+                );
+                if let Some(range) = range {
+                    mutator = mutator.with_range(range.inner_value());
                 }
                 Box::new(mutator)
             }
