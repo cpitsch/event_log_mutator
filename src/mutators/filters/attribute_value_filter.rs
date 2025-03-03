@@ -118,6 +118,9 @@ impl AttributeFilterMethod {
 pub enum AttributeFilterTarget {
     /// Filter on trace-level attributes
     Trace,
+    /// Keep only the events that match the filter, discarding empty traces
+    // TODO: Keep empty cases?
+    Event,
     /// Keep only the traces where at least one event matches the filter (and keep the entire trace)
     EventRequired,
     /// Remove all traces where at least one event matches the filter
@@ -128,9 +131,6 @@ pub enum AttributeFilterTarget {
     FirstEvent,
     /// Keep only traces where the filter holds for the last event in the trace
     LastEvent,
-    /// Keep only the events that match the filter, discarding empty traces
-    // TODO: Keep empty cases?
-    EventKeep,
 }
 
 impl Display for AttributeFilterTarget {
@@ -140,13 +140,12 @@ impl Display for AttributeFilterTarget {
             "{}",
             match self {
                 Self::Trace => "Trace",
-                // Self::Event => "Event",
+                Self::Event => "Event",
                 Self::EventRequired => "EventRequired",
                 Self::EventForbidden => "EventForbidden",
                 Self::AllEvents => "AllEvents",
                 Self::FirstEvent => "FirstEvent",
                 Self::LastEvent => "LastEvent",
-                Self::EventKeep => "EventKeep",
             }
         )
     }
@@ -187,7 +186,7 @@ impl LogMutator for AttributeFilter {
             AttributeFilterTarget::EventForbidden => log
                 .traces
                 .retain(|trace| trace.events.iter().all(|evt| !self.keep(evt))),
-            AttributeFilterTarget::EventKeep => log.traces.retain_mut(|trace| {
+            AttributeFilterTarget::Event => log.traces.retain_mut(|trace| {
                 // Remove non-matching events
                 trace.events.retain(|evt| self.keep(evt));
                 // Remove empty traces
