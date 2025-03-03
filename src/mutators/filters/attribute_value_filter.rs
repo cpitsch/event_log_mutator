@@ -14,17 +14,17 @@ use crate::{
 };
 
 pub enum AttributeFilterMethod {
-    IntGt(i64),
+    IntGreater(i64),
     IntGeq(i64),
-    IntLt(i64),
+    IntLess(i64),
     IntLeq(i64),
     IntEq(i64),
     /// Int attribute must be in range: low <= x < high
     IntRange(i64, i64),
 
-    FloatGt(f64),
+    FloatGreater(f64),
     FloatGeq(f64),
-    FloatLt(f64),
+    FloatLess(f64),
     FloatLeq(f64),
     FloatEq(f64),
     /// Float attribute must be in range: low <= x < high
@@ -48,16 +48,16 @@ impl Display for AttributeFilterMethod {
             f,
             "{}",
             match self {
-                Self::IntGt(x) => format!("IntGt_{x}"),
+                Self::IntGreater(x) => format!("IntGreater_{x}"),
                 Self::IntGeq(x) => format!("IntGeq_{x}"),
-                Self::IntLt(x) => format!("IntLt_{x}"),
+                Self::IntLess(x) => format!("IntLess_{x}"),
                 Self::IntLeq(x) => format!("IntLeq_{x}"),
                 Self::IntEq(x) => format!("IntEq_{x}"),
                 Self::IntRange(start, end) => format!("IntRange_{start}_{end}"),
 
-                Self::FloatGt(x) => format!("FloatGt_{x}"),
+                Self::FloatGreater(x) => format!("FloatGreater_{x}"),
                 Self::FloatGeq(x) => format!("FloatGeq_{x}"),
-                Self::FloatLt(x) => format!("FloatLt_{x}"),
+                Self::FloatLess(x) => format!("FloatLess_{x}"),
                 Self::FloatLeq(x) => format!("FloatLeq_{x}"),
                 Self::FloatEq(x) => format!("FloatEq_{x}"),
                 Self::FloatRange(start, end) => format!("FloatRange_{start},_{end}"),
@@ -80,17 +80,17 @@ impl Display for AttributeFilterMethod {
 impl AttributeFilterMethod {
     fn apply(&self, item: &impl HasAttributes, key: &str) -> bool {
         match self {
-            Self::IntGt(x) => get_int_by_key(item, key).map(|val| &val > x),
+            Self::IntGreater(x) => get_int_by_key(item, key).map(|val| &val > x),
             Self::IntGeq(x) => get_int_by_key(item, key).map(|val| &val >= x),
-            Self::IntLt(x) => get_int_by_key(item, key).map(|val| &val < x),
+            Self::IntLess(x) => get_int_by_key(item, key).map(|val| &val < x),
             Self::IntLeq(x) => get_int_by_key(item, key).map(|val| &val <= x),
             Self::IntEq(x) => get_int_by_key(item, key).map(|val| &val == x),
             Self::IntRange(start, end) => {
                 get_int_by_key(item, key).map(|val| (start..end).contains(&&val))
             }
-            Self::FloatGt(x) => get_float_by_key(item, key).map(|val| &val > x),
+            Self::FloatGreater(x) => get_float_by_key(item, key).map(|val| &val > x),
             Self::FloatGeq(x) => get_float_by_key(item, key).map(|val| &val >= x),
-            Self::FloatLt(x) => get_float_by_key(item, key).map(|val| &val < x),
+            Self::FloatLess(x) => get_float_by_key(item, key).map(|val| &val < x),
             Self::FloatLeq(x) => get_float_by_key(item, key).map(|val| &val <= x),
             Self::FloatEq(x) => get_float_by_key(item, key).map(|val| &val == x),
             Self::FloatRange(start, end) => {
