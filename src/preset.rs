@@ -76,7 +76,7 @@ impl Preset {
         }
 
         if input.is_file() {
-            let mut log = import_xes_file(&input.to_string_lossy(), XESImportOptions::default())?;
+            let mut log = import_xes_file(&input, XESImportOptions::default())?;
             self.into_mutation_chain(&log, args.seed)
                 .with_mutation(LogSaver::new(output, should_compress))
                 .apply_mut(&mut log)?;

@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset};
 use regex::Regex;
 use std::fmt::Display;
 
@@ -43,10 +43,10 @@ pub enum AttributeFilterMethod {
 
     // TODO: Why not FixedOffset (Actually I think it's because i use the old process_mining
     // version that still uses Utc)
-    DateBefore(DateTime<Utc>),
-    DateAfter(DateTime<Utc>),
+    DateBefore(DateTime<FixedOffset>),
+    DateAfter(DateTime<FixedOffset>),
     /// Date attribute must be in range: low <= x < high
-    DateBetween(DateTime<Utc>, DateTime<Utc>),
+    DateBetween(DateTime<FixedOffset>, DateTime<FixedOffset>),
 }
 
 impl Display for AttributeFilterMethod {

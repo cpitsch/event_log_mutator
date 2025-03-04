@@ -98,8 +98,7 @@ impl MutationChainConfig {
 
             // Read the event log. Since there is only one mutation chain, we can
             // mutate the event log directly
-            let mut log =
-                import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())?;
+            let mut log = import_xes_file(&self.input, XESImportOptions::default())?;
             info!("Read event log {}", self.input.to_string_lossy());
 
             if output_path.extension().is_none() {
@@ -136,7 +135,7 @@ impl MutationChainConfig {
                 .unwrap_or_else(|| self.default_output_path(true));
 
             // Read the event log
-            let log = import_xes_file(&self.input.to_string_lossy(), XESImportOptions::default())?;
+            let log = import_xes_file(&self.input, XESImportOptions::default())?;
             info!("Read event log {}", self.input.to_string_lossy());
 
             for mut mutation_chain in

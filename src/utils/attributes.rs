@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, FixedOffset, TimeDelta};
 
 use process_mining::{
     event_log::{AttributeValue, Attributes, Event, Trace, XESEditableAttribute},
@@ -66,7 +66,7 @@ pub fn get_string_by_key(from: &impl HasAttributes, key: &str) -> Option<String>
         .cloned()
 }
 
-pub fn get_time_by_key(from: &impl HasAttributes, key: &str) -> Option<DateTime<Utc>> {
+pub fn get_time_by_key(from: &impl HasAttributes, key: &str) -> Option<DateTime<FixedOffset>> {
     from.get_attributes()
         .get_by_key(key)?
         .value
@@ -103,12 +103,12 @@ pub fn get_activity_label(event: &Event) -> AttributeResult<String> {
         .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, ACTIVITY_KEY))
 }
 
-pub fn get_start_timestamp(event: &Event) -> AttributeResult<DateTime<Utc>> {
+pub fn get_start_timestamp(event: &Event) -> AttributeResult<DateTime<FixedOffset>> {
     get_time_by_key(event, START_TIMESTAMP_KEY)
         .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, START_TIMESTAMP_KEY))
 }
 
-pub fn get_complete_timestamp(event: &Event) -> AttributeResult<DateTime<Utc>> {
+pub fn get_complete_timestamp(event: &Event) -> AttributeResult<DateTime<FixedOffset>> {
     get_time_by_key(event, TIMESTAMP_KEY)
         .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, TIMESTAMP_KEY))
 }
@@ -172,7 +172,7 @@ pub fn shift_events_by(trace: &mut Trace, by: TimeDelta, from: usize) -> Attribu
 pub fn change_event_duration(
     trace: &mut Trace,
     index: usize,
-    to: DateTime<Utc>,
+    to: DateTime<FixedOffset>,
 ) -> AttributeResult<()> {
     let evt = trace.events.get_mut(index).unwrap();
     let old_complete_timestamp = get_complete_timestamp(evt)?;
@@ -198,11 +198,13 @@ pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
     let activity_timestamp_pairs = trace
         .events
         .iter()
-        .map(|event| -> AttributeResult<(String, DateTime<Utc>)> {
-            let act = get_activity_label(event)?;
-            let complete = get_complete_timestamp(event)?;
-            Ok((act, complete))
-        })
+        .map(
+            |event| -> AttributeResult<(String, DateTime<FixedOffset>)> {
+                let act = get_activity_label(event)?;
+                let complete = get_complete_timestamp(event)?;
+                Ok((act, complete))
+            },
+        )
         .collect::<AttributeResult<Vec<_>>>()?;
 
     // Errors if the vec is empty
@@ -225,11 +227,13 @@ pub fn get_end_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
     let activity_timestamp_pairs = trace
         .events
         .iter()
-        .map(|event| -> AttributeResult<(String, DateTime<Utc>)> {
-            let act = get_activity_label(event)?;
-            let complete = get_complete_timestamp(event)?;
-            Ok((act, complete))
-        })
+        .map(
+            |event| -> AttributeResult<(String, DateTime<FixedOffset>)> {
+                let act = get_activity_label(event)?;
+                let complete = get_complete_timestamp(event)?;
+                Ok((act, complete))
+            },
+        )
         .collect::<AttributeResult<Vec<_>>>()?;
 
     // Errors if the vec is empty

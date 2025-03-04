@@ -263,7 +263,8 @@ mod tests {
         let date = Utc
             .with_ymd_and_hms(2024, 4, 29, 1, 0, 0)
             .earliest()
-            .unwrap();
+            .unwrap()
+            .fixed_offset();
         Trace {
             attributes: Vec::default(),
             events: vec![
@@ -278,7 +279,8 @@ mod tests {
         let date = Utc
             .with_ymd_and_hms(2024, 4, 29, 1, 0, 0)
             .earliest()
-            .unwrap();
+            .unwrap()
+            .fixed_offset();
         Trace {
             attributes: Vec::default(),
             events: vec![

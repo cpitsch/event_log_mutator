@@ -47,7 +47,7 @@ mod tests {
     // In this case, actually no attributes will be left
     #[case::nonexistent(vec!["I don't exist".into()])]
     fn correct_keys_retained(#[case] keys: Vec<String>) {
-        let the_event = new_event("a", Utc::now(), TimeDelta::hours(1));
+        let the_event = new_event("a", Utc::now().fixed_offset(), TimeDelta::hours(1));
         // Sanity check to ensure new_event works as expected
         let before_attrs = HashSet::from([
             "concept:name".to_string(),
