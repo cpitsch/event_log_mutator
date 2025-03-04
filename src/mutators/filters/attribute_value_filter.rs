@@ -41,8 +41,6 @@ pub enum AttributeFilterMethod {
     BoolTrue,
     BoolFalse,
 
-    // TODO: Why not FixedOffset (Actually I think it's because i use the old process_mining
-    // version that still uses Utc)
     DateBefore(DateTime<FixedOffset>),
     DateAfter(DateTime<FixedOffset>),
     /// Date attribute must be in range: low <= x < high
