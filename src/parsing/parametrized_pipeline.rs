@@ -9,7 +9,10 @@ use crate::{
     mutation::{LogMutatorWithAsDirName, MutationChain},
     mutators::{
         aux_mutators::{LogSaver, LogValidator},
-        filters::{CaseDurationFilter, EndpointFilter, FollowerFilter, VariantSupportFilter},
+        filters::{
+            AttributeFilter, CaseDurationFilter, EndpointFilter, FollowerFilter,
+            VariantSupportFilter,
+        },
         ActivityRemover, ActivityRenamer, AttributeRemover, AttributeRetainer,
         ConstantActivityMutator, EventSwapper, LogBootstrapper, LogSplitter, PartialOrderCreator,
         ServiceTimeMultiplier, ServiceTimeStdShifter,
@@ -394,6 +397,15 @@ impl ParametrizedPipelineConfig<Flat> {
                 }
                 Box::new(mutator)
             }
+            ParametrizedMutationConfig::AttributeFilter {
+                target,
+                key,
+                filter_method,
+            } => Box::new(AttributeFilter::new(
+                target.inner_value(),
+                key.inner_value(),
+                filter_method.inner_value(),
+            )),
         }
     }
 }

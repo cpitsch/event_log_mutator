@@ -13,6 +13,9 @@ use crate::{
     },
 };
 
+#[derive(serde::Deserialize, Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
+#[serde(tag = "method", content = "value")]
 pub enum AttributeFilterMethod {
     IntGreater(i64),
     IntGeq(i64),
@@ -31,11 +34,15 @@ pub enum AttributeFilterMethod {
     FloatRange(f64, f64),
 
     StringEq(String),
-    StringRegex(Regex),
+    // TODO: Made this string because it needs to impl Deserialize and PartialEq
+    // However, this means that the Regex needs to be built every time we filter..
+    StringRegex(String),
 
     BoolTrue,
     BoolFalse,
 
+    // TODO: Why not FixedOffset (Actually I think it's because i use the old process_mining
+    // version that still uses Utc)
     DateBefore(DateTime<Utc>),
     DateAfter(DateTime<Utc>),
     /// Date attribute must be in range: low <= x < high
@@ -97,7 +104,8 @@ impl AttributeFilterMethod {
                 get_float_by_key(item, key).map(|val| (start..end).contains(&&val))
             }
             Self::StringEq(s) => get_string_by_key(item, key).map(|val| &val == s),
-            Self::StringRegex(re) => get_string_by_key(item, key).map(|val| re.is_match(&val)),
+            Self::StringRegex(re) => get_string_by_key(item, key)
+                .map(|val| Regex::new(re.as_str()).unwrap().is_match(&val)),
 
             Self::BoolTrue => get_bool_by_key(item, key),
             Self::BoolFalse => get_bool_by_key(item, key).map(|val| !val),
@@ -114,6 +122,8 @@ impl AttributeFilterMethod {
     }
 }
 
+#[derive(serde::Deserialize, Debug, Clone)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum AttributeFilterTarget {
     /// Filter on trace-level attributes
     Trace,
@@ -153,6 +163,7 @@ impl Display for AttributeFilterTarget {
 #[derive(DirName)]
 pub struct AttributeFilter {
     target: AttributeFilterTarget,
+    // Could pose an issue for creating pathname? E.g., ":"
     key: String,
     filter_method: AttributeFilterMethod,
 }

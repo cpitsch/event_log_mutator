@@ -1,8 +1,11 @@
 use std::path::PathBuf;
 
 use crate::{
-    mutators::filters::case_duration_filter::ComparisonSense,
-    parsing::mutation_value::MutationValue, parsing::traits::FlattenMutationValue,
+    mutators::filters::{
+        attribute_value_filter::{AttributeFilterMethod, AttributeFilterTarget},
+        case_duration_filter::ComparisonSense,
+    },
+    parsing::{mutation_value::MutationValue, traits::FlattenMutationValue},
 };
 use serde::Deserialize;
 
@@ -112,5 +115,10 @@ pub enum ParametrizedMutationConfig {
         trigger_activities: MutationValue<Vec<String>>,
         reaction_activities: MutationValue<Vec<String>>,
         range: Option<MutationValue<usize>>,
+    },
+    AttributeFilter {
+        target: MutationValue<AttributeFilterTarget>,
+        key: MutationValue<String>,
+        filter_method: MutationValue<AttributeFilterMethod>,
     },
 }
