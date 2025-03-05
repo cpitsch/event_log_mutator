@@ -25,11 +25,12 @@ impl HasAttributes for Event {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AttributeLevel {
     Event,
     Trace,
     Log,
+    Unknown,
 }
 
 impl std::fmt::Display for AttributeLevel {
@@ -38,84 +39,126 @@ impl std::fmt::Display for AttributeLevel {
             AttributeLevel::Event => "event",
             AttributeLevel::Trace => "trace",
             AttributeLevel::Log => "log",
+            Self::Unknown => "unkown",
         };
         write!(f, "{}", level_str)
     }
 }
 
-#[derive(Error, Debug, PartialEq, PartialOrd)]
-#[error("Missing {level}-level attribute {key}")]
-pub struct MissingAttributeError {
-    pub level: AttributeLevel,
-    pub key: &'static str,
+#[derive(Error, Debug, PartialEq, Clone, Eq)]
+pub enum AttributeErrorKind {
+    #[error("not found")]
+    MissingAttribute,
+    #[error("has unexpected type. Expected {0}, found {1:?}")]
+    TypeMismatch(String, AttributeValue),
 }
 
-pub type AttributeResult<T> = Result<T, MissingAttributeError>;
+#[derive(Error, Debug, Clone, PartialEq)]
+#[error("Attribute Error: {level}-level attribute \"{key}\" {kind}.")]
+pub struct AttributeError {
+    pub level: AttributeLevel,
+    pub key: String,
+    pub kind: AttributeErrorKind,
+}
 
-impl MissingAttributeError {
-    pub fn new(level: AttributeLevel, key: &'static str) -> Self {
-        Self { level, key }
+impl AttributeError {
+    pub fn missing_attribute(key: impl Into<String>) -> Self {
+        Self {
+            level: AttributeLevel::Unknown,
+            key: key.into(),
+            kind: AttributeErrorKind::MissingAttribute,
+        }
+    }
+
+    pub fn type_mismatch(
+        key: impl Into<String>,
+        expected: impl Into<String>,
+        found: AttributeValue,
+    ) -> Self {
+        Self {
+            level: AttributeLevel::Unknown,
+            key: key.into(),
+            kind: AttributeErrorKind::TypeMismatch(expected.into(), found),
+        }
+    }
+
+    pub fn with_level(mut self, level: AttributeLevel) -> Self {
+        self.level = level;
+        self
     }
 }
 
-pub fn get_string_by_key(from: &impl HasAttributes, key: &str) -> Option<String> {
+pub type AttributeResult<T> = Result<T, AttributeError>;
+
+fn get_attribute_value(from: &impl HasAttributes, key: &str) -> AttributeResult<AttributeValue> {
     from.get_attributes()
-        .get_by_key(key)?
-        .value
-        .try_as_string()
-        .cloned()
+        .get_by_key(key)
+        .ok_or_else(|| AttributeError::missing_attribute(key))
+        .map(|v| v.value.clone())
 }
 
-pub fn get_time_by_key(from: &impl HasAttributes, key: &str) -> Option<DateTime<FixedOffset>> {
-    from.get_attributes()
-        .get_by_key(key)?
-        .value
-        .try_as_date()
-        .cloned()
+pub fn get_string_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<String> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_string()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "String", value))
+    })?
 }
 
-pub fn get_int_by_key(from: &impl HasAttributes, key: &str) -> Option<i64> {
-    from.get_attributes()
-        .get_by_key(key)?
-        .value
-        .try_as_int()
-        .cloned()
+pub fn get_time_by_key(
+    from: &impl HasAttributes,
+    key: &str,
+) -> AttributeResult<DateTime<FixedOffset>> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_date()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "DateTime", value))
+    })?
 }
 
-pub fn get_float_by_key(from: &impl HasAttributes, key: &str) -> Option<f64> {
-    from.get_attributes()
-        .get_by_key(key)?
-        .value
-        .try_as_float()
-        .cloned()
+pub fn get_int_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<i64> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_int()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "Int", value))
+    })?
 }
 
-pub fn get_bool_by_key(from: &impl HasAttributes, key: &str) -> Option<bool> {
-    from.get_attributes()
-        .get_by_key(key)?
-        .value
-        .try_as_bool()
-        .cloned()
+pub fn get_float_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<f64> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_float()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "Float", value))
+    })?
+}
+
+pub fn get_bool_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<bool> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_bool()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "Bool", value))
+    })?
 }
 
 pub fn get_activity_label(event: &Event) -> AttributeResult<String> {
-    get_string_by_key(event, ACTIVITY_KEY)
-        .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, ACTIVITY_KEY))
+    get_string_by_key(event, ACTIVITY_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
 pub fn get_start_timestamp(event: &Event) -> AttributeResult<DateTime<FixedOffset>> {
-    get_time_by_key(event, START_TIMESTAMP_KEY)
-        .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, START_TIMESTAMP_KEY))
+    get_time_by_key(event, START_TIMESTAMP_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
 pub fn get_complete_timestamp(event: &Event) -> AttributeResult<DateTime<FixedOffset>> {
-    get_time_by_key(event, TIMESTAMP_KEY)
-        .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, TIMESTAMP_KEY))
+    get_time_by_key(event, TIMESTAMP_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
 pub fn get_traceid(trace: &Trace) -> AttributeResult<String> {
-    get_string_by_key(trace, TRACEID_KEY)
-        .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Trace, TRACEID_KEY))
+    get_string_by_key(trace, TRACEID_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
 pub fn get_service_time(event: &Event) -> AttributeResult<chrono::TimeDelta> {

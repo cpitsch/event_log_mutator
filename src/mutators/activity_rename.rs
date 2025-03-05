@@ -39,7 +39,7 @@ impl ActivityRenamer {
 
     fn should_mutate(&mut self, event: &Event) -> MutationResult<bool> {
         let activity = get_activity_label(event)
-            .map_err(|e| MutationError::MissingAttributeError("ActivityRenamer", e))?;
+            .map_err(|e| MutationError::AttributeError("ActivityRenamer", e))?;
         Ok(activity == self.activity && self.rng.gen::<f32>() < self.probability)
     }
 

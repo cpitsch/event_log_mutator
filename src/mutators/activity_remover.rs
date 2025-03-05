@@ -36,7 +36,7 @@ impl ActivityRemover {
 
     fn should_remove(&mut self, event: &Event) -> MutationResult<bool> {
         let activity = get_activity_label(event)
-            .map_err(|e| MutationError::MissingAttributeError("ActivityRemover", e))?;
+            .map_err(|e| MutationError::AttributeError("ActivityRemover", e))?;
         Ok(activity == self.activity && self.rng.gen::<f32>() < self.probability)
     }
 

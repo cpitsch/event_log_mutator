@@ -71,7 +71,7 @@ impl FollowerFilter {
 impl LogMutator for FollowerFilter {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         retain_err(&mut log.traces, |trace| self.keep_trace(trace))
-            .map_err(|e| MutationError::MissingAttributeError("EndpointFilter", e))?;
+            .map_err(|e| MutationError::AttributeError("EndpointFilter", e))?;
         Ok(())
     }
 }

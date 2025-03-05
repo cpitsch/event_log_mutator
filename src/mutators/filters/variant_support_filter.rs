@@ -50,7 +50,7 @@ fn get_variant(trace: &Trace) -> MutationResult<Vec<String>> {
         .iter()
         .map(get_activity_label)
         .collect::<AttributeResult<Vec<_>>>()
-        .map_err(|e| MutationError::MissingAttributeError("VariantSupportFilter", e))
+        .map_err(|e| MutationError::AttributeError("VariantSupportFilter", e))
 }
 
 #[cfg(test)]

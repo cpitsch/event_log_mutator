@@ -30,7 +30,7 @@ impl TraceMutator for PartialOrderCreator {
         // Set its start_timestamp to its completion timestamp since we have no
         // information on this. This means the first event always has service time 0.
         let first_complete_timestamp = get_complete_timestamp(evt)
-            .map_err(|e| MutationError::MissingAttributeError("PartialOrderCreator", e))?;
+            .map_err(|e| MutationError::AttributeError("PartialOrderCreator", e))?;
         set_start_timestamp(evt, AttributeValue::Date(first_complete_timestamp));
 
         let mut previous_timestamp = first_complete_timestamp;
@@ -38,7 +38,7 @@ impl TraceMutator for PartialOrderCreator {
         for event in trace.events.iter_mut().skip(1) {
             set_start_timestamp(event, AttributeValue::Date(previous_timestamp));
             previous_timestamp = get_complete_timestamp(event)
-                .map_err(|e| MutationError::MissingAttributeError("PartialOrderCreator", e))?;
+                .map_err(|e| MutationError::AttributeError("PartialOrderCreator", e))?;
         }
 
         Ok(())

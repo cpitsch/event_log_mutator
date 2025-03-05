@@ -115,8 +115,8 @@ impl AttributeFilterMethod {
                 get_time_by_key(item, key).map(|val| d_start <= &val && &val <= d_end)
             }
         }
-        // TODO: Could map_or_else to create MissingAttributeError, and handle it in
-        // keep_trace/keep_event
+        // TODO: Be explicit about what happened. E.g., log a warning for TypeMismatch and a debug
+        // for a MissingAttribute. Or even abort with a TypeMismatch?
         .unwrap_or(false)
     }
 }

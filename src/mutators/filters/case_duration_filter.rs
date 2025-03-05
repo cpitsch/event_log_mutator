@@ -113,7 +113,7 @@ impl CaseDurationFilter {
 impl LogMutator for CaseDurationFilter {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         retain_err(&mut log.traces, |trace| self.keep_trace(trace))
-            .map_err(|e| MutationError::MissingAttributeError("CaseDurationFilter", e))?;
+            .map_err(|e| MutationError::AttributeError("CaseDurationFilter", e))?;
         Ok(())
     }
 }

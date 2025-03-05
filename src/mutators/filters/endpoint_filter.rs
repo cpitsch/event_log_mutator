@@ -56,7 +56,7 @@ impl EndpointFilter {
 impl LogMutator for EndpointFilter {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         let all_activities: Vec<String> = get_activities(log)
-            .map_err(|e| MutationError::MissingAttributeError("EndpointFilter", e))?
+            .map_err(|e| MutationError::AttributeError("EndpointFilter", e))?
             .into_iter()
             .collect();
 
@@ -72,7 +72,7 @@ impl LogMutator for EndpointFilter {
         retain_err(&mut log.traces, |trace| {
             self.keep_trace(trace, start_acts, end_acts)
         })
-        .map_err(|e| MutationError::MissingAttributeError("EndpointFilter", e))?;
+        .map_err(|e| MutationError::AttributeError("EndpointFilter", e))?;
         Ok(())
     }
 }

@@ -6,13 +6,15 @@ use thiserror::Error;
 
 use crate::{
     parsing::traits::DirName,
-    utils::{attributes::MissingAttributeError, io::IoError},
+    utils::{attributes::AttributeError, io::IoError},
 };
 
 #[derive(Error, Debug)]
 pub enum MutationError {
-    #[error("[{0}] Missing the {}-level attribute \"{}\".", .1.level, .1.key)]
-    MissingAttributeError(&'static str, MissingAttributeError),
+    // #[error("[{0}] Missing the {}-level attribute \"{}\".", .1.level, .1.key)]
+    // MissingAttributeError(&'static str, MissingAttributeError),
+    #[error("[{0}] {1}")]
+    AttributeError(&'static str, AttributeError),
     #[error(transparent)]
     IoError(#[from] IoError),
     #[error("Invalid Value: {0}")]

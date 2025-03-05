@@ -44,7 +44,7 @@ impl TraceLengthFilter {
 impl LogMutator for TraceLengthFilter {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         retain_err(&mut log.traces, |trace| self.keep_trace(trace))
-            .map_err(|e| MutationError::MissingAttributeError("TraceLengthFilter", e))?;
+            .map_err(|e| MutationError::AttributeError("TraceLengthFilter", e))?;
         Ok(())
     }
 }
