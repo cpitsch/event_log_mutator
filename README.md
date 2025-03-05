@@ -19,8 +19,11 @@ To see the parameters a mutator takes, follow its respective link
 - [ServiceTimeStdShifter](./src/mutators/service_time_std_shifter.rs#L19-L39)
 
 ### Filters 
-- [CaseDurationFilter](./src/mutators/filters/endpoint_filter.rs#L49-L57)
+- [AttributeFilter](./src/mutators/filters/attribute_value_filter.rs#L162-L168)
+- [CaseDurationFilter](./src/mutators/filters/case_duration_filter.rs#L64-L68)
 - [EndpointFilter](./src/mutators/filters/endpoint_filter.rs#L13-L22)
+- [FollowerFilter](./src/mutators/filters/follower_filter.rs#L13-L25)
+- [TraceLengthFilter](./src/mutators/filters/trace_length_filter.rs#L10-L14)
 - [VariantSupportFilter](./src/mutators/filters/variant_support_filter.rs#L10-L18)
 
 ## Pipeline Configuration
