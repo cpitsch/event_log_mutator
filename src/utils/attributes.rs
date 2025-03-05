@@ -195,6 +195,10 @@ pub fn get_activities(log: &EventLog) -> AttributeResult<HashSet<String>> {
 }
 
 pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
+    if trace.events.is_empty() {
+        return Ok(HashSet::new());
+    }
+
     let activity_timestamp_pairs = trace
         .events
         .iter()
@@ -223,6 +227,10 @@ pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
 }
 
 pub fn get_end_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
+    if trace.events.is_empty() {
+        return Ok(HashSet::new());
+    }
+
     // TODO: Could this just be get_start_activities on the reversed trace?
     let activity_timestamp_pairs = trace
         .events
