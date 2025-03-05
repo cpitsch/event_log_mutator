@@ -52,3 +52,41 @@ fn get_variant(trace: &Trace) -> MutationResult<Vec<String>> {
         .collect::<AttributeResult<Vec<_>>>()
         .map_err(|e| MutationError::MissingAttributeError("VariantSupportFilter", e))
 }
+
+#[cfg(test)]
+mod tests {
+    use process_mining_macros::event_log;
+
+    use super::*;
+
+    #[test]
+    fn filter_at_least() {
+        let mut filter = VariantSupportFilter::new(3usize);
+        let log = event_log!(
+            // abcd 2 times
+            [a, b, c, d],
+            [a, b, c, d],
+            // acbd 3 times
+            [a, c, b, d],
+            [a, c, b, d],
+            [a, c, b, d],
+            // ac 4 times
+            [a, c],
+            [a, c],
+            [a, c],
+            [a, c],
+        );
+        assert_eq!(
+            event_log!(
+                [a, c, b, d],
+                [a, c, b, d],
+                [a, c, b, d],
+                [a, c],
+                [a, c],
+                [a, c],
+                [a, c],
+            ),
+            filter.apply(&log).unwrap()
+        );
+    }
+}

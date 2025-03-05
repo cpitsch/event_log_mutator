@@ -76,3 +76,34 @@ impl LogMutator for EndpointFilter {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use process_mining_macros::event_log;
+
+    use super::*;
+
+    #[test]
+    fn starts_with() {
+        let mut filter = EndpointFilter::new(Some(vec!["a".to_string()]), None::<Vec<String>>);
+        let log = event_log!([a, b, c, d], [b, c, d, a], [c, d, a, b], [d, a, b, c]);
+
+        assert_eq!(1, filter.apply(&log).unwrap().traces.len());
+    }
+
+    #[test]
+    fn ends_with() {
+        let mut filter = EndpointFilter::new(None::<Vec<String>>, Some(vec!["d".to_string()]));
+        let log = event_log!([a, b, c, d], [b, c, d, a], [c, d, a, b], [d, a, b, c]);
+
+        assert_eq!(1, filter.apply(&log).unwrap().traces.len());
+    }
+
+    #[test]
+    fn empty_traces() {
+        let mut filter = EndpointFilter::new(None::<Vec<String>>, Some(vec!["d".to_string()]));
+        let log = event_log!([]);
+
+        assert!(filter.apply(&log).unwrap().traces.is_empty());
+    }
+}

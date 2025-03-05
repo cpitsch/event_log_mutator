@@ -41,9 +41,10 @@ pub enum AttributeFilterMethod {
     BoolTrue,
     BoolFalse,
 
+    // Caution: Date filters are time-zone-sensitive
     DateBefore(DateTime<FixedOffset>),
     DateAfter(DateTime<FixedOffset>),
-    /// Date attribute must be in range: low <= x < high
+    /// Date attribute must be in range: low <= x <= high
     DateBetween(DateTime<FixedOffset>, DateTime<FixedOffset>),
 }
 
@@ -221,5 +222,139 @@ impl LogMutator for AttributeFilter {
             }),
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use process_mining_macros::event_log;
+
+    use super::*;
+
+    #[test]
+    fn test_string_regex_forbidden_required() {
+        let log = event_log!(
+            [
+                "create purchase order",
+                "manager inspection",
+                "manager rejection",
+                "cancel purchase order"
+            ],
+            [
+                "create purchase order",
+                "manager inspection",
+                "manager approval",
+                "submit purchase order"
+            ],
+            [
+                "create purchase order",
+                "standard inspection",
+                "standard approval",
+                "submit purchase order"
+            ],
+            [
+                "create purchase order",
+                "standard inspection",
+                "standard rejection",
+                "submit purchase order"
+            ],
+        );
+
+        // Keep only traces that have at least one rejection event
+        let mut filter = AttributeFilter::new(
+            AttributeFilterTarget::EventRequired,
+            "concept:name",
+            AttributeFilterMethod::StringRegex(".*reject.*".to_string()),
+        );
+
+        assert_eq!(
+            event_log!(
+                [
+                    "create purchase order",
+                    "manager inspection",
+                    "manager rejection",
+                    "cancel purchase order"
+                ],
+                [
+                    "create purchase order",
+                    "standard inspection",
+                    "standard rejection",
+                    "submit purchase order"
+                ],
+            ),
+            filter.apply(&log).unwrap()
+        );
+
+        // Exclude traces that have at least one rejection event
+        let mut filter = AttributeFilter::new(
+            AttributeFilterTarget::EventForbidden,
+            "concept:name",
+            AttributeFilterMethod::StringRegex(".*reject.*".to_string()),
+        );
+
+        assert_eq!(
+            event_log!(
+                [
+                    "create purchase order",
+                    "manager inspection",
+                    "manager approval",
+                    "submit purchase order"
+                ],
+                [
+                    "create purchase order",
+                    "standard inspection",
+                    "standard approval",
+                    "submit purchase order"
+                ],
+            ),
+            filter.apply(&log).unwrap()
+        );
+    }
+
+    #[test]
+    fn string_eq() {
+        // Keep only traces that have at least one rejection event
+        let mut filter = AttributeFilter::new(
+            AttributeFilterTarget::Event,
+            "concept:name",
+            AttributeFilterMethod::StringEq("create purchase order".to_string()),
+        );
+
+        let log = event_log!(
+            [
+                "create purchase order",
+                "manager inspection",
+                "manager rejection",
+                "cancel purchase order"
+            ],
+            [
+                "create purchase order",
+                "manager inspection",
+                "manager approval",
+                "submit purchase order"
+            ],
+            [
+                "create purchase order",
+                "standard inspection",
+                "standard approval",
+                "submit purchase order"
+            ],
+            [
+                "create purchase order",
+                "standard inspection",
+                "standard rejection",
+                "submit purchase order"
+            ],
+        );
+
+        assert_eq!(
+            event_log!(
+                ["create purchase order"],
+                ["create purchase order"],
+                ["create purchase order"],
+                ["create purchase order"],
+            ),
+            filter.apply(&log).unwrap()
+        );
     }
 }
