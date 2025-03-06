@@ -203,15 +203,11 @@ impl AttributeFilter {
     fn keep_event(&self, event: &Event) -> bool {
         self.keep(event)
             .unwrap_or_else(|e| self.handle_attribute_error(e.with_level(AttributeLevel::Event)))
-        // .map_err(|e| e.with_level(AttributeLevel::Event))
-        // .unwrap_or_else(|e| self.handle_attribute_error(e))
     }
 
     fn keep_trace(&self, trace: &Trace) -> bool {
         self.keep(trace)
             .unwrap_or_else(|e| self.handle_attribute_error(e.with_level(AttributeLevel::Trace)))
-        // .map_err(|e| e.with_level(AttributeLevel::Trace))
-        // .unwrap_or_else(|e| self.handle_attribute_error(e))
     }
 }
 
