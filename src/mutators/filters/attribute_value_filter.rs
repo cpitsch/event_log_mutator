@@ -197,6 +197,8 @@ impl AttributeFilter {
             AttributeErrorKind::MissingAttribute => debug!("{error} Event ignored."),
         };
         // TODO: Should we propagate an error and abort if we have a type mismatch?
+        // Though, aborting would require an implementation of Iter::any and Iter::all
+        // that works on Result<bool, _> and returns Result<bool, _>
         false
     }
 
