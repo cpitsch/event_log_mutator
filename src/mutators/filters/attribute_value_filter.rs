@@ -192,9 +192,9 @@ impl AttributeFilter {
         let error = MutationError::AttributeError("AttributeFilter", error);
         match kind {
             AttributeErrorKind::TypeMismatch(..) => {
-                warn!("{error} Event discarded.")
+                warn!("{error} Event ignored.")
             }
-            AttributeErrorKind::MissingAttribute => debug!("{error} Event discarded."),
+            AttributeErrorKind::MissingAttribute => debug!("{error} Event ignored."),
         };
         // TODO: Should we propagate an error and abort if we have a type mismatch?
         false
