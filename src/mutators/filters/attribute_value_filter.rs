@@ -1,15 +1,19 @@
 use chrono::{DateTime, FixedOffset};
+use log::{debug, warn};
 use regex::Regex;
 use std::fmt::Display;
 
-use process_mining::EventLog;
+use process_mining::{
+    event_log::{Event, Trace},
+    EventLog,
+};
 
 use crate::{
-    mutation::{LogMutator, MutationResult},
+    mutation::{LogMutator, MutationError, MutationResult},
     parsing::traits::DirName,
     utils::attributes::{
         get_bool_by_key, get_float_by_key, get_int_by_key, get_string_by_key, get_time_by_key,
-        HasAttributes,
+        AttributeError, AttributeErrorKind, AttributeLevel, AttributeResult, HasAttributes,
     },
 };
 
@@ -84,7 +88,7 @@ impl Display for AttributeFilterMethod {
 }
 
 impl AttributeFilterMethod {
-    fn apply(&self, item: &impl HasAttributes, key: &str) -> bool {
+    fn apply(&self, item: &impl HasAttributes, key: &str) -> AttributeResult<bool> {
         match self {
             Self::IntGreater(x) => get_int_by_key(item, key).map(|val| &val > x),
             Self::IntGeq(x) => get_int_by_key(item, key).map(|val| &val >= x),
@@ -115,9 +119,6 @@ impl AttributeFilterMethod {
                 get_time_by_key(item, key).map(|val| d_start <= &val && &val <= d_end)
             }
         }
-        // TODO: Be explicit about what happened. E.g., log a warning for TypeMismatch and a debug
-        // for a MissingAttribute. Or even abort with a TypeMismatch?
-        .unwrap_or(false)
     }
 }
 
@@ -160,6 +161,8 @@ impl Display for AttributeFilterTarget {
 }
 
 #[derive(DirName)]
+/// Mutation to filter events and traces by their attributes (or traces by the attributes of their
+/// events). If an event/trace does not have the specified attribute, it is discarded
 pub struct AttributeFilter {
     target: AttributeFilterTarget,
     // Could pose an issue for creating pathname? E.g., ":"
@@ -180,35 +183,62 @@ impl AttributeFilter {
         }
     }
 
-    fn keep(&self, item: &impl HasAttributes) -> bool {
+    fn keep(&self, item: &impl HasAttributes) -> AttributeResult<bool> {
         self.filter_method.apply(item, &self.key)
+    }
+
+    fn handle_attribute_error(&self, error: AttributeError) -> bool {
+        let kind = error.kind.clone();
+        let error = MutationError::AttributeError("AttributeFilter", error);
+        match kind {
+            AttributeErrorKind::TypeMismatch(..) => {
+                warn!("{error} Event discarded.")
+            }
+            AttributeErrorKind::MissingAttribute => debug!("{error} Event discarded."),
+        };
+        // TODO: Should we propagate an error and abort if we have a type mismatch?
+        false
+    }
+
+    fn keep_event(&self, event: &Event) -> bool {
+        self.keep(event)
+            .unwrap_or_else(|e| self.handle_attribute_error(e.with_level(AttributeLevel::Event)))
+        // .map_err(|e| e.with_level(AttributeLevel::Event))
+        // .unwrap_or_else(|e| self.handle_attribute_error(e))
+    }
+
+    fn keep_trace(&self, trace: &Trace) -> bool {
+        self.keep(trace)
+            .unwrap_or_else(|e| self.handle_attribute_error(e.with_level(AttributeLevel::Trace)))
+        // .map_err(|e| e.with_level(AttributeLevel::Trace))
+        // .unwrap_or_else(|e| self.handle_attribute_error(e))
     }
 }
 
 impl LogMutator for AttributeFilter {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         match self.target {
-            AttributeFilterTarget::Trace => log.traces.retain(|trace| self.keep(trace)),
+            AttributeFilterTarget::Trace => log.traces.retain(|trace| self.keep_trace(trace)),
             AttributeFilterTarget::EventRequired => log
                 .traces
-                .retain(|trace| trace.events.iter().any(|evt| self.keep(evt))),
+                .retain(|trace| trace.events.iter().any(|evt| self.keep_event(evt))),
             AttributeFilterTarget::EventForbidden => log
                 .traces
-                .retain(|trace| trace.events.iter().all(|evt| !self.keep(evt))),
+                .retain(|trace| trace.events.iter().all(|evt| !self.keep_event(evt))),
             AttributeFilterTarget::Event => log.traces.retain_mut(|trace| {
                 // Remove non-matching events
-                trace.events.retain(|evt| self.keep(evt));
+                trace.events.retain(|evt| self.keep_event(evt));
                 // Remove empty traces
                 !trace.events.is_empty()
             }),
             AttributeFilterTarget::AllEvents => log
                 .traces
-                .retain(|trace| trace.events.iter().all(|evt| self.keep(evt))),
+                .retain(|trace| trace.events.iter().all(|evt| self.keep_event(evt))),
             AttributeFilterTarget::FirstEvent => log.traces.retain(|trace| {
                 trace
                     .events
                     .first()
-                    .map(|evt| self.keep(evt))
+                    .map(|evt| self.keep_event(evt))
                     // If the trace is empty, the filter does _not_ hold for the first event
                     .unwrap_or_default()
             }),
@@ -216,7 +246,7 @@ impl LogMutator for AttributeFilter {
                 trace
                     .events
                     .last()
-                    .map(|evt| self.keep(evt))
+                    .map(|evt| self.keep_event(evt))
                     // If the trace is empty, the filter does _not_ hold for the last event
                     .unwrap_or_default()
             }),

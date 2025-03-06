@@ -36,10 +36,10 @@ pub enum AttributeLevel {
 impl std::fmt::Display for AttributeLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let level_str = match self {
-            AttributeLevel::Event => "event",
-            AttributeLevel::Trace => "trace",
-            AttributeLevel::Log => "log",
-            Self::Unknown => "unkown",
+            AttributeLevel::Event => "Event",
+            AttributeLevel::Trace => "Trace",
+            AttributeLevel::Log => "Log",
+            Self::Unknown => "Unkown",
         };
         write!(f, "{}", level_str)
     }
@@ -54,7 +54,7 @@ pub enum AttributeErrorKind {
 }
 
 #[derive(Error, Debug, Clone, PartialEq)]
-#[error("Attribute Error: {level}-level attribute \"{key}\" {kind}.")]
+#[error("{level}-level attribute \"{key}\" {kind}.")]
 pub struct AttributeError {
     pub level: AttributeLevel,
     pub key: String,
