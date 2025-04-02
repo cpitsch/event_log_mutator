@@ -103,6 +103,10 @@ pub fn impl_as_dir_name(ast: DeriveInput) -> TokenStream {
         impl DirName for #ident {
             fn to_dir_name(&self) -> String {
                 format!("{}", [#ident_str.to_string(), #(#quotes),*].join("_"))
+                // Make sure there is no ":" in the final directory name. This would,
+                // for instance, happen if certain standard attribute names like
+                // "concept:name" or "time:timestamp" would be included
+                .replace(":", "_")
             }
         }
     }
