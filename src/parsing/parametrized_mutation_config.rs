@@ -121,4 +121,8 @@ pub enum ParametrizedMutationConfig {
         key: MutationValue<String>,
         filter_method: MutationValue<AttributeFilterMethod>,
     },
+    TraceLengthFilter {
+        length: MutationValue<usize>,
+        sense: Option<MutationValue<ComparisonSense>>,
+    },
 }

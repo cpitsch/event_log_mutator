@@ -10,7 +10,7 @@ use crate::{
     mutators::{
         aux_mutators::{LogSaver, LogValidator},
         filters::{
-            AttributeFilter, CaseDurationFilter, EndpointFilter, FollowerFilter,
+            AttributeFilter, CaseDurationFilter, EndpointFilter, FollowerFilter, TraceLengthFilter,
             VariantSupportFilter,
         },
         ActivityRemover, ActivityRenamer, AttributeRemover, AttributeRetainer,
@@ -406,6 +406,13 @@ impl ParametrizedPipelineConfig<Flat> {
                 key.inner_value(),
                 filter_method.inner_value(),
             )),
+            ParametrizedMutationConfig::TraceLengthFilter { length, sense } => {
+                let mut mutator = TraceLengthFilter::new(length.inner_value());
+                if let Some(s) = sense {
+                    mutator = mutator.with_sense(s.inner_value());
+                }
+                Box::new(mutator)
+            }
         }
     }
 }
