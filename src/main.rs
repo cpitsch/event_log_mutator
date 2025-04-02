@@ -1,9 +1,10 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use clap::Parser;
-use cli::{CliError, Mode};
+use cli::{CliError, CliResult, Mode};
 use colored::Colorize;
 use parsing::mutation_value::MutationValue;
+use utils::io::IoError;
 
 use crate::{cli::Args, parsing::MutationChainConfig, utils::logging::init_logger};
 
@@ -60,6 +61,7 @@ pub fn parse_and_execute_pipeline_file(
     // Get the configuration from the pipeline
     let mut parsed_toml = MutationChainConfig::parse_file(pipeline_path)?;
     parsed_toml = overwrite_pipeline_config_with_cli_args(args, parsed_toml);
+    parsed_toml = resolve_tilde_in_paths(parsed_toml)?;
 
     if validate {
         parsed_toml.validate()
@@ -87,4 +89,26 @@ pub fn overwrite_pipeline_config_with_cli_args(
     }
 
     config
+}
+
+/// In all PathBuf fields of the configuration, replace ~ with the home directory
+/// so that using ~ is supported
+pub fn resolve_tilde_in_paths(mut config: MutationChainConfig) -> CliResult<MutationChainConfig> {
+    config.input = resolve_tilde(config.input)?;
+    if let Some(output) = config.output {
+        config.output = Some(resolve_tilde(output)?)
+    }
+    Ok(config)
+}
+
+/// If the PathBuf contains "~", replace it with the home directory
+fn resolve_tilde(path: PathBuf) -> CliResult<PathBuf> {
+    if !path.starts_with("~") {
+        Ok(path)
+    } else {
+        let mut home_dir = dirs::home_dir().ok_or(IoError::NoHomeDirectory)?;
+        let stripped = path.strip_prefix("~").unwrap();
+        home_dir.push(stripped);
+        Ok(home_dir)
+    }
 }
