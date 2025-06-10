@@ -1,0 +1,10 @@
+input = "./EventLogs/Road_Traffic_Fine_Management_Process.xes.gz"
+output = "outputs/enpoint_filter/"
+compress_output = true
+
+[pipeline]
+
+[[pipeline.mutations]]
+type = "EndpointFilter"
+# Keep only the traces that end with Send Fine or Send for Credit Collections
+end_activities = ["Send Fine", "Send for Credit Collection"]
