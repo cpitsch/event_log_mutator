@@ -27,14 +27,11 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
 pub struct Flat;
 #[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
 pub struct NotFlat;
 
 #[derive(Deserialize, Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
 pub struct ParametrizedPipelineConfig<State = NotFlat> {
     pub mutations: Vec<ParametrizedMutationConfig>,
     /// Seed to use for mutations involving randomness.

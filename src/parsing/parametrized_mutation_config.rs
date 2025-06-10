@@ -26,7 +26,6 @@ fn default_log_bootstrapper_replacement_value() -> MutationValue<bool> {
 }
 
 #[derive(Deserialize, Debug, Clone, FlattenMutationValue)]
-#[cfg_attr(test, derive(PartialEq))]
 #[serde(tag = "type")]
 pub enum ParametrizedMutationConfig {
     ServiceTimeStdShifter {

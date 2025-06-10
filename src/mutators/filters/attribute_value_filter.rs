@@ -1,6 +1,7 @@
 use chrono::{DateTime, FixedOffset};
 use log::{debug, warn};
 use regex::Regex;
+use serde::Deserialize;
 use std::fmt::Display;
 
 use process_mining::{
@@ -17,8 +18,16 @@ use crate::{
     },
 };
 
+/// Deserializer for Regex. Reads string and attempts to create a regex.
+fn deserialize_regex<'de, D>(deserializer: D) -> Result<Regex, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let s: String = String::deserialize(deserializer)?;
+    Regex::new(&s).map_err(serde::de::Error::custom)
+}
+
 #[derive(serde::Deserialize, Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
 #[serde(tag = "method", content = "value")]
 pub enum AttributeFilterMethod {
     IntGreater(i64),
@@ -38,9 +47,8 @@ pub enum AttributeFilterMethod {
     FloatRange(f64, f64),
 
     StringEq(String),
-    // TODO: Made this string because it needs to impl Deserialize and PartialEq
-    // However, this means that the Regex needs to be built every time we filter..
-    StringRegex(String),
+    #[serde(deserialize_with = "deserialize_regex")]
+    StringRegex(Regex),
 
     BoolTrue,
     BoolFalse,
@@ -73,9 +81,8 @@ impl Display for AttributeFilterMethod {
                 Self::FloatRange(start, end) => format!("FloatRange_{start}_{end}"),
 
                 Self::StringEq(s) => format!("StringEq_{s}"),
-                // Leave out the regex because it might contain special characters
+                // Leave out the actual regex because it might contain special characters
                 Self::StringRegex(_) => "StringRegex".to_string(),
-                // Self::StringRegex(re) => format!("StringRegex_{re}"),
                 Self::BoolTrue => "IsTrue".to_string(),
                 Self::BoolFalse => "IsFalse".to_string(),
 
@@ -107,8 +114,7 @@ impl AttributeFilterMethod {
                 get_float_by_key(item, key).map(|val| (start..end).contains(&&val))
             }
             Self::StringEq(s) => get_string_by_key(item, key).map(|val| &val == s),
-            Self::StringRegex(re) => get_string_by_key(item, key)
-                .map(|val| Regex::new(re.as_str()).unwrap().is_match(&val)),
+            Self::StringRegex(re) => get_string_by_key(item, key).map(|val| re.is_match(&val)),
 
             Self::BoolTrue => get_bool_by_key(item, key),
             Self::BoolFalse => get_bool_by_key(item, key).map(|val| !val),
@@ -120,10 +126,14 @@ impl AttributeFilterMethod {
             }
         }
     }
+
+    pub fn string_regex(regex: impl AsRef<str>) -> Result<Self, regex::Error> {
+        let re = Regex::new(regex.as_ref())?;
+        Ok(Self::StringRegex(re))
+    }
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
 pub enum AttributeFilterTarget {
     /// Filter on trace-level attributes
     Trace,
@@ -292,7 +302,7 @@ mod tests {
         let mut filter = AttributeFilter::new(
             AttributeFilterTarget::EventRequired,
             "concept:name",
-            AttributeFilterMethod::StringRegex(".*reject.*".to_string()),
+            AttributeFilterMethod::string_regex(".*reject.*").unwrap(),
         );
 
         assert_eq!(
@@ -317,7 +327,7 @@ mod tests {
         let mut filter = AttributeFilter::new(
             AttributeFilterTarget::EventForbidden,
             "concept:name",
-            AttributeFilterMethod::StringRegex(".*reject.*".to_string()),
+            AttributeFilterMethod::string_regex(".*reject.*").unwrap(),
         );
 
         assert_eq!(

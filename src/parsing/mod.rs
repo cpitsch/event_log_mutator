@@ -188,23 +188,33 @@ probability = 0.5
 
         assert!(!res.compress_output); // Not provided, default to false
 
-        assert_eq!(
-            res.pipeline,
-            ParametrizedPipelineConfig::new(vec![
-                ParametrizedMutationConfig::ServiceTimeStdShifter {
-                    activity: Some(MutationValue::Value("a".to_string())),
-                    standard_deviations: MutationValue::Value(1.0),
-                    probability: MutationValue::Value(0.5),
-                    seed: Some(MutationValue::Value(42))
-                },
-                ParametrizedMutationConfig::ActivityRenamer {
-                    activity: MutationValue::Value("Send Fine".to_string()),
-                    new_label: MutationValue::Value("New Activity".to_string()),
-                    probability: MutationValue::Value(0.5),
-                    seed: None
-                }
-            ])
-        )
+        assert_eq!(res.pipeline.mutations.len(), 2);
+        assert!(match res.pipeline.mutations[0].clone() {
+            ParametrizedMutationConfig::ServiceTimeStdShifter {
+                activity,
+                standard_deviations,
+                probability,
+                seed,
+            } =>
+                activity == Some(MutationValue::Value(String::from("a")))
+                    && standard_deviations == MutationValue::Value(1.0)
+                    && probability == MutationValue::Value(0.5)
+                    && seed.is_some_and(|s| s == MutationValue::Value(42)),
+            _ => false,
+        });
+        assert!(match res.pipeline.mutations[1].clone() {
+            ParametrizedMutationConfig::ActivityRenamer {
+                activity,
+                new_label,
+                probability,
+                seed,
+            } =>
+                activity == MutationValue::Value("Send Fine".to_string())
+                    && new_label == MutationValue::Value("New Activity".to_string())
+                    && probability == MutationValue::Value(0.5)
+                    && seed.is_none(),
+            _ => false,
+        });
     }
 
     #[rstest]

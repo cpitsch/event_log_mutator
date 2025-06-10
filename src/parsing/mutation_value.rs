@@ -1,7 +1,6 @@
 use serde::Deserialize;
 
-#[derive(Deserialize, Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum MutationValue<T> {
     Value(T),
