@@ -28,7 +28,7 @@ where
 }
 
 #[derive(serde::Deserialize, Debug, Clone)]
-#[serde(tag = "method", content = "value")]
+#[serde(tag = "filter_method", content = "filter_value")]
 pub enum AttributeFilterMethod {
     IntGreater(i64),
     IntGeq(i64),
@@ -133,6 +133,9 @@ impl AttributeFilterMethod {
     }
 }
 
+/// The way in which the filter is applied. E.g., on trace-level attributes
+/// ([`AttributeFilterTarget::Trace`]),
+/// or requiring at least one event of a trace to fulfill the filter ([`AttributeFilterTarget::EventRequired`]).
 #[derive(serde::Deserialize, Debug, Clone)]
 pub enum AttributeFilterTarget {
     /// Filter on trace-level attributes
@@ -171,11 +174,11 @@ impl Display for AttributeFilterTarget {
 }
 
 #[derive(DirName)]
-/// Mutation to filter events and traces by their attributes (or traces by the attributes of their
-/// events). If an event/trace does not have the specified attribute, it is discarded
+/// Mutation to filter events and traces by their attributes (or traces by the
+/// attributes of their events). If an event/trace does not have the specified
+/// attribute, it is discarded.
 pub struct AttributeFilter {
     target: AttributeFilterTarget,
-    // Could pose an issue for creating pathname? E.g., ":"
     key: String,
     filter_method: AttributeFilterMethod,
 }

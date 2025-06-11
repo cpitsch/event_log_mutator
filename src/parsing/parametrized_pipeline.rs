@@ -399,7 +399,7 @@ impl ParametrizedPipelineConfig<Flat> {
             } => Box::new(AttributeFilter::new(
                 target.inner_value(),
                 key.inner_value(),
-                filter_method.inner_value(),
+                filter_method,
             )),
             ParametrizedMutationConfig::TraceLengthFilter { length, sense } => {
                 let mut mutator = TraceLengthFilter::new(length.inner_value());
