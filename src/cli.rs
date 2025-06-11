@@ -68,7 +68,7 @@ impl Mode {
     pub fn relative_logging_level(&self) -> i8 {
         match self {
             // Default verbosity should be `warn` (one level higher than usual default.
-            Mode::Pipeline { validate: true, .. } => 1,
+            Self::Pipeline { validate: true, .. } => 1,
             _ => 0,
         }
     }

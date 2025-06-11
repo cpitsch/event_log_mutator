@@ -26,7 +26,7 @@ impl EndpointFilter {
         start_activities: Option<impl Into<DisplayVec<String>>>,
         end_activities: Option<impl Into<DisplayVec<String>>>,
     ) -> Self {
-        EndpointFilter {
+        Self {
             start_activities: start_activities.map(|acts| acts.into()),
             end_activities: end_activities.map(|acts| acts.into()),
         }

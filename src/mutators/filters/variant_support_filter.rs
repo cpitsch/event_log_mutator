@@ -18,8 +18,8 @@ pub struct VariantSupportFilter {
 }
 
 impl VariantSupportFilter {
-    pub fn new(num_supporting_cases: impl Into<usize>) -> VariantSupportFilter {
-        VariantSupportFilter {
+    pub fn new(num_supporting_cases: impl Into<usize>) -> Self {
+        Self {
             num_supporting_cases: num_supporting_cases.into(),
         }
     }

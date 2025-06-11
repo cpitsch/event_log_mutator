@@ -35,7 +35,7 @@ pub struct EventSwapper {
 }
 
 impl EventSwapper {
-    pub fn new(activity_1: impl Into<String>, activity_2: impl Into<String>) -> EventSwapper {
+    pub fn new(activity_1: impl Into<String>, activity_2: impl Into<String>) -> Self {
         Self {
             activity_1: activity_1.into(),
             activity_2: activity_2.into(),

@@ -173,7 +173,7 @@ impl ParametrizedPipelineConfig<Flat> {
         MutationChain { mutations }
     }
 
-    pub fn with_seed(mut self, seed: u64) -> ParametrizedPipelineConfig<Flat> {
+    pub fn with_seed(mut self, seed: u64) -> Self {
         self.seed = Some(MutationValue::Value(seed));
         self
     }

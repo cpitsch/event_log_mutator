@@ -29,7 +29,7 @@ impl FollowerFilter {
         trigger_activities: impl Into<DisplayVec<String>>,
         reaction_activities: impl Into<DisplayVec<String>>,
     ) -> Self {
-        FollowerFilter {
+        Self {
             trigger_activities: trigger_activities.into(),
             reaction_activities: reaction_activities.into(),
             range: None,

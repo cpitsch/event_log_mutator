@@ -69,7 +69,7 @@ pub struct CaseDurationFilter {
 
 impl CaseDurationFilter {
     pub fn new(threshold: TimeDelta) -> Self {
-        CaseDurationFilter {
+        Self {
             threshold,
             sense: ComparisonSense::default(),
         }

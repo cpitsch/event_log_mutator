@@ -36,9 +36,9 @@ pub enum AttributeLevel {
 impl std::fmt::Display for AttributeLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let level_str = match self {
-            AttributeLevel::Event => "Event",
-            AttributeLevel::Trace => "Trace",
-            AttributeLevel::Log => "Log",
+            Self::Event => "Event",
+            Self::Trace => "Trace",
+            Self::Log => "Log",
             Self::Unknown => "Unkown",
         };
         write!(f, "{}", level_str)
