@@ -315,10 +315,9 @@ impl ParametrizedPipelineConfig<Flat> {
                             mutator = mutator.with_save_discarded_log(p, is_compressed);
                         } else {
                             let log_name = format!("log_{}", log_saver_index);
-                            let mut path_with_mutator = path_so_far.clone();
-                            let save_compressed = save_compressed
-                                .clone()
-                                .map_or(*compress, MutationValue::inner_value);
+                            let mut path_with_mutator = path_so_far;
+                            let save_compressed =
+                                save_compressed.map_or(*compress, MutationValue::inner_value);
                             path_with_mutator.push(mutator.to_dir_name());
                             let save_path =
                                 build_file_path(path_with_mutator, log_name, save_compressed);
@@ -332,10 +331,9 @@ impl ParametrizedPipelineConfig<Flat> {
                             mutator = mutator.with_validate_discarded_log(p);
                         } else {
                             let log_name = format!("log_{}", log_saver_index);
-                            let mut path_with_mutator = path_so_far.clone();
-                            let save_compressed = save_compressed
-                                .clone()
-                                .map_or(*compress, MutationValue::inner_value);
+                            let mut path_with_mutator = path_so_far;
+                            let save_compressed =
+                                save_compressed.map_or(*compress, MutationValue::inner_value);
                             path_with_mutator.push(mutator.to_dir_name());
                             let save_path =
                                 build_file_path(path_with_mutator, log_name, save_compressed);

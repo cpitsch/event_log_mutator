@@ -84,7 +84,7 @@ pub fn impl_as_dir_name(ast: DeriveInput) -> TokenStream {
         syn::Data::Struct(data) => data.fields,
     };
 
-    let quotes: Vec<proc_macro2::TokenStream> = match fields.clone() {
+    let quotes: Vec<proc_macro2::TokenStream> = match fields {
         Fields::Unit => vec![],
         Fields::Unnamed(unnamed_fields) => unnamed_fields
             .unnamed
