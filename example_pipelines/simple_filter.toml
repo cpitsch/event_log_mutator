@@ -11,11 +11,6 @@ key = "concept:name"
 filter_method = "StringRegex" 
 filter_value = ".*Appeal.*"
 
-# Denoting filter_method as an inline table is equivalent to the following:
-# [pipeline.mutations.filter_method]
-# method = "StringRegex"
-# value = ".*Appeal.*"
-
 [[pipeline.mutations]]
 type = "TraceLengthFilter"
 length = 5
