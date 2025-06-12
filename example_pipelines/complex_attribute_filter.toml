@@ -5,25 +5,26 @@ compress_output = true
 [pipeline]
 seed = "0..2"
 
+# Retain only the traces where at least one event is in 2007
+# Note that traces starting before 2007 and ending after 2007 will not be included
+# if they don't have at least one event inside this interval.
 [[pipeline.mutations]]
 type = "AttributeFilter"
 target = "EventRequired"
 key = "time:timestamp"
-filter_method = { method = "DateBetween", value = [
-	"2007-01-01T00:00:00Z",
-	"2008-12-31T23:59:59Z"
-]}
+filter_method = "DateBetween"
+filter_value = [
+  "2007-01-01T00:00:00Z",
+  "2008-12-31T23:59:59Z"
+]
 
+# Retain only the traces where at least one event has `amount` in [5, 10)
 [[pipeline.mutations]]
 type = "AttributeFilter"
 target = "EventRequired"
 key = "amount"
-filter_method = { method = "FloatRange", value = [5,10]}
-
-# Denoting filter_method as an inline table is equivalent to the following:
-# [pipeline.mutations.filter_method]
-# method = "FloatRange"
-# value =[5, 10]
+filter_method = "FloatRange"
+filter_value = [5, 10]
 
 [[pipeline.mutations]]
 type = "LogSplitter"

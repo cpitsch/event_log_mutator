@@ -8,7 +8,8 @@ compress_output = true
 type = "AttributeFilter"
 target = "EventRequired"
 key = "concept:name"
-filter_method = { method = "StringRegex", value = ".*Appeal.*"}
+filter_method = "StringRegex" 
+filter_value = ".*Appeal.*"
 
 # Denoting filter_method as an inline table is equivalent to the following:
 # [pipeline.mutations.filter_method]
