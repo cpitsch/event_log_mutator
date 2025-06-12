@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use crate::{
     mutators::filters::{
         attribute_value_filter::{AttributeFilterMethod, AttributeFilterTarget},
-        case_duration_filter::ComparisonSense,
+        ComparisonSense,
     },
     parsing::{mutation_value::MutationValue, traits::FlattenMutationValue},
 };

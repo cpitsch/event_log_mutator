@@ -1,8 +1,8 @@
 use process_mining::{event_log::Trace, EventLog};
 
-use super::case_duration_filter::ComparisonSense;
 use crate::{
     mutation::{LogMutator, MutationError, MutationResult},
+    mutators::filters::ComparisonSense,
     parsing::traits::DirName,
     utils::{attributes::AttributeResult, errors::retain_err},
 };

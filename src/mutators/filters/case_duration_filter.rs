@@ -1,65 +1,15 @@
-use std::fmt::Display;
-
 use chrono::TimeDelta;
 use process_mining::{event_log::Trace, EventLog};
-use serde::Deserialize;
 
 use crate::{
     mutation::{LogMutator, MutationError, MutationResult},
+    mutators::filters::ComparisonSense,
     parsing::traits::DirName,
     utils::{
         attributes::{get_complete_timestamp, AttributeResult},
         errors::retain_err,
     },
 };
-
-#[derive(Deserialize, Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
-pub enum ComparisonSense {
-    #[serde(alias = "less", alias = "<")]
-    Less,
-    #[serde(alias = "leq", alias = "<=")]
-    LEQ,
-    #[serde(alias = "geq", alias = ">=")]
-    GEQ,
-    #[serde(alias = "greater", alias = ">")]
-    Greater,
-}
-
-impl Default for ComparisonSense {
-    fn default() -> Self {
-        Self::LEQ
-    }
-}
-
-impl ComparisonSense {
-    pub fn compare<T>(&self, first: &T, other: &T) -> bool
-    where
-        T: PartialOrd,
-    {
-        match self {
-            Self::Less => first < other,
-            Self::LEQ => first <= other,
-            Self::Greater => first > other,
-            Self::GEQ => first >= other,
-        }
-    }
-}
-
-impl Display for ComparisonSense {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Self::Less => "less",
-                Self::LEQ => "leq",
-                Self::GEQ => "geq",
-                Self::Greater => "greater",
-            }
-        )
-    }
-}
 
 #[derive(DirName)]
 pub struct CaseDurationFilter {
