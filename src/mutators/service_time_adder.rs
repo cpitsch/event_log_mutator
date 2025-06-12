@@ -43,10 +43,10 @@ impl ServiceTimeAdder {
 
     fn should_mutate(&mut self, event: &Event) -> MutationResult<bool> {
         let activity = get_activity_label(event)
-            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeAdder", e))?;
+            .map_err(|e| MutationError::AttributeError("ServiceTimeAdder", e))?;
         let should_mutate = (
             // Check that the event matches the requirements
-            self.activity.clone().map_or(true, |act| activity == act)
+            self.activity.as_ref().map_or(true, |act| &activity == act)
         ) && (
             // Check mutation probability
             self.rng.gen::<f32>() < self.probability
@@ -77,11 +77,11 @@ impl TraceMutator for ServiceTimeAdder {
             let event = trace.events.get_mut(i).unwrap();
             if self.should_mutate(event)? {
                 let new_complete_timestamp = get_complete_timestamp(event)
-                    .map_err(|e| MutationError::MissingAttributeError("ServiceTimeAdder", e))?
+                    .map_err(|e| MutationError::AttributeError("ServiceTimeAdder", e))?
                     + self.timedelta;
 
                 change_event_duration(trace, i, new_complete_timestamp)
-                    .map_err(|e| MutationError::MissingAttributeError("ServiceTimeAdder", e))?;
+                    .map_err(|e| MutationError::AttributeError("ServiceTimeAdder", e))?;
             }
         }
         Ok(())
@@ -120,7 +120,7 @@ mod tests {
             .events
             .iter()
             .zip(new_trace.events.iter())
-            .all(|(e1, e2)| { get_service_time(e1) < get_service_time(e2) }));
+            .all(|(e1, e2)| { get_service_time(e1).unwrap() < get_service_time(e2).unwrap() }));
     }
 
     #[rstest]
@@ -139,10 +139,10 @@ mod tests {
                 assert!(get_activity_label(e1).unwrap() == get_activity_label(e2).unwrap());
 
                 if get_activity_label(e1).unwrap() == "a" {
-                    get_service_time(e1) < get_service_time(e2)
+                    get_service_time(e1).unwrap() < get_service_time(e2).unwrap()
                 } else {
                     // Service time is unchanged
-                    get_service_time(e1) == get_service_time(e2)
+                    get_service_time(e1).unwrap() == get_service_time(e2).unwrap()
                 }
             }));
     }

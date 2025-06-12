@@ -18,8 +18,8 @@ pub struct VariantSupportFilter {
 }
 
 impl VariantSupportFilter {
-    pub fn new(num_supporting_cases: impl Into<usize>) -> VariantSupportFilter {
-        VariantSupportFilter {
+    pub fn new(num_supporting_cases: impl Into<usize>) -> Self {
+        Self {
             num_supporting_cases: num_supporting_cases.into(),
         }
     }
@@ -50,5 +50,43 @@ fn get_variant(trace: &Trace) -> MutationResult<Vec<String>> {
         .iter()
         .map(get_activity_label)
         .collect::<AttributeResult<Vec<_>>>()
-        .map_err(|e| MutationError::MissingAttributeError("VariantSupportFilter", e))
+        .map_err(|e| MutationError::AttributeError("VariantSupportFilter", e))
+}
+
+#[cfg(test)]
+mod tests {
+    use process_mining_macros::event_log;
+
+    use super::*;
+
+    #[test]
+    fn filter_at_least() {
+        let mut filter = VariantSupportFilter::new(3usize);
+        let log = event_log!(
+            // abcd 2 times
+            [a, b, c, d],
+            [a, b, c, d],
+            // acbd 3 times
+            [a, c, b, d],
+            [a, c, b, d],
+            [a, c, b, d],
+            // ac 4 times
+            [a, c],
+            [a, c],
+            [a, c],
+            [a, c],
+        );
+        assert_eq!(
+            event_log!(
+                [a, c, b, d],
+                [a, c, b, d],
+                [a, c, b, d],
+                [a, c],
+                [a, c],
+                [a, c],
+                [a, c],
+            ),
+            filter.apply(&log).unwrap()
+        );
+    }
 }

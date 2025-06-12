@@ -31,7 +31,7 @@ impl LogMutator for LogValidator {
         } else {
             let valid = event_logs_are_identical(
                 log,
-                &import_xes_file(&self.path.to_string_lossy(), XESImportOptions::default())?,
+                &import_xes_file(&self.path, XESImportOptions::default())?,
             );
             if !valid {
                 warn!("Event Log mismatch: {}", self.path.to_string_lossy());

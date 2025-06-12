@@ -1,0 +1,16 @@
+input = "./EventLogs/Road_Traffic_Fine_Management_Process.xes.gz"
+output = "outputs/train_test_split"
+compress_output = true
+
+# Split the event logs in fractions 70% and 30% using multiple seeds
+[pipeline]
+# Applies the seed to all applicable mutations in the pipeline
+# seed = "1..=5"
+# Equivalent to:
+# seed = [1,2,3,4,5]
+
+[[pipeline.mutations]]
+type = "LogSplitter"
+frac = 0.7
+# Mutation-specific seed. Overrides externally set seed
+seed= "1..=5"

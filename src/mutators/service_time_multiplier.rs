@@ -44,10 +44,10 @@ impl ServiceTimeMultiplier {
 
     fn should_mutate(&mut self, event: &Event) -> MutationResult<bool> {
         let activity = get_activity_label(event)
-            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeMultiplier", e))?;
+            .map_err(|e| MutationError::AttributeError("ServiceTimeMultiplier", e))?;
         let should_mutate = (
             // Check that the event matches the requirements
-            self.activity.clone().map_or(true, |act| activity == act)
+            self.activity.as_ref().map_or(true, |act| &activity == act)
         ) && (
             // Check mutation probability
             self.rng.gen::<f32>() < self.probability
@@ -95,19 +95,17 @@ impl TraceMutator for ServiceTimeMultiplier {
         for i in 0..trace.events.len() {
             let event = trace.events.get_mut(i).unwrap();
             if self.should_mutate(event)? {
-                let start_timestamp = get_start_timestamp(event).map_err(|e| {
-                    MutationError::MissingAttributeError("ServiceTimeMultiplier", e)
-                })?;
-                let service_time = get_service_time(event).map_err(|e| {
-                    MutationError::MissingAttributeError("ServiceTimeMultiplier", e)
-                })?;
+                let start_timestamp = get_start_timestamp(event)
+                    .map_err(|e| MutationError::AttributeError("ServiceTimeMultiplier", e))?;
+                let service_time = get_service_time(event)
+                    .map_err(|e| MutationError::AttributeError("ServiceTimeMultiplier", e))?;
                 let new_service_time = multiply_timedelta_by_float(service_time, &self.factor);
                 change_event_duration(
                     trace,
                     i,
                     (start_timestamp + new_service_time).round_subsecs(6),
                 )
-                .map_err(|e| MutationError::MissingAttributeError("ServiceTimeMultiplier", e))?;
+                .map_err(|e| MutationError::AttributeError("ServiceTimeMultiplier", e))?;
             }
         }
         Ok(())
@@ -162,7 +160,7 @@ mod tests {
             .events
             .iter()
             .zip(new_trace.events.iter())
-            .all(|(e1, e2)| { get_service_time(e1) < get_service_time(e2) }));
+            .all(|(e1, e2)| { get_service_time(e1).unwrap() < get_service_time(e2).unwrap() }));
     }
 
     #[rstest]
@@ -181,10 +179,10 @@ mod tests {
                 assert!(get_activity_label(e1).unwrap() == get_activity_label(e2).unwrap());
 
                 if get_activity_label(e1).unwrap() == "a" {
-                    get_service_time(e1) < get_service_time(e2)
+                    get_service_time(e1).unwrap() < get_service_time(e2).unwrap()
                 } else {
                     // Service time is unchanged
-                    get_service_time(e1) == get_service_time(e2)
+                    get_service_time(e1).unwrap() == get_service_time(e2).unwrap()
                 }
             }));
     }

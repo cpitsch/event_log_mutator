@@ -35,7 +35,7 @@ pub struct EventSwapper {
 }
 
 impl EventSwapper {
-    pub fn new(activity_1: impl Into<String>, activity_2: impl Into<String>) -> EventSwapper {
+    pub fn new(activity_1: impl Into<String>, activity_2: impl Into<String>) -> Self {
         Self {
             activity_1: activity_1.into(),
             activity_2: activity_2.into(),
@@ -68,7 +68,7 @@ impl TraceMutator for EventSwapper {
             .iter()
             .map(get_activity_label)
             .collect::<AttributeResult<Vec<_>>>()
-            .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
+            .map_err(|e| MutationError::AttributeError("EventSwapper", e))?;
         let act_1_indices = activities
             .iter()
             .positions(|act| *act == self.activity_1)
@@ -84,14 +84,14 @@ impl TraceMutator for EventSwapper {
                 // Swap their start_timestamp, and update their complete timestamp
                 // based on their service time
                 let event_1_start = get_start_timestamp(trace.events.get(*idx_1).unwrap())
-                    .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
+                    .map_err(|e| MutationError::AttributeError("EventSwapper", e))?;
                 let event_2_start = get_start_timestamp(trace.events.get(*idx_2).unwrap())
-                    .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
+                    .map_err(|e| MutationError::AttributeError("EventSwapper", e))?;
 
                 let evt_1_service_time = get_service_time(trace.events.get(*idx_1).unwrap())
-                    .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
+                    .map_err(|e| MutationError::AttributeError("EventSwapper", e))?;
                 let evt_2_service_time = get_service_time(trace.events.get(*idx_2).unwrap())
-                    .map_err(|e| MutationError::MissingAttributeError("EventSwapper", e))?;
+                    .map_err(|e| MutationError::AttributeError("EventSwapper", e))?;
 
                 // Swap start timestamps
                 set_start_timestamp(

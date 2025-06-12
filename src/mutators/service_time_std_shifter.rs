@@ -51,7 +51,7 @@ impl ServiceTimeStdShifter {
 
     fn should_mutate(&mut self, event: &Event) -> MutationResult<bool> {
         let activity = get_activity_label(event)
-            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+            .map_err(|e| MutationError::AttributeError("ServiceTimeStdShifter", e))?;
         let should_mutate = (
             // Check that the event matches the requirements
             self.activity.as_ref().map_or(true, |act| activity == *act)
@@ -86,11 +86,11 @@ impl ServiceTimeStdShifter {
         shift_amounts: &HashMap<String, chrono::TimeDelta>,
     ) -> MutationResult<()> {
         let activity = get_activity_label(evt)
-            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+            .map_err(|e| MutationError::AttributeError("ServiceTimeStdShifter", e))?;
         let start_timestamp = get_start_timestamp(evt)
-            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+            .map_err(|e| MutationError::AttributeError("ServiceTimeStdShifter", e))?;
         let service_time = get_service_time(evt)
-            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+            .map_err(|e| MutationError::AttributeError("ServiceTimeStdShifter", e))?;
         let increment = shift_amounts
             .get(&activity)
             .cloned()
@@ -116,9 +116,9 @@ impl ServiceTimeStdShifter {
 
         for event in trace.events.iter_mut() {
             let start_timestamp = get_start_timestamp(event)
-                .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+                .map_err(|e| MutationError::AttributeError("ServiceTimeStdShifter", e))?;
             let complete_timestamp = get_complete_timestamp(event)
-                .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+                .map_err(|e| MutationError::AttributeError("ServiceTimeStdShifter", e))?;
 
             if !shift_amount.is_zero() {
                 set_start_timestamp(event, AttributeValue::Date(start_timestamp + shift_amount));
@@ -130,9 +130,8 @@ impl ServiceTimeStdShifter {
 
             if self.should_mutate(event)? {
                 self.mutate_event(event, shift_amounts)?;
-                let new_complete_timestamp = get_complete_timestamp(event).map_err(|e| {
-                    MutationError::MissingAttributeError("ServiceTimeStdShifter", e)
-                })?;
+                let new_complete_timestamp = get_complete_timestamp(event)
+                    .map_err(|e| MutationError::AttributeError("ServiceTimeStdShifter", e))?;
                 let shifted_by = new_complete_timestamp - complete_timestamp;
 
                 // Need to move all following events if changed service time
@@ -207,9 +206,9 @@ fn get_activity_durations(log: &EventLog) -> MutationResult<HashMap<String, Vec<
     for evt in log.traces.iter().flat_map(|trace| trace.events.iter()) {
         // .for_each(|evt| {
         let activity = get_activity_label(evt)
-            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+            .map_err(|e| MutationError::AttributeError("ServiceTimeStdShifter", e))?;
         let service_time = get_service_time(evt)
-            .map_err(|e| MutationError::MissingAttributeError("ServiceTimeStdShifter", e))?;
+            .map_err(|e| MutationError::AttributeError("ServiceTimeStdShifter", e))?;
 
         res.entry(activity).or_default().push(service_time);
     } //);
@@ -263,7 +262,8 @@ mod tests {
         let date = Utc
             .with_ymd_and_hms(2024, 4, 29, 1, 0, 0)
             .earliest()
-            .unwrap();
+            .unwrap()
+            .fixed_offset();
         Trace {
             attributes: Vec::default(),
             events: vec![
@@ -278,7 +278,8 @@ mod tests {
         let date = Utc
             .with_ymd_and_hms(2024, 4, 29, 1, 0, 0)
             .earliest()
-            .unwrap();
+            .unwrap()
+            .fixed_offset();
         Trace {
             attributes: Vec::default(),
             events: vec![

@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::{DateTime, FixedOffset, TimeDelta};
 
 use process_mining::{
     event_log::{AttributeValue, Attributes, Event, Trace, XESEditableAttribute},
@@ -25,73 +25,140 @@ impl HasAttributes for Event {
     }
 }
 
-#[derive(Debug, PartialEq, PartialOrd)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum AttributeLevel {
     Event,
     Trace,
     Log,
+    Unknown,
 }
 
 impl std::fmt::Display for AttributeLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let level_str = match self {
-            AttributeLevel::Event => "event",
-            AttributeLevel::Trace => "trace",
-            AttributeLevel::Log => "log",
+            Self::Event => "Event",
+            Self::Trace => "Trace",
+            Self::Log => "Log",
+            Self::Unknown => "Unkown",
         };
         write!(f, "{}", level_str)
     }
 }
 
-#[derive(Error, Debug, PartialEq, PartialOrd)]
-#[error("Missing {level}-level attribute {key}")]
-pub struct MissingAttributeError {
-    pub level: AttributeLevel,
-    pub key: &'static str,
+#[derive(Error, Debug, PartialEq, Clone, Eq)]
+pub enum AttributeErrorKind {
+    #[error("not found")]
+    MissingAttribute,
+    #[error("has unexpected type. Expected {0}, found {1:?}")]
+    TypeMismatch(String, AttributeValue),
 }
 
-pub type AttributeResult<T> = Result<T, MissingAttributeError>;
+#[derive(Error, Debug, Clone, PartialEq)]
+#[error("{level}-level attribute \"{key}\" {kind}.")]
+pub struct AttributeError {
+    pub level: AttributeLevel,
+    pub key: String,
+    pub kind: AttributeErrorKind,
+}
 
-impl MissingAttributeError {
-    pub fn new(level: AttributeLevel, key: &'static str) -> Self {
-        Self { level, key }
+impl AttributeError {
+    pub fn missing_attribute(key: impl Into<String>) -> Self {
+        Self {
+            level: AttributeLevel::Unknown,
+            key: key.into(),
+            kind: AttributeErrorKind::MissingAttribute,
+        }
+    }
+
+    pub fn type_mismatch(
+        key: impl Into<String>,
+        expected: impl Into<String>,
+        found: AttributeValue,
+    ) -> Self {
+        Self {
+            level: AttributeLevel::Unknown,
+            key: key.into(),
+            kind: AttributeErrorKind::TypeMismatch(expected.into(), found),
+        }
+    }
+
+    pub fn with_level(mut self, level: AttributeLevel) -> Self {
+        self.level = level;
+        self
     }
 }
 
-pub fn get_string_by_key(from: &impl HasAttributes, key: &str) -> Option<String> {
+pub type AttributeResult<T> = Result<T, AttributeError>;
+
+fn get_attribute_value(from: &impl HasAttributes, key: &str) -> AttributeResult<AttributeValue> {
     from.get_attributes()
-        .get_by_key(key)?
-        .value
-        .try_as_string()
-        .cloned()
+        .get_by_key(key)
+        .ok_or_else(|| AttributeError::missing_attribute(key))
+        .map(|v| v.value.clone())
 }
 
-pub fn get_time_by_key(from: &impl HasAttributes, key: &str) -> Option<DateTime<Utc>> {
-    from.get_attributes()
-        .get_by_key(key)?
-        .value
-        .try_as_date()
-        .cloned()
+pub fn get_string_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<String> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_string()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "String", value))
+    })?
+}
+
+pub fn get_time_by_key(
+    from: &impl HasAttributes,
+    key: &str,
+) -> AttributeResult<DateTime<FixedOffset>> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_date()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "DateTime", value))
+    })?
+}
+
+pub fn get_int_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<i64> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_int()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "Int", value))
+    })?
+}
+
+pub fn get_float_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<f64> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_float()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "Float", value))
+    })?
+}
+
+pub fn get_bool_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<bool> {
+    get_attribute_value(from, key).map(|value| {
+        value
+            .try_as_bool()
+            .cloned()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "Bool", value))
+    })?
 }
 
 pub fn get_activity_label(event: &Event) -> AttributeResult<String> {
-    get_string_by_key(event, ACTIVITY_KEY)
-        .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, ACTIVITY_KEY))
+    get_string_by_key(event, ACTIVITY_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
-pub fn get_start_timestamp(event: &Event) -> AttributeResult<DateTime<Utc>> {
-    get_time_by_key(event, START_TIMESTAMP_KEY)
-        .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, START_TIMESTAMP_KEY))
+pub fn get_start_timestamp(event: &Event) -> AttributeResult<DateTime<FixedOffset>> {
+    get_time_by_key(event, START_TIMESTAMP_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
-pub fn get_complete_timestamp(event: &Event) -> AttributeResult<DateTime<Utc>> {
-    get_time_by_key(event, TIMESTAMP_KEY)
-        .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Event, TIMESTAMP_KEY))
+pub fn get_complete_timestamp(event: &Event) -> AttributeResult<DateTime<FixedOffset>> {
+    get_time_by_key(event, TIMESTAMP_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
 pub fn get_traceid(trace: &Trace) -> AttributeResult<String> {
-    get_string_by_key(trace, TRACEID_KEY)
-        .ok_or_else(|| MissingAttributeError::new(AttributeLevel::Trace, TRACEID_KEY))
+    get_string_by_key(trace, TRACEID_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
 pub fn get_service_time(event: &Event) -> AttributeResult<chrono::TimeDelta> {
@@ -148,7 +215,7 @@ pub fn shift_events_by(trace: &mut Trace, by: TimeDelta, from: usize) -> Attribu
 pub fn change_event_duration(
     trace: &mut Trace,
     index: usize,
-    to: DateTime<Utc>,
+    to: DateTime<FixedOffset>,
 ) -> AttributeResult<()> {
     let evt = trace.events.get_mut(index).unwrap();
     let old_complete_timestamp = get_complete_timestamp(evt)?;
@@ -171,14 +238,20 @@ pub fn get_activities(log: &EventLog) -> AttributeResult<HashSet<String>> {
 }
 
 pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
+    if trace.events.is_empty() {
+        return Ok(HashSet::new());
+    }
+
     let activity_timestamp_pairs = trace
         .events
         .iter()
-        .map(|event| -> AttributeResult<(String, DateTime<Utc>)> {
-            let act = get_activity_label(event)?;
-            let complete = get_complete_timestamp(event)?;
-            Ok((act, complete))
-        })
+        .map(
+            |event| -> AttributeResult<(String, DateTime<FixedOffset>)> {
+                let act = get_activity_label(event)?;
+                let complete = get_complete_timestamp(event)?;
+                Ok((act, complete))
+            },
+        )
         .collect::<AttributeResult<Vec<_>>>()?;
 
     // Errors if the vec is empty
@@ -197,15 +270,21 @@ pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
 }
 
 pub fn get_end_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
+    if trace.events.is_empty() {
+        return Ok(HashSet::new());
+    }
+
     // TODO: Could this just be get_start_activities on the reversed trace?
     let activity_timestamp_pairs = trace
         .events
         .iter()
-        .map(|event| -> AttributeResult<(String, DateTime<Utc>)> {
-            let act = get_activity_label(event)?;
-            let complete = get_complete_timestamp(event)?;
-            Ok((act, complete))
-        })
+        .map(
+            |event| -> AttributeResult<(String, DateTime<FixedOffset>)> {
+                let act = get_activity_label(event)?;
+                let complete = get_complete_timestamp(event)?;
+                Ok((act, complete))
+            },
+        )
         .collect::<AttributeResult<Vec<_>>>()?;
 
     // Errors if the vec is empty

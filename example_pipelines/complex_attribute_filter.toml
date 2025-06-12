@@ -1,0 +1,31 @@
+input = "./EventLogs/Road_Traffic_Fine_Management_Process.xes.gz"
+output = "outputs/complex_attribute_filter/"
+compress_output = true
+
+[pipeline]
+seed = "0..2"
+
+# Retain only the traces where at least one event is in 2007
+# Note that traces starting before 2007 and ending after 2007 will not be included
+# if they don't have at least one event inside this interval.
+[[pipeline.mutations]]
+type = "AttributeFilter"
+target = "EventRequired"
+key = "time:timestamp"
+filter_method = "DateBetween"
+filter_value = [
+  "2007-01-01T00:00:00Z",
+  "2008-12-31T23:59:59Z"
+]
+
+# Retain only the traces where at least one event has `amount` in [5, 10)
+[[pipeline.mutations]]
+type = "AttributeFilter"
+target = "EventRequired"
+key = "amount"
+filter_method = "FloatRange"
+filter_value = [5, 10]
+
+[[pipeline.mutations]]
+type = "LogSplitter"
+frac = 0.5

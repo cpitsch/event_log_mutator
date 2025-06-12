@@ -1,8 +1,12 @@
+use crate::parsing::custom_serde::deserialize_u64_vec_or_range_option;
 use std::path::PathBuf;
 
 use crate::{
-    mutators::filters::case_duration_filter::ComparisonSense,
-    parsing::mutation_value::MutationValue, parsing::traits::FlattenMutationValue,
+    mutators::filters::{
+        attribute_value_filter::{AttributeFilterMethod, AttributeFilterTarget},
+        ComparisonSense,
+    },
+    parsing::{mutation_value::MutationValue, traits::FlattenMutationValue},
 };
 use serde::Deserialize;
 
@@ -23,7 +27,6 @@ fn default_log_bootstrapper_replacement_value() -> MutationValue<bool> {
 }
 
 #[derive(Deserialize, Debug, Clone, FlattenMutationValue)]
-#[cfg_attr(test, derive(PartialEq))]
 #[serde(tag = "type")]
 pub enum ParametrizedMutationConfig {
     ServiceTimeStdShifter {
@@ -32,6 +35,7 @@ pub enum ParametrizedMutationConfig {
         standard_deviations: MutationValue<f64>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
+        #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
     VariantSupportFilter {
@@ -59,6 +63,7 @@ pub enum ParametrizedMutationConfig {
         activity: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
+        #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
     ActivityRenamer {
@@ -66,6 +71,7 @@ pub enum ParametrizedMutationConfig {
         new_label: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
+        #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
     AttributeRetainer {
@@ -75,6 +81,7 @@ pub enum ParametrizedMutationConfig {
         activity: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
+        #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
     EventSwapper {
@@ -82,18 +89,21 @@ pub enum ParametrizedMutationConfig {
         activity_2: MutationValue<String>,
         #[serde(default = "default_probability_mutation_value")]
         probability: MutationValue<f32>,
+        #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
     LogSplitter {
         frac: MutationValue<f64>,
         save_path: Option<MutationValue<PathBuf>>,
         save_compressed: Option<MutationValue<bool>>,
+        #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
     LogBootstrapper {
         size: MutationValue<usize>,
         #[serde(default = "default_log_bootstrapper_replacement_value")]
         replacement: MutationValue<bool>,
+        #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
     PartialOrderCreator,
@@ -106,6 +116,22 @@ pub enum ParametrizedMutationConfig {
         probability: MutationValue<f32>,
         #[serde(default = "default_service_time_factor_mutation_value")]
         factor: MutationValue<f32>,
+        #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
+    },
+    FollowerFilter {
+        trigger_activities: MutationValue<Vec<String>>,
+        reaction_activities: MutationValue<Vec<String>>,
+        range: Option<MutationValue<usize>>,
+    },
+    AttributeFilter {
+        target: MutationValue<AttributeFilterTarget>,
+        key: MutationValue<String>,
+        #[serde(flatten)]
+        filter_method: AttributeFilterMethod,
+    },
+    TraceLengthFilter {
+        length: MutationValue<usize>,
+        sense: Option<MutationValue<ComparisonSense>>,
     },
 }

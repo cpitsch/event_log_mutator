@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use chrono::TimeDelta;
 use serde::Deserialize;
 
 use itertools::Itertools;
@@ -8,7 +9,10 @@ use crate::{
     mutation::{LogMutatorWithAsDirName, MutationChain},
     mutators::{
         aux_mutators::{LogSaver, LogValidator},
-        filters::{CaseDurationFilter, EndpointFilter, VariantSupportFilter},
+        filters::{
+            AttributeFilter, CaseDurationFilter, EndpointFilter, FollowerFilter, TraceLengthFilter,
+            VariantSupportFilter,
+        },
         ActivityRemover, ActivityRenamer, AttributeRemover, AttributeRetainer,
         ConstantActivityMutator, EventSwapper, LogBootstrapper, LogSplitter, PartialOrderCreator,
         ServiceTimeMultiplier, ServiceTimeStdShifter,
@@ -23,14 +27,11 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
 pub struct Flat;
 #[derive(Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
 pub struct NotFlat;
 
 #[derive(Deserialize, Debug, Clone)]
-#[cfg_attr(test, derive(PartialEq))]
 pub struct ParametrizedPipelineConfig<State = NotFlat> {
     pub mutations: Vec<ParametrizedMutationConfig>,
     /// Seed to use for mutations involving randomness.
@@ -172,7 +173,7 @@ impl ParametrizedPipelineConfig<Flat> {
         MutationChain { mutations }
     }
 
-    pub fn with_seed(mut self, seed: u64) -> ParametrizedPipelineConfig<Flat> {
+    pub fn with_seed(mut self, seed: u64) -> Self {
         self.seed = Some(MutationValue::Value(seed));
         self
     }
@@ -220,16 +221,17 @@ impl ParametrizedPipelineConfig<Flat> {
                 hours,
                 minutes,
                 seconds,
-            } => Box::new(
-                CaseDurationFilter::new(
-                    Some(years.inner_value()),
-                    Some(days.inner_value()),
-                    Some(hours.inner_value()),
-                    Some(minutes.inner_value()),
-                    Some(seconds.inner_value()),
+            } => {
+                // Convert configuration to a number of seconds
+                let days = (365.0 * years.inner_value()) + days.inner_value();
+                let hours = (24.0 * days) + hours.inner_value();
+                let minutes = (60.0 * hours) + minutes.inner_value();
+                let total_seconds = (60.0 * minutes) + seconds.inner_value();
+                Box::new(
+                    CaseDurationFilter::new(TimeDelta::seconds(total_seconds as i64))
+                        .with_sense(sense.inner_value()),
                 )
-                .with_sense(sense.inner_value()),
-            ),
+            }
             ParametrizedMutationConfig::ActivityRemover {
                 activity,
                 probability,
@@ -313,10 +315,9 @@ impl ParametrizedPipelineConfig<Flat> {
                             mutator = mutator.with_save_discarded_log(p, is_compressed);
                         } else {
                             let log_name = format!("log_{}", log_saver_index);
-                            let mut path_with_mutator = path_so_far.clone();
-                            let save_compressed = save_compressed
-                                .clone()
-                                .map_or(*compress, MutationValue::inner_value);
+                            let mut path_with_mutator = path_so_far;
+                            let save_compressed =
+                                save_compressed.map_or(*compress, MutationValue::inner_value);
                             path_with_mutator.push(mutator.to_dir_name());
                             let save_path =
                                 build_file_path(path_with_mutator, log_name, save_compressed);
@@ -330,10 +331,9 @@ impl ParametrizedPipelineConfig<Flat> {
                             mutator = mutator.with_validate_discarded_log(p);
                         } else {
                             let log_name = format!("log_{}", log_saver_index);
-                            let mut path_with_mutator = path_so_far.clone();
-                            let save_compressed = save_compressed
-                                .clone()
-                                .map_or(*compress, MutationValue::inner_value);
+                            let mut path_with_mutator = path_so_far;
+                            let save_compressed =
+                                save_compressed.map_or(*compress, MutationValue::inner_value);
                             path_with_mutator.push(mutator.to_dir_name());
                             let save_path =
                                 build_file_path(path_with_mutator, log_name, save_compressed);
@@ -375,6 +375,36 @@ impl ParametrizedPipelineConfig<Flat> {
                 }
                 if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
                     mutator = mutator.with_seed(s);
+                }
+                Box::new(mutator)
+            }
+            ParametrizedMutationConfig::FollowerFilter {
+                trigger_activities,
+                reaction_activities,
+                range,
+            } => {
+                let mut mutator = FollowerFilter::new(
+                    trigger_activities.inner_value(),
+                    reaction_activities.inner_value(),
+                );
+                if let Some(range) = range {
+                    mutator = mutator.with_range(range.inner_value());
+                }
+                Box::new(mutator)
+            }
+            ParametrizedMutationConfig::AttributeFilter {
+                target,
+                key,
+                filter_method,
+            } => Box::new(AttributeFilter::new(
+                target.inner_value(),
+                key.inner_value(),
+                filter_method,
+            )),
+            ParametrizedMutationConfig::TraceLengthFilter { length, sense } => {
+                let mut mutator = TraceLengthFilter::new(length.inner_value());
+                if let Some(s) = sense {
+                    mutator = mutator.with_sense(s.inner_value());
                 }
                 Box::new(mutator)
             }

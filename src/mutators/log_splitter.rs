@@ -70,13 +70,13 @@ impl LogMutator for LogSplitter {
         let size = ((log.traces.len() as f64) * self.frac).round() as usize;
         let discarded_log = sample_log_without_replacement(&mut self.rng, log, size)?;
         let discarded_traceids = get_traceids(&discarded_log)
-            .map_err(|e| MutationError::MissingAttributeError("LogSplitter", e))?;
+            .map_err(|e| MutationError::AttributeError("LogSplitter", e))?;
 
         retain_err(&mut log.traces, |trace| -> AttributeResult<bool> {
             let traceid = get_traceid(trace)?;
             Ok(!discarded_traceids.contains(&traceid))
         })
-        .map_err(|e| MutationError::MissingAttributeError("LogSplitter", e))?;
+        .map_err(|e| MutationError::AttributeError("LogSplitter", e))?;
 
         if let Some(f) = self.handle_discarded_log.as_ref() {
             f(discarded_log)?;

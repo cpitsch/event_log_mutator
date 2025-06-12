@@ -26,7 +26,7 @@ impl EndpointFilter {
         start_activities: Option<impl Into<DisplayVec<String>>>,
         end_activities: Option<impl Into<DisplayVec<String>>>,
     ) -> Self {
-        EndpointFilter {
+        Self {
             start_activities: start_activities.map(|acts| acts.into()),
             end_activities: end_activities.map(|acts| acts.into()),
         }
@@ -56,25 +56,54 @@ impl EndpointFilter {
 impl LogMutator for EndpointFilter {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         let all_activities: Vec<String> = get_activities(log)
-            .map_err(|e| MutationError::MissingAttributeError("EndpointFilter", e))?
+            .map_err(|e| MutationError::AttributeError("EndpointFilter", e))?
             .into_iter()
             .collect();
 
         let start_acts = self
             .start_activities
-            .clone()
-            .map(|v| v.0)
-            .unwrap_or(all_activities.clone());
+            .as_deref()
+            .unwrap_or(all_activities.as_slice());
         let end_acts = self
             .end_activities
-            .clone()
-            .map(|v| v.0)
-            .unwrap_or(all_activities);
+            .as_deref()
+            .unwrap_or(all_activities.as_slice());
 
         retain_err(&mut log.traces, |trace| {
-            self.keep_trace(trace, &start_acts, &end_acts)
+            self.keep_trace(trace, start_acts, end_acts)
         })
-        .map_err(|e| MutationError::MissingAttributeError("EndpointFilter", e))?;
+        .map_err(|e| MutationError::AttributeError("EndpointFilter", e))?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use process_mining_macros::event_log;
+
+    use super::*;
+
+    #[test]
+    fn starts_with() {
+        let mut filter = EndpointFilter::new(Some(vec!["a".to_string()]), None::<Vec<String>>);
+        let log = event_log!([a, b, c, d], [b, c, d, a], [c, d, a, b], [d, a, b, c]);
+
+        assert_eq!(1, filter.apply(&log).unwrap().traces.len());
+    }
+
+    #[test]
+    fn ends_with() {
+        let mut filter = EndpointFilter::new(None::<Vec<String>>, Some(vec!["d".to_string()]));
+        let log = event_log!([a, b, c, d], [b, c, d, a], [c, d, a, b], [d, a, b, c]);
+
+        assert_eq!(1, filter.apply(&log).unwrap().traces.len());
+    }
+
+    #[test]
+    fn empty_traces() {
+        let mut filter = EndpointFilter::new(None::<Vec<String>>, Some(vec!["d".to_string()]));
+        let log = event_log!([]);
+
+        assert!(filter.apply(&log).unwrap().traces.is_empty());
     }
 }

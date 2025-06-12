@@ -47,7 +47,7 @@ pub fn sample_log_without_replacement_mut(
         .choose_multiple(rng, size)
         .map(get_traceid)
         .collect::<AttributeResult<_>>()
-        .map_err(|e| MutationError::MissingAttributeError("SampleWithoutReplacement", e))?;
+        .map_err(|e| MutationError::AttributeError("SampleWithoutReplacement", e))?;
     log.traces
         .retain(|trace| retain_traceids.contains(&get_traceid(trace).unwrap()));
     Ok(())

@@ -9,18 +9,21 @@ To see the parameters a mutator takes, follow its respective link
 - [ActivityRemover](./src/mutators/activity_remover.rs#L10-L25)
 - [ActivityRenamer](./src/mutators/activity_rename.rs#L10-L27)
 - [AttributeRemover](./src/mutators/attribute_remover.rs#L7-L13)
-- [AttributeRetainer](./src/mutators/attribute_retainer.rs#L9-L14)
+- [AttributeRetainer](./src/mutators/attribute_retainer.rs#L9-L15)
 - [ConstantActivity](./src/mutators/constant_activity.rs#L10-L25)
 - [EventSwapper](./src/mutators/event_swapper.rs#L14-L35)
 - [LogBootstrapper](./src/mutators/log_bootstrapper.rs#L10-L24)
-- [LogSplitter](./src/mutators/log_splitter.rs#L17-L25)
+- [LogSplitter](./src/mutators/log_splitter.rs#L18-L26)
 - [PartialOrderCreator](./src/mutators/partial_order_creator.rs#L9-L15)
 - [ServiceTimeMultiplier](./src/mutators/service_time_multiplier.rs#L13-L32)
 - [ServiceTimeStdShifter](./src/mutators/service_time_std_shifter.rs#L19-L39)
 
 ### Filters 
-- [CaseDurationFilter](./src/mutators/filters/endpoint_filter.rs#L49-L57)
+- [AttributeFilter](./src/mutators/filters/attribute_value_filter.rs#L176-L184)
+- [CaseDurationFilter](./src/mutators/filters/case_duration_filter.rs#L64-L68)
 - [EndpointFilter](./src/mutators/filters/endpoint_filter.rs#L13-L22)
+- [FollowerFilter](./src/mutators/filters/follower_filter.rs#L13-L25)
+- [TraceLengthFilter](./src/mutators/filters/trace_length_filter.rs#L10-L14)
 - [VariantSupportFilter](./src/mutators/filters/variant_support_filter.rs#L10-L18)
 
 ## Pipeline Configuration

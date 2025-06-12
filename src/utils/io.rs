@@ -17,6 +17,8 @@ pub enum IoError {
     XesWriteError(PathBuf),
     #[error("Something went wrong creating the directories on the path {0:?}")]
     DirCreateError(PathBuf),
+    #[error("Could not resolve '~' to home directory")]
+    NoHomeDirectory,
 }
 
 pub fn write_xes(log: &EventLog, path: impl AsRef<Path>, compress: bool) -> Result<(), IoError> {

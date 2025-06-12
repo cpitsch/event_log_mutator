@@ -1,0 +1,17 @@
+input = "./EventLogs/Road_Traffic_Fine_Management_Process.xes.gz"
+output = "outputs/simple_filter/"
+compress_output = true
+
+
+
+[[pipeline.mutations]]
+type = "AttributeFilter"
+target = "EventRequired"
+key = "concept:name"
+filter_method = "StringRegex" 
+filter_value = ".*Appeal.*"
+
+[[pipeline.mutations]]
+type = "TraceLengthFilter"
+length = 5
+sense = ">=" # Equivalent: "geq" or "GEQ"

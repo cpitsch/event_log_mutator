@@ -1,4 +1,4 @@
-use chrono::{DateTime, TimeDelta, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset, TimeDelta, TimeZone, Utc};
 use process_mining::event_log::{Attribute, AttributeValue, Event, EventLog, Trace};
 use rstest::fixture;
 
@@ -6,7 +6,7 @@ use crate::utils::attributes::get_activity_label;
 
 pub fn new_event(
     activity: impl Into<String>,
-    start_timestamp: DateTime<Utc>,
+    start_timestamp: DateTime<FixedOffset>,
     service_time: TimeDelta,
 ) -> Event {
     Event {
@@ -51,7 +51,8 @@ pub fn abcd_trace() -> Trace {
     let date = Utc
         .with_ymd_and_hms(2024, 4, 29, 1, 0, 0)
         .earliest()
-        .unwrap();
+        .unwrap()
+        .fixed_offset();
     Trace {
         attributes: Vec::default(),
         events: vec![
@@ -68,7 +69,8 @@ pub fn abcd_log() -> EventLog {
     let date = Utc
         .with_ymd_and_hms(2024, 4, 29, 1, 0, 0)
         .earliest()
-        .unwrap();
+        .unwrap()
+        .fixed_offset();
 
     EventLog {
         attributes: Vec::default(),
