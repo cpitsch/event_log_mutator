@@ -41,7 +41,7 @@ impl std::fmt::Display for AttributeLevel {
             Self::Log => "Log",
             Self::Unknown => "Unkown",
         };
-        write!(f, "{}", level_str)
+        write!(f, "{level_str}")
     }
 }
 

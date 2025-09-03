@@ -86,8 +86,8 @@ impl Display for AttributeFilterMethod {
                 Self::BoolTrue => "IsTrue".to_string(),
                 Self::BoolFalse => "IsFalse".to_string(),
 
-                Self::DateBefore(d) => format!("DateBefore_{}", d),
-                Self::DateAfter(d) => format!("DateAfter_{}", d),
+                Self::DateBefore(d) => format!("DateBefore_{d}"),
+                Self::DateAfter(d) => format!("DateAfter_{d}"),
                 Self::DateBetween(d_start, d_end) => format!("DateBetween_{d_start}_{d_end}"),
             }
         )
