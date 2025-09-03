@@ -10,6 +10,7 @@ use crate::{
 
 use super::attributes::AttributeResult;
 
+// TODO: Take log as first arg and maybe Option<&mut StdRng> instead?
 pub fn sample_log_without_replacement(
     rng: &mut StdRng,
     log: &EventLog,
@@ -23,8 +24,12 @@ pub fn sample_log_without_replacement(
         )));
     }
 
-    let mut new_log = log.clone();
+    let mut new_log = log.clone_without_traces();
+    new_log.traces.reserve_exact(size);
 
+    // TODO: Sort the traces according to original order?
+    // TODO: Use `rand::partial_shuffle` and `Vec::split_off`
+    // But both of these wouldn't be backwards compatible
     new_log.traces = log.traces.choose_multiple(rng, size).cloned().collect();
     Ok(new_log)
 }
@@ -92,4 +97,37 @@ pub fn sample_log_with_replacement_mut(
         .collect();
 
     Ok(())
+}
+
+pub fn split_log(
+    log: &EventLog,
+    size: usize,
+    rng: &mut StdRng,
+) -> MutationResult<(EventLog, EventLog)> {
+    if size > log.traces.len() {
+        return Err(MutationError::InvalidValue(format!(
+            "Cannot split an event log with a half larger than the whole ({}>{})",
+            size,
+            log.traces.len()
+        )));
+    }
+
+    let mut log_1 = log.clone_without_traces();
+    let mut log_2 = log.clone_without_traces();
+
+    let mut all_traces = log.traces.clone();
+
+    // If log_1 is larger than half, shuffling "for" log_2 is less work.
+    if size > log.traces.len() / 2 {
+        let complement_size = all_traces.len() - size;
+        all_traces.partial_shuffle(rng, complement_size);
+        log_2.traces = all_traces.split_off(complement_size);
+        log_1.traces = all_traces
+    } else {
+        all_traces.partial_shuffle(rng, size);
+        log_1.traces = all_traces.split_off(size);
+        log_2.traces = all_traces;
+    }
+
+    Ok((log_1, log_2))
 }

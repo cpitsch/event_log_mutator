@@ -68,6 +68,8 @@ impl LogSplitter {
 impl LogMutator for LogSplitter {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         let size = ((log.traces.len() as f64) * self.frac).round() as usize;
+        // In theory, shuffling and then split_at would be pretty elegant. But
+        // that wouldn't be backwards compatible
         let discarded_log = sample_log_without_replacement(&mut self.rng, log, size)?;
         let discarded_traceids = get_traceids(&discarded_log)
             .map_err(|e| MutationError::AttributeError("LogSplitter", e))?;
