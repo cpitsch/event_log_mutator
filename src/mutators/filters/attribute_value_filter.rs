@@ -113,16 +113,16 @@ impl AttributeFilterMethod {
             Self::FloatRange(start, end) => {
                 get_float_by_key(item, key).map(|val| (start..end).contains(&&val))
             }
-            Self::StringEq(s) => get_string_by_key(item, key).map(|val| &val == s),
-            Self::StringRegex(re) => get_string_by_key(item, key).map(|val| re.is_match(&val)),
+            Self::StringEq(s) => get_string_by_key(item, key).map(|val| val == s),
+            Self::StringRegex(re) => get_string_by_key(item, key).map(|val| re.is_match(val)),
 
             Self::BoolTrue => get_bool_by_key(item, key),
             Self::BoolFalse => get_bool_by_key(item, key).map(|val| !val),
 
-            Self::DateBefore(d) => get_time_by_key(item, key).map(|val| &val < d),
-            Self::DateAfter(d) => get_time_by_key(item, key).map(|val| &val > d),
+            Self::DateBefore(d) => get_time_by_key(item, key).map(|val| val < d),
+            Self::DateAfter(d) => get_time_by_key(item, key).map(|val| val > d),
             Self::DateBetween(d_start, d_end) => {
-                get_time_by_key(item, key).map(|val| d_start <= &val && &val <= d_end)
+                get_time_by_key(item, key).map(|val| d_start <= val && val <= d_end)
             }
         }
     }

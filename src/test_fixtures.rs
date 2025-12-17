@@ -42,7 +42,7 @@ pub fn get_control_flow(trace: &Trace) -> Vec<String> {
     trace
         .events
         .iter()
-        .map(|evt| get_activity_label(evt).unwrap())
+        .map(|evt| get_activity_label(evt).unwrap().clone())
         .collect()
 }
 

@@ -111,10 +111,7 @@ mod tests {
                 .with_replacement(false)
                 .apply(&abcd_log)
                 .unwrap();
-            seen_trace_ids = seen_trace_ids
-                .union(&get_traceids(&mutated_log).unwrap())
-                .cloned()
-                .collect();
+            seen_trace_ids.extend(get_traceids(&mutated_log).unwrap().into_iter().cloned());
         }
 
         assert!(seen_trace_ids.len() > 1);
@@ -123,7 +120,7 @@ mod tests {
     #[rstest]
     fn sample_with_replacement_has_duplicates(mut abcd_log: EventLog) {
         abcd_log.traces.iter_mut().for_each(|trace| {
-            let traceid = get_traceid(trace).unwrap();
+            let traceid = get_traceid(trace).unwrap().clone();
             trace.attributes.push(Attribute {
                 key: "original_traceid".to_string(),
                 value: AttributeValue::String(traceid),
@@ -137,7 +134,7 @@ mod tests {
             .apply(&abcd_log)
             .unwrap();
 
-        let mut traceids: Vec<String> = mutated_log
+        let mut traceids: Vec<&String> = mutated_log
             .traces
             .iter()
             .map(|trace| get_string_by_key(trace, "original_traceid").unwrap())
@@ -158,7 +155,7 @@ mod tests {
     #[rstest]
     fn seeded_gives_same_result(mut abcd_log: EventLog) {
         abcd_log.traces.iter_mut().for_each(|trace| {
-            let traceid = get_traceid(trace).unwrap();
+            let traceid = get_traceid(trace).unwrap().clone();
             trace.attributes.push(Attribute {
                 key: "original_traceid".to_string(),
                 value: AttributeValue::String(traceid),

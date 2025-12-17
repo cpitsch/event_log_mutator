@@ -63,7 +63,7 @@ impl EventSwapper {
 impl TraceMutator for EventSwapper {
     fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
         // Get all indices of activity 1 and 2
-        let activities: Vec<String> = trace
+        let activities: Vec<_> = trace
             .events
             .iter()
             .map(get_activity_label)
@@ -71,21 +71,21 @@ impl TraceMutator for EventSwapper {
             .map_err(|e| MutationError::AttributeError("EventSwapper", e))?;
         let act_1_indices = activities
             .iter()
-            .positions(|act| *act == self.activity_1)
+            .positions(|act| **act == self.activity_1)
             .collect_vec();
 
         let act_2_indices = activities
             .into_iter()
-            .positions(|act| act == self.activity_2)
+            .positions(|act| *act == self.activity_2)
             .collect_vec();
 
         for (idx_1, idx_2) in act_1_indices.iter().zip(act_2_indices.iter()) {
             if self.should_mutate() {
                 // Swap their start_timestamp, and update their complete timestamp
                 // based on their service time
-                let event_1_start = get_start_timestamp(trace.events.get(*idx_1).unwrap())
+                let event_1_start = *get_start_timestamp(trace.events.get(*idx_1).unwrap())
                     .map_err(|e| MutationError::AttributeError("EventSwapper", e))?;
-                let event_2_start = get_start_timestamp(trace.events.get(*idx_2).unwrap())
+                let event_2_start = *get_start_timestamp(trace.events.get(*idx_2).unwrap())
                     .map_err(|e| MutationError::AttributeError("EventSwapper", e))?;
 
                 let evt_1_service_time = get_service_time(trace.events.get(*idx_1).unwrap())

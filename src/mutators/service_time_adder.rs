@@ -46,7 +46,7 @@ impl ServiceTimeAdder {
             .map_err(|e| MutationError::AttributeError("ServiceTimeAdder", e))?;
         let should_mutate = (
             // Check that the event matches the requirements
-            self.activity.as_ref().map_or(true, |act| &activity == act)
+            self.activity.as_ref().map_or(true, |act| activity == act)
         ) && (
             // Check mutation probability
             self.rng.gen::<f32>() < self.probability
@@ -74,9 +74,9 @@ impl ServiceTimeAdder {
 impl TraceMutator for ServiceTimeAdder {
     fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
         for i in 0..trace.events.len() {
-            let event = trace.events.get_mut(i).unwrap();
+            let event = trace.events.get(i).unwrap();
             if self.should_mutate(event)? {
-                let new_complete_timestamp = get_complete_timestamp(event)
+                let new_complete_timestamp = *get_complete_timestamp(event)
                     .map_err(|e| MutationError::AttributeError("ServiceTimeAdder", e))?
                     + self.timedelta;
 

@@ -55,19 +55,15 @@ impl EndpointFilter {
 
 impl LogMutator for EndpointFilter {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
+        // TODO: Could be smart about when to compute `all_activities`
         let all_activities: Vec<String> = get_activities(log)
             .map_err(|e| MutationError::AttributeError("EndpointFilter", e))?
             .into_iter()
+            .cloned()
             .collect();
 
-        let start_acts = self
-            .start_activities
-            .as_deref()
-            .unwrap_or(all_activities.as_slice());
-        let end_acts = self
-            .end_activities
-            .as_deref()
-            .unwrap_or(all_activities.as_slice());
+        let start_acts = self.start_activities.as_deref().unwrap_or(&all_activities);
+        let end_acts = self.end_activities.as_deref().unwrap_or(&all_activities);
 
         retain_err(&mut log.traces, |trace| {
             self.keep_trace(trace, start_acts, end_acts)

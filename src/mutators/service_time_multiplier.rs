@@ -47,7 +47,7 @@ impl ServiceTimeMultiplier {
             .map_err(|e| MutationError::AttributeError("ServiceTimeMultiplier", e))?;
         let should_mutate = (
             // Check that the event matches the requirements
-            self.activity.as_ref().map_or(true, |act| &activity == act)
+            self.activity.as_ref().map_or(true, |act| activity == act)
         ) && (
             // Check mutation probability
             self.rng.gen::<f32>() < self.probability
@@ -93,7 +93,7 @@ fn multiply_timedelta_by_float(timedelta: TimeDelta, factor: &f32) -> TimeDelta 
 impl TraceMutator for ServiceTimeMultiplier {
     fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
         for i in 0..trace.events.len() {
-            let event = trace.events.get_mut(i).unwrap();
+            let event = trace.events.get(i).unwrap();
             if self.should_mutate(event)? {
                 let start_timestamp = get_start_timestamp(event)
                     .map_err(|e| MutationError::AttributeError("ServiceTimeMultiplier", e))?;
@@ -103,7 +103,7 @@ impl TraceMutator for ServiceTimeMultiplier {
                 change_event_duration(
                     trace,
                     i,
-                    (start_timestamp + new_service_time).round_subsecs(6),
+                    (*start_timestamp + new_service_time).round_subsecs(6),
                 )
                 .map_err(|e| MutationError::AttributeError("ServiceTimeMultiplier", e))?;
             }
@@ -240,7 +240,7 @@ mod tests {
                 // Currently fails due to rounding the completion timestamp to 6 digits
                 // So the service time isnt exactly this..
                 let expected_completion_timestamp =
-                    (start + multiply_timedelta_by_float(old_dur, &factor)).round_subsecs(6);
+                    (*start + multiply_timedelta_by_float(old_dur, &factor)).round_subsecs(6);
                 let expected_dur = expected_completion_timestamp - start;
 
                 assert_eq!(new_dur, expected_dur);

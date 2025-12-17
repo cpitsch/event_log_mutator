@@ -40,7 +40,7 @@ impl ActivityRenamer {
     fn should_mutate(&mut self, event: &Event) -> MutationResult<bool> {
         let activity = get_activity_label(event)
             .map_err(|e| MutationError::AttributeError("ActivityRenamer", e))?;
-        Ok(activity == self.activity && self.rng.gen::<f32>() < self.probability)
+        Ok(*activity == self.activity && self.rng.gen::<f32>() < self.probability)
     }
 
     pub fn with_probability(mut self, probability: f32) -> Self {
@@ -89,10 +89,10 @@ mod tests {
             .collect();
 
         // The old activity is not contained
-        assert!(!all_activities.contains(&activity));
+        assert!(!all_activities.contains(&&activity));
 
         // The new activity is there now
-        assert!(all_activities.contains(&"NEW_ACTIVITY".to_string()));
+        assert!(all_activities.contains(&&"NEW_ACTIVITY".to_string()));
 
         // There are still 4 activities (Only the specified activity got renamed)
         // and since it is entirely gone, the renaming worked correctly

@@ -47,14 +47,18 @@ pub fn sample_log_without_replacement_mut(
         )));
     }
 
-    let retain_traceids: HashSet<String> = log
+    // TODO: Why am I not just using indices? It wouldn't be semantically equivalent
+    // if the log contains duplicate traceids, but which would be better?
+    // Then again, if there were duplicate traceids, the sampled log could have
+    // more than `size` traces, which is unexpected behavior.
+    let retain_traceids: HashSet<_> = log
         .traces
         .choose_multiple(rng, size)
-        .map(get_traceid)
+        .map(|trace| get_traceid(trace).cloned())
         .collect::<AttributeResult<_>>()
         .map_err(|e| MutationError::AttributeError("SampleWithoutReplacement", e))?;
     log.traces
-        .retain(|trace| retain_traceids.contains(&get_traceid(trace).unwrap()));
+        .retain(|trace| retain_traceids.contains(get_traceid(trace).unwrap()));
     Ok(())
 }
 

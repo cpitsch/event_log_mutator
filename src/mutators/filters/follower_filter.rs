@@ -43,11 +43,11 @@ impl FollowerFilter {
 
     fn keep_trace(&self, trace: &Trace) -> AttributeResult<bool> {
         let range = self.range.unwrap_or(trace.events.len());
-        let trace_activities: Vec<String> = trace
+        let trace_activities: Vec<&String> = trace
             .events
             .iter()
             .map(get_activity_label)
-            .collect::<AttributeResult<Vec<String>>>()?;
+            .collect::<AttributeResult<_>>()?;
 
         let is_trigger_act: Vec<bool> = trace_activities
             .iter()

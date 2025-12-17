@@ -90,31 +90,35 @@ impl AttributeError {
 
 pub type AttributeResult<T> = Result<T, AttributeError>;
 
-fn get_attribute_value(from: &impl HasAttributes, key: &str) -> AttributeResult<AttributeValue> {
+fn get_attribute_value<'a>(
+    from: &'a impl HasAttributes,
+    key: &str,
+) -> AttributeResult<&'a AttributeValue> {
     from.get_attributes()
         .get_by_key(key)
         .ok_or_else(|| AttributeError::missing_attribute(key))
-        .map(|v| v.value.clone())
+        .map(|v| &v.value)
 }
 
-pub fn get_string_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<String> {
+pub fn get_string_by_key<'a>(
+    from: &'a impl HasAttributes,
+    key: &str,
+) -> AttributeResult<&'a String> {
     get_attribute_value(from, key).map(|value| {
         value
             .try_as_string()
-            .cloned()
-            .ok_or_else(|| AttributeError::type_mismatch(key, "String", value))
+            .ok_or_else(|| AttributeError::type_mismatch(key, "String", value.clone()))
     })?
 }
 
-pub fn get_time_by_key(
-    from: &impl HasAttributes,
+pub fn get_time_by_key<'a>(
+    from: &'a impl HasAttributes,
     key: &str,
-) -> AttributeResult<DateTime<FixedOffset>> {
+) -> AttributeResult<&'a DateTime<FixedOffset>> {
     get_attribute_value(from, key).map(|value| {
         value
             .try_as_date()
-            .cloned()
-            .ok_or_else(|| AttributeError::type_mismatch(key, "DateTime", value))
+            .ok_or_else(|| AttributeError::type_mismatch(key, "DateTime", value.clone()))
     })?
 }
 
@@ -122,8 +126,8 @@ pub fn get_int_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<i
     get_attribute_value(from, key).map(|value| {
         value
             .try_as_int()
-            .cloned()
-            .ok_or_else(|| AttributeError::type_mismatch(key, "Int", value))
+            .copied()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "Int", value.clone()))
     })?
 }
 
@@ -131,8 +135,8 @@ pub fn get_float_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult
     get_attribute_value(from, key).map(|value| {
         value
             .try_as_float()
-            .cloned()
-            .ok_or_else(|| AttributeError::type_mismatch(key, "Float", value))
+            .copied()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "Float", value.clone()))
     })?
 }
 
@@ -140,31 +144,31 @@ pub fn get_bool_by_key(from: &impl HasAttributes, key: &str) -> AttributeResult<
     get_attribute_value(from, key).map(|value| {
         value
             .try_as_bool()
-            .cloned()
-            .ok_or_else(|| AttributeError::type_mismatch(key, "Bool", value))
+            .copied()
+            .ok_or_else(|| AttributeError::type_mismatch(key, "Bool", value.clone()))
     })?
 }
 
-pub fn get_activity_label(event: &Event) -> AttributeResult<String> {
+pub fn get_activity_label(event: &Event) -> AttributeResult<&String> {
     get_string_by_key(event, ACTIVITY_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
-pub fn get_start_timestamp(event: &Event) -> AttributeResult<DateTime<FixedOffset>> {
+pub fn get_start_timestamp(event: &Event) -> AttributeResult<&DateTime<FixedOffset>> {
     get_time_by_key(event, START_TIMESTAMP_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
-pub fn get_complete_timestamp(event: &Event) -> AttributeResult<DateTime<FixedOffset>> {
+pub fn get_complete_timestamp(event: &Event) -> AttributeResult<&DateTime<FixedOffset>> {
     get_time_by_key(event, TIMESTAMP_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
-pub fn get_traceid(trace: &Trace) -> AttributeResult<String> {
+pub fn get_traceid(trace: &Trace) -> AttributeResult<&String> {
     get_string_by_key(trace, TRACEID_KEY).map_err(|e| e.with_level(AttributeLevel::Event))
 }
 
 pub fn get_service_time(event: &Event) -> AttributeResult<chrono::TimeDelta> {
     let start = get_start_timestamp(event)?;
     let end = get_complete_timestamp(event)?;
-    Ok(end - start)
+    Ok(*end - start)
 }
 
 pub fn set_trace_attribute_by_key(trace: &mut Trace, key: &'static str, value: AttributeValue) {
@@ -203,8 +207,8 @@ pub fn set_traceid(trace: &mut Trace, value: AttributeValue) {
 pub fn shift_events_by(trace: &mut Trace, by: TimeDelta, from: usize) -> AttributeResult<()> {
     for evt in trace.events.iter_mut().skip(from) {
         // Shift the events start and end by the timedelta
-        let new_start_timestamp = get_start_timestamp(evt)? + by;
-        let new_complete_timestamp = get_complete_timestamp(evt)? + by;
+        let new_start_timestamp = *get_start_timestamp(evt)? + by;
+        let new_complete_timestamp = *get_complete_timestamp(evt)? + by;
 
         set_start_timestamp(evt, AttributeValue::Date(new_start_timestamp));
         set_complete_timestamp(evt, AttributeValue::Date(new_complete_timestamp));
@@ -226,18 +230,18 @@ pub fn change_event_duration(
     Ok(())
 }
 
-pub fn get_traceids(log: &EventLog) -> AttributeResult<HashSet<String>> {
+pub fn get_traceids(log: &EventLog) -> AttributeResult<HashSet<&String>> {
     log.traces.iter().map(get_traceid).collect()
 }
 
-pub fn get_activities(log: &EventLog) -> AttributeResult<HashSet<String>> {
+pub fn get_activities(log: &EventLog) -> AttributeResult<HashSet<&String>> {
     log.traces
         .iter()
         .flat_map(|trace| trace.events.iter().map(get_activity_label))
-        .collect::<AttributeResult<HashSet<String>>>()
+        .collect()
 }
 
-pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
+pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<&String>> {
     if trace.events.is_empty() {
         return Ok(HashSet::new());
     }
@@ -246,7 +250,7 @@ pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
         .events
         .iter()
         .map(
-            |event| -> AttributeResult<(String, DateTime<FixedOffset>)> {
+            |event| -> AttributeResult<(&String, &DateTime<FixedOffset>)> {
                 let act = get_activity_label(event)?;
                 let complete = get_complete_timestamp(event)?;
                 Ok((act, complete))
@@ -269,7 +273,7 @@ pub fn get_start_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
         .collect())
 }
 
-pub fn get_end_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
+pub fn get_end_activities(trace: &Trace) -> AttributeResult<HashSet<&String>> {
     if trace.events.is_empty() {
         return Ok(HashSet::new());
     }
@@ -279,7 +283,7 @@ pub fn get_end_activities(trace: &Trace) -> AttributeResult<HashSet<String>> {
         .events
         .iter()
         .map(
-            |event| -> AttributeResult<(String, DateTime<FixedOffset>)> {
+            |event| -> AttributeResult<(&String, &DateTime<FixedOffset>)> {
                 let act = get_activity_label(event)?;
                 let complete = get_complete_timestamp(event)?;
                 Ok((act, complete))

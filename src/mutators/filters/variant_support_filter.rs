@@ -48,7 +48,7 @@ fn get_variant(trace: &Trace) -> MutationResult<Vec<String>> {
     trace
         .events
         .iter()
-        .map(get_activity_label)
+        .map(|evt| get_activity_label(evt).cloned())
         .collect::<AttributeResult<Vec<_>>>()
         .map_err(|e| MutationError::AttributeError("VariantSupportFilter", e))
 }

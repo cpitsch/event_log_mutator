@@ -79,7 +79,7 @@ mod tests {
         assert!(new_trace
             .events
             .iter()
-            .all(|evt| get_activity_label(evt).unwrap() == *"NEW_ACTIVITY"));
+            .all(|evt| get_activity_label(evt).unwrap() == "NEW_ACTIVITY"));
     }
 
     #[rstest]
