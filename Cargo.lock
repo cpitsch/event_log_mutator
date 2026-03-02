@@ -435,7 +435,7 @@ dependencies = [
 
 [[package]]
 name = "event_log_mutator"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "chrono",
  "clap",
