@@ -6,21 +6,18 @@ use crate::{
     utils::attributes::{get_complete_timestamp, set_start_timestamp},
 };
 
-/// Mutation to add service time information to an event log by assuming the timespan
-/// between two events completing to be the service time of the second event
-///
-/// This means that the complete timestamp of an event is used as the start timestamp
-/// of the following event
+/// Mutation to add sojourn time information to an event log by adding the start
+/// of the sojourn time (i.e., the completion time of the previous event).
 #[derive(Default, DirName)]
-pub struct PartialOrderCreator;
+pub struct SojournStartAdder;
 
-impl PartialOrderCreator {
+impl SojournStartAdder {
     pub fn new() -> Self {
         Self {}
     }
 }
 
-impl TraceMutator for PartialOrderCreator {
+impl TraceMutator for SojournStartAdder {
     fn apply_mut(&mut self, trace: &mut Trace) -> MutationResult<()> {
         let Some(evt) = trace.events.first_mut() else {
             // No events, so no work to do.

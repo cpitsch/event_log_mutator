@@ -10,7 +10,7 @@ use crate::{
     cli::{Args, CliError, CliResult},
     mutation::{LogMutator, MutationChain, MutationError},
     mutators::{
-        aux_mutators::LogSaver, filters::VariantSupportFilter, LogSampler, PartialOrderCreator,
+        aux_mutators::LogSaver, filters::VariantSupportFilter, LogSampler, SojournStartAdder,
     },
     utils::io::{ensure_correct_file_extension, IoError},
 };
@@ -49,7 +49,7 @@ impl Preset {
                 }
                 MutationChain::new().with_mutation(bootstrapper)
             }
-            Self::PartialOrder => MutationChain::new().with_mutation(PartialOrderCreator::new()),
+            Self::PartialOrder => MutationChain::new().with_mutation(SojournStartAdder::new()),
             Self::FilterVariantSupport { support } => {
                 MutationChain::new().with_mutation(VariantSupportFilter::new(support))
             }

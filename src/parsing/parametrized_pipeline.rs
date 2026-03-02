@@ -14,8 +14,8 @@ use crate::{
             VariantSupportFilter,
         },
         ActivityRemover, ActivityRenamer, AttributeRemover, AttributeRetainer,
-        ConstantActivityMutator, EventSwapper, LogSampler, LogSplitter, PartialOrderCreator,
-        ServiceTimeMultiplier, ServiceTimeStdShifter,
+        ConstantActivityMutator, EventSwapper, LogSampler, LogSplitter, ServiceTimeMultiplier,
+        ServiceTimeStdShifter, SojournStartAdder,
     },
     parsing::{
         custom_serde::deserialize_u64_vec_or_range_option,
@@ -358,7 +358,7 @@ impl ParametrizedPipelineConfig<Flat> {
                 }
                 Box::new(mutator)
             }
-            ParametrizedMutationConfig::PartialOrderCreator => Box::new(PartialOrderCreator::new()),
+            ParametrizedMutationConfig::SojournStartAdder => Box::new(SojournStartAdder::new()),
             ParametrizedMutationConfig::AttributeRemover { key } => {
                 Box::new(AttributeRemover::new(key.inner_value()))
             }
