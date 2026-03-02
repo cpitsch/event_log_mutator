@@ -8,6 +8,8 @@ use crate::{
 };
 
 /// Replace the activity label of all events with a constant one.
+///
+/// Optionally, this can be configured with a probability of applying the mutation per event.
 #[derive(DirName)]
 pub struct ConstantActivityMutator {
     /// The activity label to use.

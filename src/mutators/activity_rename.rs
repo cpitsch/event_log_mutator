@@ -7,9 +7,13 @@ use crate::{
     utils::attributes::{get_activity_label, set_activity_label},
 };
 
+/// Mutator to rename the activity events with the given activity label.
+///
+/// Optionally, this can be configured with a probability of applying the mutation per event.
 #[derive(DirName)]
 pub struct ActivityRenamer {
     /// The activity to rename. This modifier will only effect events with this label.
+    // TODO: This _could_ be an option instead, applying it for all if None
     #[dirname(rename = "from")]
     activity: String,
     /// The new activity label.

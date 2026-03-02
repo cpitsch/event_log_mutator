@@ -8,6 +8,8 @@ use crate::{
 };
 
 /// Mutator to remove events that have the given activity label.
+///
+/// Optionally, this can be configured with a probability of applying the mutation per event.
 #[derive(DirName)]
 pub struct ActivityRemover {
     /// The activity label to remove.
