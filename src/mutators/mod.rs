@@ -1,5 +1,5 @@
 pub mod activity_remover;
-pub mod activity_rename;
+pub mod activity_renamer;
 pub mod attribute_remover;
 pub mod attribute_retainer;
 pub mod constant_activity;
@@ -18,7 +18,7 @@ use itertools::Itertools;
 use std::{fmt::Display, ops::Deref};
 
 pub use activity_remover::ActivityRemover;
-pub use activity_rename::ActivityRenamer;
+pub use activity_renamer::ActivityRenamer;
 pub use attribute_remover::AttributeRemover;
 pub use attribute_retainer::AttributeRetainer;
 pub use constant_activity::ConstantActivityMutator;
