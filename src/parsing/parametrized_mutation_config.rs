@@ -112,7 +112,9 @@ pub enum ParametrizedMutationConfig {
     // WARN: PartialOrderCreator is the deprecated name for LogSampler and may be
     // deleted at any time
     #[serde(alias = "PartialOrderCreator")]
-    SojournStartAdder,
+    SojournStartAdder {
+        key: Option<MutationValue<String>>,
+    },
     AttributeRemover {
         key: MutationValue<String>,
     },

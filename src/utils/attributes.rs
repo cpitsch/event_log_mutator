@@ -171,7 +171,7 @@ pub fn get_service_time(event: &Event) -> AttributeResult<chrono::TimeDelta> {
     Ok(*end - start)
 }
 
-pub fn set_trace_attribute_by_key(trace: &mut Trace, key: &'static str, value: AttributeValue) {
+pub fn set_trace_attribute_by_key(trace: &mut Trace, key: &str, value: AttributeValue) {
     if let Some(attr) = trace.attributes.get_by_key_mut(key) {
         attr.value = value;
     } else {
@@ -179,7 +179,7 @@ pub fn set_trace_attribute_by_key(trace: &mut Trace, key: &'static str, value: A
     }
 }
 
-pub fn set_event_attribute_by_key(event: &mut Event, key: &'static str, value: AttributeValue) {
+pub fn set_event_attribute_by_key(event: &mut Event, key: &str, value: AttributeValue) {
     if let Some(attr) = event.attributes.get_by_key_mut(key) {
         attr.value = value;
     } else {

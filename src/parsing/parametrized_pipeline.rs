@@ -358,7 +358,13 @@ impl ParametrizedPipelineConfig<Flat> {
                 }
                 Box::new(mutator)
             }
-            ParametrizedMutationConfig::SojournStartAdder => Box::new(SojournStartAdder::new()),
+            ParametrizedMutationConfig::SojournStartAdder { key } => {
+                let mut mutator = SojournStartAdder::new();
+                if let Some(k) = key {
+                    mutator = mutator.with_key(k.inner_value());
+                }
+                Box::new(mutator)
+            }
             ParametrizedMutationConfig::AttributeRemover { key } => {
                 Box::new(AttributeRemover::new(key.inner_value()))
             }
