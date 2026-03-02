@@ -14,7 +14,7 @@ use crate::{
             VariantSupportFilter,
         },
         ActivityRemover, ActivityRenamer, AttributeRemover, AttributeRetainer,
-        ConstantActivityMutator, EventSwapper, LogBootstrapper, LogSplitter, PartialOrderCreator,
+        ConstantActivityMutator, EventSwapper, LogSampler, LogSplitter, PartialOrderCreator,
         ServiceTimeMultiplier, ServiceTimeStdShifter,
     },
     parsing::{
@@ -346,13 +346,13 @@ impl ParametrizedPipelineConfig<Flat> {
 
                 Box::new(mutator)
             }
-            ParametrizedMutationConfig::LogBootstrapper {
+            ParametrizedMutationConfig::LogSampler {
                 size,
                 replacement,
                 seed,
             } => {
-                let mut mutator = LogBootstrapper::new(size.inner_value())
-                    .with_replacement(replacement.inner_value());
+                let mut mutator =
+                    LogSampler::new(size.inner_value()).with_replacement(replacement.inner_value());
                 if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
                     mutator = mutator.with_seed(s);
                 }

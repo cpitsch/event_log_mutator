@@ -99,7 +99,8 @@ pub enum ParametrizedMutationConfig {
         #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
-    LogBootstrapper {
+    #[serde(alias = "LogBootstrapper")]
+    LogSampler {
         size: MutationValue<usize>,
         #[serde(default = "default_log_bootstrapper_replacement_value")]
         replacement: MutationValue<bool>,

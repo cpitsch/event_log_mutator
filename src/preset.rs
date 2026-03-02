@@ -10,7 +10,7 @@ use crate::{
     cli::{Args, CliError, CliResult},
     mutation::{LogMutator, MutationChain, MutationError},
     mutators::{
-        aux_mutators::LogSaver, filters::VariantSupportFilter, LogBootstrapper, PartialOrderCreator,
+        aux_mutators::LogSaver, filters::VariantSupportFilter, LogSampler, PartialOrderCreator,
     },
     utils::io::{ensure_correct_file_extension, IoError},
 };
@@ -42,7 +42,7 @@ impl Preset {
                 size,
                 no_replacement,
             } => {
-                let mut bootstrapper = LogBootstrapper::new(size.unwrap_or(log.traces.len()))
+                let mut bootstrapper = LogSampler::new(size.unwrap_or(log.traces.len()))
                     .with_replacement(!no_replacement);
                 if let Some(seed) = seed {
                     bootstrapper = bootstrapper.with_seed(seed);

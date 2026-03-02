@@ -10,7 +10,7 @@ use crate::{
 /// Mutator to create a new log by randomly sampling cases with replacement.
 /// The sampled cases are assigned unique case ids ("0" ... "`size`").
 #[derive(DirName)]
-pub struct LogBootstrapper {
+pub struct LogSampler {
     /// The number of cases to sample.
     #[dirname(rename = "")]
     size: usize,
@@ -23,7 +23,7 @@ pub struct LogBootstrapper {
     rng: StdRng,
 }
 
-impl LogBootstrapper {
+impl LogSampler {
     pub fn new(size: usize) -> Self {
         Self {
             size,
@@ -40,7 +40,7 @@ impl LogBootstrapper {
     }
 }
 
-impl LogMutator for LogBootstrapper {
+impl LogMutator for LogSampler {
     fn apply_mut(&mut self, log: &mut EventLog) -> MutationResult<()> {
         if self.replacement {
             sample_log_with_replacement_mut(&mut self.rng, log, self.size)?;
@@ -51,7 +51,7 @@ impl LogMutator for LogBootstrapper {
     }
 }
 
-impl LogBootstrapper {
+impl LogSampler {
     pub fn with_replacement(mut self, replacement: bool) -> Self {
         self.replacement = replacement;
         self
@@ -73,13 +73,13 @@ mod tests {
         utils::attributes::{get_string_by_key, get_traceid, get_traceids},
     };
 
-    use super::LogBootstrapper;
+    use super::LogSampler;
     use rstest::rstest;
 
     #[rstest]
     #[should_panic]
     fn sample_without_replacement_fails_with_large_size(abcd_log: EventLog) {
-        LogBootstrapper::new(5)
+        LogSampler::new(5)
             .with_replacement(false)
             .apply(&abcd_log)
             .unwrap();
@@ -91,7 +91,7 @@ mod tests {
         //
         // Do it a couple of times to make (more) sure that we aren't getting lucky
         for _ in 1..10 {
-            let mutated_log = LogBootstrapper::new(4)
+            let mutated_log = LogSampler::new(4)
                 .with_replacement(false)
                 .apply(&abcd_log)
                 .unwrap();
@@ -107,7 +107,7 @@ mod tests {
 
         // Test that sampling multiple times yields different results.
         for _ in 1..10 {
-            let mutated_log = LogBootstrapper::new(1)
+            let mutated_log = LogSampler::new(1)
                 .with_replacement(false)
                 .apply(&abcd_log)
                 .unwrap();
@@ -129,7 +129,7 @@ mod tests {
         });
 
         // Don't explicitly specify the
-        let mutated_log = LogBootstrapper::new(1000)
+        let mutated_log = LogSampler::new(1000)
             .with_replacement(true)
             .apply(&abcd_log)
             .unwrap();
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn default_is_with_replacement() {
-        let mutator = LogBootstrapper::new(10);
+        let mutator = LogSampler::new(10);
         assert!(mutator.replacement);
     }
 
@@ -163,12 +163,12 @@ mod tests {
             });
         });
 
-        let new_log_1 = LogBootstrapper::new(1000)
+        let new_log_1 = LogSampler::new(1000)
             .with_replacement(true)
             .with_seed(42)
             .apply(&abcd_log)
             .unwrap();
-        let new_log_2 = LogBootstrapper::new(1000)
+        let new_log_2 = LogSampler::new(1000)
             .with_replacement(true)
             .with_seed(42)
             .apply(&abcd_log)
