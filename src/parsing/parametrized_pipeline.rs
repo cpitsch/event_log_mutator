@@ -97,7 +97,7 @@ impl ParametrizedPipelineConfig<NotFlat> {
 ///
 /// * `pipelines` - The pipelines to convert
 /// * `outpoot_root` - The root directory where to save (or find, for validation)
-///     the finished Event Logs.
+///   the finished Event Logs.
 /// * `log_action` - What to do with the mutated event log.
 pub fn flattened_pipeline_configs_to_mutation_chains(
     pipelines: Vec<ParametrizedPipelineConfig<Flat>>,
@@ -146,7 +146,7 @@ impl ParametrizedPipelineConfig<Flat> {
                     // No log savers in the pipeline, so log.xes is a unique name
                     "log".into()
                 } else {
-                    format!("log_{}", log_saver_index)
+                    format!("log_{log_saver_index}")
                 };
                 // Add an auxilliary mutation which saves the event log
                 mutations.push(Box::new(LogSaver::new(
@@ -159,7 +159,7 @@ impl ParametrizedPipelineConfig<Flat> {
                     // No log savers in the pipeline, so log.xes is a unique name
                     "log".into()
                 } else {
-                    format!("log_{}", log_saver_index)
+                    format!("log_{log_saver_index}")
                 };
                 // Add an auxilliary mutation which validates the event log
                 mutations.push(Box::new(LogValidator::new(build_file_path(
@@ -314,7 +314,7 @@ impl ParametrizedPipelineConfig<Flat> {
                             let is_compressed = p.extension().unwrap() == "gz";
                             mutator = mutator.with_save_discarded_log(p, is_compressed);
                         } else {
-                            let log_name = format!("log_{}", log_saver_index);
+                            let log_name = format!("log_{log_saver_index}");
                             let mut path_with_mutator = path_so_far;
                             let save_compressed =
                                 save_compressed.map_or(*compress, MutationValue::inner_value);
@@ -330,7 +330,7 @@ impl ParametrizedPipelineConfig<Flat> {
                         if let Some(p) = save_path {
                             mutator = mutator.with_validate_discarded_log(p);
                         } else {
-                            let log_name = format!("log_{}", log_saver_index);
+                            let log_name = format!("log_{log_saver_index}");
                             let mut path_with_mutator = path_so_far;
                             let save_compressed =
                                 save_compressed.map_or(*compress, MutationValue::inner_value);

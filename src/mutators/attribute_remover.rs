@@ -4,7 +4,7 @@ use crate::{
 };
 use process_mining::event_log::Event;
 
-/// A Mutation to remove an attribute key from all events.
+/// A mutation to remove an attribute key from all events.
 #[derive(DirName)]
 pub struct AttributeRemover {
     /// The key to remove

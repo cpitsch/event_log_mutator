@@ -8,6 +8,8 @@ use crate::{
 };
 
 /// Mutator to remove events that have the given activity label.
+///
+/// Optionally, this can be configured with a probability of applying the mutation per event.
 #[derive(DirName)]
 pub struct ActivityRemover {
     /// The activity label to remove.
@@ -37,7 +39,7 @@ impl ActivityRemover {
     fn should_remove(&mut self, event: &Event) -> MutationResult<bool> {
         let activity = get_activity_label(event)
             .map_err(|e| MutationError::AttributeError("ActivityRemover", e))?;
-        Ok(activity == self.activity && self.rng.gen::<f32>() < self.probability)
+        Ok(*activity == self.activity && self.rng.gen::<f32>() < self.probability)
     }
 
     pub fn with_probability(mut self, probability: f32) -> Self {
@@ -87,7 +89,7 @@ mod tests {
         assert_eq!(all_activities.len(), 3);
 
         // This activity is not contained
-        assert!(!all_activities.contains(&activity));
+        assert!(!all_activities.contains(&&activity));
     }
 
     #[rstest]

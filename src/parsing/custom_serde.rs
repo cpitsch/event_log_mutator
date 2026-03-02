@@ -40,7 +40,7 @@ where
     match TheValue::deserialize(deserializer)? {
         TheValue::MutationValue(mutation_value) => Ok(mutation_value),
         TheValue::RangeExpression(expr) => Ok(MutationValue::Vec(parse_u64_range(expr).map_err(
-            |msg| serde::de::Error::custom(format!("Invalid format for range expression{}", msg)),
+            |msg| serde::de::Error::custom(format!("Invalid format for range expression {msg}")),
         )?)),
     }
 }

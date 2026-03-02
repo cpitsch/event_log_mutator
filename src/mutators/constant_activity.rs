@@ -8,6 +8,8 @@ use crate::{
 };
 
 /// Replace the activity label of all events with a constant one.
+///
+/// Optionally, this can be configured with a probability of applying the mutation per event.
 #[derive(DirName)]
 pub struct ConstantActivityMutator {
     /// The activity label to use.
@@ -79,7 +81,7 @@ mod tests {
         assert!(new_trace
             .events
             .iter()
-            .all(|evt| get_activity_label(evt).unwrap() == *"NEW_ACTIVITY"));
+            .all(|evt| get_activity_label(evt).unwrap() == "NEW_ACTIVITY"));
     }
 
     #[rstest]
