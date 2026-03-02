@@ -1,4 +1,4 @@
-use process_mining::event_log::{AttributeValue, Event};
+use process_mining::core::event_data::case_centric::{AttributeValue, Event};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{
@@ -69,7 +69,7 @@ mod tests {
         test_fixtures::{abcd_trace, get_control_flow},
         utils::attributes::get_activity_label,
     };
-    use process_mining::event_log::Trace;
+    use process_mining::core::event_data::case_centric::Trace;
     use rstest::rstest;
 
     #[rstest]

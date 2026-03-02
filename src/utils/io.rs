@@ -4,7 +4,7 @@ use std::{
 };
 
 use log::{info, warn};
-use process_mining::{event_log::export_xes::export_xes_event_log_to_file, EventLog};
+use process_mining::core::event_data::case_centric::{xes::export_xes_event_log_to_file, EventLog};
 use thiserror::Error;
 
 #[derive(Error, Debug)]

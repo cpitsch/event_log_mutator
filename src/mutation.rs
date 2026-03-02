@@ -1,5 +1,5 @@
 use process_mining::{
-    event_log::{import_xes::XESParseError, Event, Trace},
+    core::event_data::case_centric::{xes::XESParseError, Event, Trace},
     EventLog,
 };
 use thiserror::Error;

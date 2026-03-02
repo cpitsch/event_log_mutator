@@ -1,4 +1,4 @@
-use process_mining::event_log::{AttributeValue, Trace};
+use process_mining::core::event_data::case_centric::{AttributeValue, Trace};
 
 use crate::{
     mutation::{MutationError, MutationResult, TraceMutator},
@@ -60,7 +60,7 @@ mod tests {
     use crate::utils::attributes::get_time_by_key;
 
     use super::*;
-    use process_mining_macros::trace;
+    use process_mining::trace;
     use rstest::rstest;
 
     #[rstest]
@@ -72,7 +72,7 @@ mod tests {
             mutator = mutator.with_key(k);
         }
 
-        let trace = trace!(a, b, c, d; base_timestamp = EPOCH);
+        let trace = trace!("a", "b", "c", "d");
         let mutated = mutator.apply(&trace).unwrap();
         let timestamps = trace
             .events

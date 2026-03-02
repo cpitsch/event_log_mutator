@@ -1,4 +1,4 @@
-use process_mining::{event_log::Trace, EventLog};
+use process_mining::core::event_data::case_centric::{EventLog, Trace};
 
 use crate::{
     mutation::{LogMutator, MutationError, MutationResult},
@@ -80,8 +80,7 @@ impl LogMutator for FollowerFilter {
 mod tests {
     use super::*;
     use crate::test_fixtures::abcd_trace;
-    use process_mining::event_log::Trace;
-    use process_mining_macros::{event_log, trace};
+    use process_mining::{core::event_data::case_centric::Trace, event_log, trace};
     use rstest::rstest;
 
     #[rstest]
@@ -128,13 +127,13 @@ mod tests {
         let mut filter =
             FollowerFilter::new(vec!["x".to_string()], vec!["y".to_string()]).with_range(range);
         let log = event_log!(
-            [x, y],             // Range 1 (1 step)
-            [x, a, y],          // Range 2
-            [x, a, b, y],       // Range 3
-            [x, a, b, c, y],    // Range 4
-            [x, a, b, c, d, y], // Range 5
-            [x, a, b, c, d],
-            [a, b, c, d, y]
+            ["x", "y"],                     // Range 1 (1 step)
+            ["x", "a", "y"],                // Range 2
+            ["x", "a", "b", "y"],           // Range 3
+            ["x", "a", "b", "c", "y"],      // Range 4
+            ["x", "a", "b", "c", "d", "y"], // Range 5
+            ["x", "a", "b", "c", "d"],
+            ["a", "b", "c", "d", "y"]
         );
 
         assert_eq!(expected, filter.apply(&log).unwrap().traces.len())
@@ -146,11 +145,11 @@ mod tests {
     fn irreflexive() {
         let filter =
             FollowerFilter::new(vec!["a".to_string()], vec!["a".to_string()]).with_range(0);
-        assert!(!filter.keep_trace(&trace!(a, b, c, d)).unwrap());
+        assert!(!filter.keep_trace(&trace!("a", "b", "c", "d")).unwrap());
 
         // But: Identically labelled events _do_ count
         let filter =
             FollowerFilter::new(vec!["a".to_string()], vec!["a".to_string()]).with_range(2);
-        assert!(filter.keep_trace(&trace!(a, b, a, d)).unwrap());
+        assert!(filter.keep_trace(&trace!("a", "b", "a", "d")).unwrap());
     }
 }

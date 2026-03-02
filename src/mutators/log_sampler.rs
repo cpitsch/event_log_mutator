@@ -62,10 +62,7 @@ impl LogSampler {
 mod tests {
     use std::collections::HashSet;
 
-    use process_mining::{
-        event_log::{Attribute, AttributeValue},
-        EventLog,
-    };
+    use process_mining::core::event_data::case_centric::{Attribute, AttributeValue, EventLog};
 
     use crate::{
         mutation::LogMutator,

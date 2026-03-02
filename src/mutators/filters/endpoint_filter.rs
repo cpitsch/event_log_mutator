@@ -1,4 +1,4 @@
-use process_mining::{event_log::Trace, EventLog};
+use process_mining::core::event_data::case_centric::{EventLog, Trace};
 
 use crate::{
     mutation::{LogMutator, MutationError, MutationResult},
@@ -75,14 +75,19 @@ impl LogMutator for EndpointFilter {
 
 #[cfg(test)]
 mod test {
-    use process_mining_macros::event_log;
+    use process_mining::event_log;
 
     use super::*;
 
     #[test]
     fn starts_with() {
         let mut filter = EndpointFilter::new(Some(vec!["a".to_string()]), None::<Vec<String>>);
-        let log = event_log!([a, b, c, d], [b, c, d, a], [c, d, a, b], [d, a, b, c]);
+        let log = event_log!(
+            ["a", "b", "c", "d"],
+            ["b", "c", "d", "a"],
+            ["c", "d", "a", "b"],
+            ["d", "a", "b", "c"]
+        );
 
         assert_eq!(1, filter.apply(&log).unwrap().traces.len());
     }
@@ -90,7 +95,12 @@ mod test {
     #[test]
     fn ends_with() {
         let mut filter = EndpointFilter::new(None::<Vec<String>>, Some(vec!["d".to_string()]));
-        let log = event_log!([a, b, c, d], [b, c, d, a], [c, d, a, b], [d, a, b, c]);
+        let log = event_log!(
+            ["a", "b", "c", "d"],
+            ["b", "c", "d", "a"],
+            ["c", "d", "a", "b"],
+            ["d", "a", "b", "c"]
+        );
 
         assert_eq!(1, filter.apply(&log).unwrap().traces.len());
     }

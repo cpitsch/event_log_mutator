@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use process_mining::{event_log::Trace, EventLog};
+use process_mining::core::event_data::case_centric::{EventLog, Trace};
 
 use crate::{
     mutation::{LogMutator, MutationError, MutationResult},
@@ -55,36 +55,35 @@ fn get_variant(trace: &Trace) -> MutationResult<Vec<String>> {
 
 #[cfg(test)]
 mod tests {
-    use process_mining_macros::event_log;
-
     use super::*;
+    use process_mining::event_log;
 
     #[test]
     fn filter_at_least() {
         let mut filter = VariantSupportFilter::new(3usize);
         let log = event_log!(
             // abcd 2 times
-            [a, b, c, d],
-            [a, b, c, d],
+            ["a", "b", "c", "d"],
+            ["a", "b", "c", "d"],
             // acbd 3 times
-            [a, c, b, d],
-            [a, c, b, d],
-            [a, c, b, d],
+            ["a", "c", "b", "d"],
+            ["a", "c", "b", "d"],
+            ["a", "c", "b", "d"],
             // ac 4 times
-            [a, c],
-            [a, c],
-            [a, c],
-            [a, c],
+            ["a", "c"],
+            ["a", "c"],
+            ["a", "c"],
+            ["a", "c"],
         );
         assert_eq!(
             event_log!(
-                [a, c, b, d],
-                [a, c, b, d],
-                [a, c, b, d],
-                [a, c],
-                [a, c],
-                [a, c],
-                [a, c],
+                ["a", "c", "b", "d"] { "concept:name" => 2 },
+                ["a", "c", "b", "d"] { "concept:name" => 3 },
+                ["a", "c", "b", "d"] { "concept:name" => 4 },
+                ["a", "c"] { "concept:name" => 5 },
+                ["a", "c"] { "concept:name" => 6 },
+                ["a", "c"] { "concept:name" => 7 },
+                ["a", "c"] { "concept:name" => 8 },
             ),
             filter.apply(&log).unwrap()
         );

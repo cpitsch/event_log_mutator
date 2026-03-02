@@ -1,5 +1,7 @@
 use chrono::{DateTime, FixedOffset, TimeDelta, TimeZone, Utc};
-use process_mining::event_log::{Attribute, AttributeValue, Event, EventLog, Trace};
+use process_mining::core::event_data::case_centric::{
+    Attribute, AttributeValue, Event, EventLog, Trace,
+};
 use rstest::fixture;
 
 use crate::utils::attributes::get_activity_label;

@@ -4,10 +4,7 @@ use regex::Regex;
 use serde::Deserialize;
 use std::fmt::Display;
 
-use process_mining::{
-    event_log::{Event, Trace},
-    EventLog,
-};
+use process_mining::core::event_data::case_centric::{Event, EventLog, Trace};
 
 use crate::{
     mutation::{LogMutator, MutationError, MutationResult},
@@ -268,7 +265,7 @@ impl LogMutator for AttributeFilter {
 
 #[cfg(test)]
 mod tests {
-    use process_mining_macros::event_log;
+    use process_mining::event_log;
 
     use super::*;
 
@@ -315,13 +312,13 @@ mod tests {
                     "manager inspection",
                     "manager rejection",
                     "cancel purchase order"
-                ],
+                ] { "concept:name" => 0 },
                 [
                     "create purchase order",
                     "standard inspection",
                     "standard rejection",
                     "submit purchase order"
-                ],
+                ] { "concept:name" => 3 },
             ),
             filter.apply(&log).unwrap()
         );
@@ -340,13 +337,13 @@ mod tests {
                     "manager inspection",
                     "manager approval",
                     "submit purchase order"
-                ],
+                ] { "concept:name" => 1 },
                 [
                     "create purchase order",
                     "standard inspection",
                     "standard approval",
                     "submit purchase order"
-                ],
+                ] { "concept:name" => 2 },
             ),
             filter.apply(&log).unwrap()
         );

@@ -2,9 +2,8 @@ use std::collections::HashSet;
 
 use chrono::{DateTime, FixedOffset, TimeDelta};
 
-use process_mining::{
-    event_log::{AttributeValue, Attributes, Event, Trace, XESEditableAttribute},
-    EventLog,
+use process_mining::core::event_data::case_centric::{
+    AttributeValue, Attributes, Event, EventLog, Trace, XESEditableAttribute,
 };
 use thiserror::Error;
 

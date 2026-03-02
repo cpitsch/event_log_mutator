@@ -1,4 +1,4 @@
-use process_mining::event_log::{AttributeValue, Event, Trace};
+use process_mining::core::event_data::case_centric::{AttributeValue, Event, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{

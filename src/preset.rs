@@ -4,7 +4,10 @@ use std::{
 };
 
 use clap::Subcommand;
-use process_mining::{import_xes_file, EventLog, XESImportOptions};
+use process_mining::core::event_data::case_centric::{
+    xes::{import_xes_path, XESImportOptions},
+    EventLog,
+};
 
 use crate::{
     cli::{Args, CliError, CliResult},
@@ -76,7 +79,7 @@ impl Preset {
         }
 
         if input.is_file() {
-            let mut log = import_xes_file(input, XESImportOptions::default())?;
+            let mut log = import_xes_path(input, XESImportOptions::default())?;
             self.into_mutation_chain(&log, args.seed)
                 .with_mutation(LogSaver::new(output, should_compress))
                 .apply_mut(&mut log)?;
