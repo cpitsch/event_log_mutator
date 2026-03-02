@@ -54,3 +54,43 @@ impl TraceMutator for SojournStartAdder {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::utils::attributes::get_time_by_key;
+
+    use super::*;
+    use process_mining_macros::trace;
+    use rstest::rstest;
+
+    #[rstest]
+    #[case::custom_key(Some("my_key"))]
+    #[case::default_key(None)]
+    fn simple_test(#[case] key: Option<&str>) {
+        let mut mutator = SojournStartAdder::new();
+        if let Some(k) = key {
+            mutator = mutator.with_key(k);
+        }
+
+        let trace = trace!(a, b, c, d; base_timestamp = EPOCH);
+        let mutated = mutator.apply(&trace).unwrap();
+        let timestamps = trace
+            .events
+            .iter()
+            .map(|evt| *get_complete_timestamp(evt).unwrap());
+
+        let sojourn_starts = mutated
+            .events
+            .iter()
+            .map(|evt| *get_time_by_key(evt, key.unwrap_or("sojourn_start")).unwrap());
+
+        std::iter::once(chrono::DateTime::UNIX_EPOCH.fixed_offset()) // First event has no
+            // previous, so sojourn start
+            // is its own timestamp
+            .chain(timestamps)
+            .zip(sojourn_starts)
+            .for_each(|(expected_sojourn_start, sojourn_start)| {
+                assert_eq!(expected_sojourn_start, sojourn_start)
+            });
+    }
+}
