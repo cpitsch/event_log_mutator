@@ -2,7 +2,7 @@ use crate::{
     mutation::{EventMutator, MutationResult},
     parsing::traits::DirName,
 };
-use process_mining::event_log::Event;
+use process_mining::core::event_data::case_centric::Event;
 
 /// A mutation to remove an attribute key from all events.
 #[derive(DirName)]
@@ -32,7 +32,7 @@ mod tests {
     use super::AttributeRemover;
     use crate::mutation::TraceMutator;
     use crate::test_fixtures::abcd_trace;
-    use process_mining::event_log::Trace;
+    use process_mining::core::event_data::case_centric::Trace;
     use rstest::rstest;
 
     #[rstest]

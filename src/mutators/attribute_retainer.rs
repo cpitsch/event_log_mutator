@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use process_mining::event_log::Event;
+use process_mining::core::event_data::case_centric::Event;
 
 use crate::mutation::{EventMutator, MutationResult};
 use crate::parsing::traits::DirName;

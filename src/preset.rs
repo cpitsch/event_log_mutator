@@ -4,13 +4,16 @@ use std::{
 };
 
 use clap::Subcommand;
-use process_mining::{import_xes_file, EventLog, XESImportOptions};
+use process_mining::core::event_data::case_centric::{
+    xes::{import_xes_path, XESImportOptions},
+    EventLog,
+};
 
 use crate::{
     cli::{Args, CliError, CliResult},
     mutation::{LogMutator, MutationChain, MutationError},
     mutators::{
-        aux_mutators::LogSaver, filters::VariantSupportFilter, LogBootstrapper, PartialOrderCreator,
+        aux_mutators::LogSaver, filters::VariantSupportFilter, LogSampler, SojournStartAdder,
     },
     utils::io::{ensure_correct_file_extension, IoError},
 };
@@ -42,14 +45,14 @@ impl Preset {
                 size,
                 no_replacement,
             } => {
-                let mut bootstrapper = LogBootstrapper::new(size.unwrap_or(log.traces.len()))
+                let mut bootstrapper = LogSampler::new(size.unwrap_or(log.traces.len()))
                     .with_replacement(!no_replacement);
                 if let Some(seed) = seed {
                     bootstrapper = bootstrapper.with_seed(seed);
                 }
                 MutationChain::new().with_mutation(bootstrapper)
             }
-            Self::PartialOrder => MutationChain::new().with_mutation(PartialOrderCreator::new()),
+            Self::PartialOrder => MutationChain::new().with_mutation(SojournStartAdder::new()),
             Self::FilterVariantSupport { support } => {
                 MutationChain::new().with_mutation(VariantSupportFilter::new(support))
             }
@@ -76,7 +79,7 @@ impl Preset {
         }
 
         if input.is_file() {
-            let mut log = import_xes_file(input, XESImportOptions::default())?;
+            let mut log = import_xes_path(input, XESImportOptions::default())?;
             self.into_mutation_chain(&log, args.seed)
                 .with_mutation(LogSaver::new(output, should_compress))
                 .apply_mut(&mut log)?;

@@ -1,10 +1,7 @@
 use std::collections::HashMap;
 
 use chrono::{SubsecRound, TimeDelta};
-use process_mining::{
-    event_log::{AttributeValue, Event, Trace},
-    EventLog,
-};
+use process_mining::core::event_data::case_centric::{AttributeValue, Event, EventLog, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{

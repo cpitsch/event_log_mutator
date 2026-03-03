@@ -14,8 +14,8 @@ use crate::{
             VariantSupportFilter,
         },
         ActivityRemover, ActivityRenamer, AttributeRemover, AttributeRetainer,
-        ConstantActivityMutator, EventSwapper, LogBootstrapper, LogSplitter, PartialOrderCreator,
-        ServiceTimeMultiplier, ServiceTimeStdShifter,
+        ConstantActivityMutator, EventSwapper, LogSampler, LogSplitter, ServiceTimeMultiplier,
+        ServiceTimeStdShifter, SojournStartAdder,
     },
     parsing::{
         custom_serde::deserialize_u64_vec_or_range_option,
@@ -346,19 +346,25 @@ impl ParametrizedPipelineConfig<Flat> {
 
                 Box::new(mutator)
             }
-            ParametrizedMutationConfig::LogBootstrapper {
+            ParametrizedMutationConfig::LogSampler {
                 size,
                 replacement,
                 seed,
             } => {
-                let mut mutator = LogBootstrapper::new(size.inner_value())
-                    .with_replacement(replacement.inner_value());
+                let mut mutator =
+                    LogSampler::new(size.inner_value()).with_replacement(replacement.inner_value());
                 if let Some(s) = seed.map(|s| s.inner_value()).or(root_seed) {
                     mutator = mutator.with_seed(s);
                 }
                 Box::new(mutator)
             }
-            ParametrizedMutationConfig::PartialOrderCreator => Box::new(PartialOrderCreator::new()),
+            ParametrizedMutationConfig::SojournStartAdder { key } => {
+                let mut mutator = SojournStartAdder::new();
+                if let Some(k) = key {
+                    mutator = mutator.with_key(k.inner_value());
+                }
+                Box::new(mutator)
+            }
             ParametrizedMutationConfig::AttributeRemover { key } => {
                 Box::new(AttributeRemover::new(key.inner_value()))
             }

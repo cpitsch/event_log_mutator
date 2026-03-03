@@ -2,7 +2,10 @@ use std::path::PathBuf;
 
 use colored::Colorize;
 use log::{info, warn};
-use process_mining::{import_xes_file, EventLog, XESImportOptions};
+use process_mining::core::event_data::case_centric::{
+    xes::{import_xes_path, XESImportOptions},
+    EventLog,
+};
 
 use crate::{
     mutation::{LogMutator, MutationResult},
@@ -31,7 +34,7 @@ impl LogMutator for LogValidator {
         } else {
             let valid = event_logs_are_identical(
                 log,
-                &import_xes_file(&self.path, XESImportOptions::default())?,
+                &import_xes_path(&self.path, XESImportOptions::default())?,
             );
             if !valid {
                 warn!("Event Log mismatch: {}", self.path.to_string_lossy());

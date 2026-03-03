@@ -1,5 +1,5 @@
 use chrono::TimeDelta;
-use process_mining::{event_log::Trace, EventLog};
+use process_mining::core::event_data::case_centric::{EventLog, Trace};
 
 use crate::{
     mutation::{LogMutator, MutationError, MutationResult},

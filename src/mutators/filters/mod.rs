@@ -15,23 +15,18 @@ use serde::Deserialize;
 pub use trace_length_filter::TraceLengthFilter;
 pub use variant_support_filter::VariantSupportFilter;
 
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Deserialize, Debug, Default, Clone)]
 #[cfg_attr(test, derive(PartialEq))]
 pub enum ComparisonSense {
     #[serde(alias = "less", alias = "<")]
     Less,
+    #[default]
     #[serde(alias = "leq", alias = "<=")]
     LEQ,
     #[serde(alias = "geq", alias = ">=")]
     GEQ,
     #[serde(alias = "greater", alias = ">")]
     Greater,
-}
-
-impl Default for ComparisonSense {
-    fn default() -> Self {
-        Self::LEQ
-    }
 }
 
 impl ComparisonSense {

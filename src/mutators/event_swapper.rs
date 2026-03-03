@@ -1,5 +1,5 @@
 use itertools::Itertools;
-use process_mining::event_log::{AttributeValue, Trace};
+use process_mining::core::event_data::case_centric::{AttributeValue, Trace};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 use crate::{

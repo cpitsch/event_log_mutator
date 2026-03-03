@@ -99,14 +99,22 @@ pub enum ParametrizedMutationConfig {
         #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
-    LogBootstrapper {
+    // WARN: LogBootstrapper is the deprecated name for LogSampler and may be
+    // deleted at any time
+    #[serde(alias = "LogBootstrapper")]
+    LogSampler {
         size: MutationValue<usize>,
         #[serde(default = "default_log_bootstrapper_replacement_value")]
         replacement: MutationValue<bool>,
         #[serde(default, deserialize_with = "deserialize_u64_vec_or_range_option")]
         seed: Option<MutationValue<u64>>,
     },
-    PartialOrderCreator,
+    // WARN: PartialOrderCreator is the deprecated name for LogSampler and may be
+    // deleted at any time
+    #[serde(alias = "PartialOrderCreator")]
+    SojournStartAdder {
+        key: Option<MutationValue<String>>,
+    },
     AttributeRemover {
         key: MutationValue<String>,
     },

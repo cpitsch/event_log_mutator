@@ -4,7 +4,7 @@ use crate::preset::Preset;
 use crate::utils::io::IoError;
 use clap::Parser;
 use clap::{self, Subcommand};
-use process_mining::event_log::import_xes::XESParseError;
+use process_mining::core::event_data::case_centric::xes::XESParseError;
 use std::path::PathBuf;
 use thiserror::Error;
 

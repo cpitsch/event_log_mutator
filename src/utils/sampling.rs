@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use process_mining::{event_log::AttributeValue, EventLog};
+use process_mining::core::event_data::case_centric::{AttributeValue, EventLog};
 use rand::{rngs::StdRng, seq::SliceRandom};
 
 use crate::{
