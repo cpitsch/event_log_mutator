@@ -7,16 +7,16 @@
 To see the parameters a mutator takes, follow its respective link
 
 - [ActivityRemover](./src/mutators/activity_remover.rs#L10-L25)
-- [ActivityRenamer](./src/mutators/activity_rename.rs#L10-L27)
+- [ActivityRenamer](./src/mutators/activity_renamer.rs#L10-L27)
 - [AttributeRemover](./src/mutators/attribute_remover.rs#L7-L13)
 - [AttributeRetainer](./src/mutators/attribute_retainer.rs#L9-L15)
 - [ConstantActivity](./src/mutators/constant_activity.rs#L10-L25)
 - [EventSwapper](./src/mutators/event_swapper.rs#L14-L35)
-- [LogBootstrapper](./src/mutators/log_bootstrapper.rs#L10-L24)
+- [LogSampler](./src/mutators/log_sampler.rs#L10-L24)
 - [LogSplitter](./src/mutators/log_splitter.rs#L18-L26)
-- [PartialOrderCreator](./src/mutators/partial_order_creator.rs#L9-L15)
 - [ServiceTimeMultiplier](./src/mutators/service_time_multiplier.rs#L13-L32)
 - [ServiceTimeStdShifter](./src/mutators/service_time_std_shifter.rs#L19-L39)
+- [SojournStartAdder](./src/mutators/sojourn_start_adder.rs#L9-L14)
 
 ### Filters 
 - [AttributeFilter](./src/mutators/filters/attribute_value_filter.rs#L176-L184)
