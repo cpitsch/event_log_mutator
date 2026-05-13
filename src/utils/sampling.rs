@@ -121,16 +121,16 @@ pub fn split_log(
 
     let mut all_traces = log.traces.clone();
 
+    let log_2_size = log.traces.len() - size;
     // If log_1 is larger than half, shuffling "for" log_2 is less work.
     if size > log.traces.len() / 2 {
-        let complement_size = all_traces.len() - size;
-        all_traces.partial_shuffle(rng, complement_size);
-        log_2.traces = all_traces.split_off(complement_size);
-        log_1.traces = all_traces
+        all_traces.partial_shuffle(rng, log_2_size);
+        log_1.traces = all_traces.split_off(size);
+        log_2.traces = all_traces
     } else {
         all_traces.partial_shuffle(rng, size);
-        log_1.traces = all_traces.split_off(size);
-        log_2.traces = all_traces;
+        log_2.traces = all_traces.split_off(log_2_size);
+        log_1.traces = all_traces;
     }
 
     Ok((log_1, log_2))
