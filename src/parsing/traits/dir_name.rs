@@ -22,6 +22,9 @@ mod tests {
     struct TupleStruct(i32, bool);
 
     #[derive(DirName)]
+    struct TupleStructWithOption(Option<String>, bool);
+
+    #[derive(DirName)]
     struct StructWithIgnoreField {
         field_1: bool,
         field_2: f32,
@@ -69,6 +72,25 @@ mod tests {
         let test_instance = TupleStruct(1, true);
 
         assert_eq!(test_instance.to_dir_name(), "TupleStruct_1_true");
+    }
+
+    #[test]
+    fn for_tuple_struct_with_some_option() {
+        let test_instance = TupleStructWithOption(Some("TEST".to_string()), false);
+
+        assert_eq!(
+            test_instance.to_dir_name(),
+            "TupleStructWithOption_TEST_false"
+        );
+    }
+    #[test]
+    fn for_tuple_struct_with_none_option() {
+        let test_instance = TupleStructWithOption(None, false);
+
+        assert_eq!(
+            test_instance.to_dir_name(),
+            "TupleStructWithOption_None_false"
+        );
     }
 
     #[test]

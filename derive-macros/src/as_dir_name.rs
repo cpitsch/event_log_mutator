@@ -53,10 +53,9 @@ fn unnamed_field_to_quote(
     let index: syn::Index = index.into();
     if type_is_option(&field.ty) {
         quote::quote! {
-            if let Some(val) = self.#index {
-                format!("{}", self.#index)
-            } else {
-                "None".to_string()
+            match self.#index.as_ref() {
+                Some(val) => val.to_string(),
+                None => "None".to_string()
             }
         }
     // } else if type_is_bool(&field.ty) {
